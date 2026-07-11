@@ -457,11 +457,16 @@ class PlanController {
             totalRatioSum += ing.ratio;
             totalWeightSum += neededQtyG;
 
+            const isLacticBacteria = ing.name.includes('유산균');
+            const displayG = isLacticBacteria
+                ? Number(neededQtyG.toFixed(1)).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+                : Math.round(neededQtyG).toLocaleString();
+
             const row = document.createElement('tr');
             row.innerHTML = `
                 <td style="font-weight: 500;">${ing.name}</td>
                 <td style="text-align: right; font-family: var(--font-outfit);">${ing.ratio}%</td>
-                <td style="text-align: right; font-family: var(--font-outfit); font-weight: 600;">${Math.round(neededQtyG).toLocaleString()} g</td>
+                <td style="text-align: right; font-family: var(--font-outfit); font-weight: 600;">${displayG} g</td>
                 <td style="text-align: right; font-family: var(--font-outfit); color: var(--text-secondary); font-style: italic;">(${neededQtyKg.toFixed(2)} kg)</td>
             `;
             tbody.appendChild(row);
