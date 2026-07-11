@@ -435,9 +435,13 @@ class PlanController {
 
         document.getElementById('drawer-plan-name').innerText = plan.name;
         
-        // Total production weight in grams
+        // Total production weight in grams (Finished weight)
         const totalWeightG = plan.totalQty * product.weight;
         document.getElementById('drawer-total-weight').innerText = `${totalWeightG.toLocaleString()} g (${(totalWeightG/1000).toFixed(2)} kg)`;
+
+        // Total raw material input weight in grams (considering yield rate)
+        const totalInputWeightG = totalWeightG / (product.yield / 100);
+        document.getElementById('drawer-total-input-weight').innerText = `${Math.round(totalInputWeightG).toLocaleString()} g (${(totalInputWeightG/1000).toFixed(2)} kg)`;
 
         // Render ingredients double units
         const tbody = document.getElementById('recipe-drawer-table-body');
@@ -447,7 +451,7 @@ class PlanController {
         let totalWeightSum = 0;
 
         product.ingredients.forEach(ing => {
-            const neededQtyG = totalWeightG * (ing.ratio / 100);
+            const neededQtyG = totalInputWeightG * (ing.ratio / 100);
             const neededQtyKg = neededQtyG / 1000;
 
             totalRatioSum += ing.ratio;

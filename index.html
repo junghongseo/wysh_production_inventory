@@ -217,13 +217,17 @@
                         </div>
                     </div>
                     
-                    <div class="info-row" style="margin-bottom: 16px;">
+                    <div class="info-row" style="margin-bottom: 12px;">
                         <span class="label">차수계획명</span>
                         <span class="value" id="drawer-plan-name" style="font-weight:600;">-</span>
                     </div>
-                    <div class="info-row" style="margin-bottom: 20px;">
+                    <div class="info-row" style="margin-bottom: 12px;">
                         <span class="label">총 생산 중량(g)</span>
-                        <span class="value highlight" id="drawer-total-weight" style="color:var(--color-primary); font-size: 1rem;">-</span>
+                        <span class="value" id="drawer-total-weight" style="font-weight:600;">-</span>
+                    </div>
+                    <div class="info-row" style="margin-bottom: 20px;">
+                        <span class="label">총 원재료 투입량(g)</span>
+                        <span class="value highlight" id="drawer-total-input-weight" style="color:var(--color-primary); font-size: 1rem;">-</span>
                     </div>
 
                     <!-- Print / PDF Action Button -->
@@ -240,8 +244,8 @@
                                 <tr>
                                     <th>원재료명</th>
                                     <th style="text-align: right;">함량(%)</th>
-                                    <th style="text-align: right;">필요 수량(g)</th>
-                                    <th style="text-align: right;">참고 수량(kg)</th>
+                                    <th style="text-align: right;">필요량(g)</th>
+                                    <th style="text-align: right;">참고량(kg)</th>
                                 </tr>
                             </thead>
                             <tbody id="recipe-drawer-table-body">
