@@ -237,7 +237,7 @@ class RecipeController {
         row.innerHTML = `
             <input type="text" class="form-control ing-name-input" value="${name}" placeholder="원재료명 (예: 원유, 과일 퓨레 등)" required>
             <div style="position: relative;">
-                <input type="number" class="form-control ing-ratio-input" value="${ratio}" min="0.01" max="100" step="any" placeholder="비율" required style="padding-right: 28px;">
+                <input type="number" class="form-control ing-ratio-input" value="${ratio}" min="0.000001" max="100" step="any" placeholder="비율" required style="padding-right: 28px;">
                 <span style="position: absolute; right: 10px; top: 10px; font-size: 0.85rem; color: var(--text-muted);">%</span>
             </div>
             <button type="button" class="btn-icon" style="border-color: rgba(248,113,113,0.2);">
