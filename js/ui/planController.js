@@ -445,7 +445,7 @@ class PlanController {
 
         // Total raw material input weight in grams (considering yield rate)
         const totalInputWeightG = totalWeightG / (product.yield / 100);
-        document.getElementById('drawer-total-input-weight').innerText = `${Math.round(totalInputWeightG).toLocaleString()} g (${(totalInputWeightG/1000).toFixed(2)} kg)`;
+        document.getElementById('drawer-fermenter-type').innerText = plan.fermenterType === 'small' ? '소형 발효기' : '대형 발효기';
 
         // Render ingredients double units
         const tbody = document.getElementById('recipe-drawer-table-body');
