@@ -477,7 +477,7 @@ class PlanController {
         totalRow.className = 'total-row';
         totalRow.innerHTML = `
             <td>합계</td>
-            <td style="text-align: right; font-family: var(--font-outfit);">${totalRatioSum}%</td>
+            <td style="text-align: right; font-family: var(--font-outfit);">${totalRatioSum.toFixed(2)}%</td>
             <td style="text-align: right; font-family: var(--font-outfit);">${Math.round(totalWeightSum).toLocaleString()} g</td>
             <td style="text-align: right; font-family: var(--font-outfit); font-style: italic;">(${(totalWeightSum/1000).toFixed(2)} kg)</td>
         `;
