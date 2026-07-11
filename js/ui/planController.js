@@ -434,6 +434,10 @@ class PlanController {
         }
 
         document.getElementById('drawer-plan-name').innerText = plan.name;
+        document.getElementById('drawer-product-name').innerText = product.name;
+        document.getElementById('drawer-product-weight').innerText = `${product.weight.toLocaleString()} g`;
+        document.getElementById('drawer-product-yield').innerText = `${product.yield}%`;
+        document.getElementById('drawer-plan-qty').innerText = `${plan.totalQty.toLocaleString()} 개`;
         
         // Total production weight in grams (Finished weight)
         const totalWeightG = plan.totalQty * product.weight;
