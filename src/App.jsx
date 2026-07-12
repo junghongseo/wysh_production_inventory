@@ -127,27 +127,29 @@ const App = () => {
           <div className="brand-title-group">
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
               <h1 style={{ margin: 0 }}>WYSH Production & Inventory</h1>
-              <span style={{
-                fontSize: '0.65rem',
-                padding: '2px 8px',
-                borderRadius: '12px',
-                fontWeight: 600,
-                color: '#ffffff',
-                backgroundColor: isDbConnected ? 'var(--color-success, #10b981)' : 'var(--color-warning, #f59e0b)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '4px',
-                verticalAlign: 'middle'
-              }}>
+              {!isDbConnected && (
                 <span style={{
-                  width: '6px',
-                  height: '6px',
-                  borderRadius: '50%',
-                  backgroundColor: '#ffffff',
-                  display: 'inline-block'
-                }}></span>
-                {isDbConnected ? '클라우드 동기화 완료' : '로컬 오프라인 모드'}
-              </span>
+                  fontSize: '0.65rem',
+                  padding: '2px 8px',
+                  borderRadius: '12px',
+                  fontWeight: 600,
+                  color: '#ffffff',
+                  backgroundColor: 'var(--color-warning, #f59e0b)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  verticalAlign: 'middle'
+                }}>
+                  <span style={{
+                    width: '6px',
+                    height: '6px',
+                    borderRadius: '50%',
+                    backgroundColor: '#ffffff',
+                    display: 'inline-block'
+                  }}></span>
+                  로컬 오프라인 모드
+                </span>
+              )}
             </div>
             <p style={{ margin: '4px 0 0 0' }}>생산 계획 및 차수별 재고 통합 관리 솔루션</p>
             {dbError && (
