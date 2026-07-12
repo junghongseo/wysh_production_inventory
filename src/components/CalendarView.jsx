@@ -266,18 +266,6 @@ const CalendarView = ({
                 <div className="day-number">{cell.date.getDate()}</div>
                 
                 <div className="calendar-events-container">
-                  {/* Selected Plan Highlights */}
-                  {isShippingHighlight && (
-                    <div className="day-highlight-tag shipping" title={`남은 출고 가능 수량: ${selectedPlanStock}개`}>
-                      🚚 최종출고 (남은재고: {selectedPlanStock.toLocaleString()}개)
-                    </div>
-                  )}
-                  {isExpiryHighlight && (
-                    <div className="day-highlight-tag expiry">
-                      ⚠️ 소비기한
-                    </div>
-                  )}
-
                   {/* Rendered slots (events or placeholders) */}
                   {cellEvents.map((evt, slotIdx) => {
                     if (evt === null) {
@@ -319,6 +307,18 @@ const CalendarView = ({
                       </div>
                     );
                   })}
+
+                  {/* Selected Plan Highlights (Moved below events to prevent snapping layout heights) */}
+                  {isShippingHighlight && (
+                    <div className="day-highlight-tag shipping" title={`남은 출고 가능 수량: ${selectedPlanStock}개`}>
+                      🚚 최종출고 (남은재고: {selectedPlanStock.toLocaleString()}개)
+                    </div>
+                  )}
+                  {isExpiryHighlight && (
+                    <div className="day-highlight-tag expiry">
+                      ⚠️ 소비기한
+                    </div>
+                  )}
 
                   {/* Render Outflow Histories for Selected Plan on this day */}
                   {dayOutflows.map(outflow => (

@@ -7,6 +7,7 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory }) => {
   const [outflowPlanId, setOutflowPlanId] = useState('');
   const [outflowQty, setOutflowQty] = useState('');
   const [outflowPurpose, setOutflowPurpose] = useState('');
+  const [outflowDate, setOutflowDate] = useState('');
   const [selectedInventoryPlanId, setSelectedInventoryPlanId] = useState(null);
 
   // Filter States
@@ -38,6 +39,13 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory }) => {
   React.useEffect(() => {
     setCurrentPage(1);
   }, [statusFilter, monthFilter, searchTerm]);
+
+  // Set default outflow date to todayStr
+  React.useEffect(() => {
+    if (todayStr) {
+      setOutflowDate(todayStr);
+    }
+  }, [todayStr]);
 
   // Compute stats for all plans in the system
   const allInventoryData = useMemo(() => {
@@ -138,6 +146,18 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory }) => {
       alert('용도를 입력해 주세요.');
       return;
     }
+    if (!outflowDate) {
+      alert('출고 일자를 선택하세요.');
+      return;
+    }
+
+    // Alert if future date is selected
+    if (outflowDate > todayStr) {
+      const confirmFuture = window.confirm(
+        `⚠️ 선택한 출고 일자(${outflowDate})가 오늘 이후(미래)입니다. 그래도 반영하시겠습니까?`
+      );
+      if (!confirmFuture) return;
+    }
 
     // Check inventory limit
     const record = getInventoryRecord(outflowPlanId);
@@ -151,11 +171,17 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory }) => {
       }
     }
 
-    addOutflow(outflowPlanId, qty, outflowPurpose.trim());
+    // Append current time to date string
+    const now = new Date();
+    const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const finalDateStr = `${outflowDate} ${timeStr}`;
+
+    addOutflow(outflowPlanId, qty, outflowPurpose.trim(), finalDateStr);
 
     // Reset inputs
     setOutflowQty('');
     setOutflowPurpose('');
+    setOutflowDate(todayStr);
   };
 
   return (
@@ -319,7 +345,18 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory }) => {
                 })}
               </select>
             </div>
-            <div className="form-group-grid">
+            <div className="form-group-grid" style={{ gridTemplateColumns: '1.2fr 1fr 1.5fr' }}>
+              <div className="form-group">
+                <label htmlFor="outflow-date">출고 일자</label>
+                <input 
+                  type="date" 
+                  className="form-control" 
+                  id="outflow-date" 
+                  value={outflowDate}
+                  onChange={(e) => setOutflowDate(e.target.value)}
+                  required 
+                />
+              </div>
               <div className="form-group">
                 <label htmlFor="outflow-qty">출고 수량 (개)</label>
                 <input 
