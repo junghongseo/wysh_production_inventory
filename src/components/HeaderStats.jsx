@@ -15,8 +15,12 @@ const HeaderStats = () => {
     // C. Total Stock count
     let totalStock = 0;
     inventory.forEach(inv => {
-      const outflowSum = inv.history ? inv.history.reduce((sum, item) => sum + item.qty, 0) : 0;
-      totalStock += (inv.actualQty - outflowSum);
+      const plan = plans.find(p => p.id === inv.planId);
+      // 생산계획이 세워졌더라도 병입일이 되지 않으면 총 재고 수량에 반영하지 않음
+      if (plan && todayStr >= plan.bottlingDate) {
+        const outflowSum = inv.history ? inv.history.reduce((sum, item) => sum + item.qty, 0) : 0;
+        totalStock += (inv.actualQty - outflowSum);
+      }
     });
 
     return {
