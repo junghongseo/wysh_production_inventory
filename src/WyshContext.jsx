@@ -429,7 +429,7 @@ export const WyshProvider = ({ children }) => {
     pushInventoryToSupabase(updatedRecord);
   };
 
-  const addOutflow = (planId, qty, purpose, customDateString) => {
+  const addOutflow = (planId, qty, purpose, customDateString, memo) => {
     let updatedRecord = null;
     let dateString = customDateString;
     
@@ -442,7 +442,8 @@ export const WyshProvider = ({ children }) => {
       id: 'h-' + Date.now(),
       date: dateString,
       qty: qty,
-      purpose: purpose
+      purpose: purpose,
+      memo: memo || ''
     };
 
     const updatedInventory = inventory.map(i => {
@@ -492,6 +493,26 @@ export const WyshProvider = ({ children }) => {
     }
   };
 
+  const updateOutflowMemo = (planId, historyId, newMemo) => {
+    let updatedRecord = null;
+    const updatedInventory = inventory.map(i => {
+      if (i.planId === planId) {
+        updatedRecord = {
+          ...i,
+          history: i.history.map(h => h.id === historyId ? { ...h, memo: newMemo } : h)
+        };
+        return updatedRecord;
+      }
+      return i;
+    });
+
+    setInventory(updatedInventory);
+    localStorage.setItem(STORAGE_KEYS.INVENTORY, JSON.stringify(updatedInventory));
+    if (updatedRecord) {
+      pushInventoryToSupabase(updatedRecord);
+    }
+  };
+
   const getInventoryRecord = (planId) => {
     const record = inventory.find(i => i.planId === planId);
     if (!record) {
@@ -523,6 +544,7 @@ export const WyshProvider = ({ children }) => {
       updateActualQty,
       addOutflow,
       deleteHistoryItem,
+      updateOutflowMemo,
       getInventoryRecord,
       syncFromSupabase
     }}>

@@ -10,9 +10,10 @@ import PlanRegistrationModal from './components/modals/PlanRegistrationModal';
 import ProductRegistrationModal from './components/modals/ProductRegistrationModal';
 import ModifyQtyModal from './components/modals/ModifyQtyModal';
 import ConfirmModal from './components/modals/ConfirmModal';
+import MemoModal from './components/modals/MemoModal';
 
 const App = () => {
-  const { deletePlan, deleteProduct, deleteHistoryItem, loading } = useWysh();
+  const { deletePlan, deleteProduct, deleteHistoryItem, updateOutflowMemo, loading } = useWysh();
 
   // Tab state
   const [activeTab, setActiveTab] = useState('calendar-view');
@@ -26,6 +27,7 @@ const App = () => {
   const [productModal, setProductModal] = useState({ isOpen: false });
   const [modifyQtyModal, setModifyQtyModal] = useState({ isOpen: false, planId: null });
   const [recipeDrawer, setRecipeDrawer] = useState({ isOpen: false, planId: null });
+  const [memoModal, setMemoModal] = useState({ isOpen: false, planId: null, historyId: null, memo: '' });
   const [confirmModal, setConfirmModal] = useState({
     isOpen: false,
     title: '',
@@ -156,6 +158,7 @@ const App = () => {
           <InventoryView
             onOpenModifyQtyModal={handleOpenModifyQty}
             onDeleteHistory={handleDeleteHistory}
+            onOpenMemoModal={(planId, historyId, memo) => setMemoModal({ isOpen: true, planId, historyId, memo })}
           />
         )}
       </section>
@@ -198,6 +201,16 @@ const App = () => {
         isOpen={modifyQtyModal.isOpen}
         onClose={() => setModifyQtyModal({ isOpen: false, planId: null })}
         planId={modifyQtyModal.planId}
+      />
+
+      {/* Popup Modal: Outflow Memo View / Edit */}
+      <MemoModal
+        isOpen={memoModal.isOpen}
+        onClose={() => setMemoModal(prev => ({ ...prev, isOpen: false }))}
+        planId={memoModal.planId}
+        historyId={memoModal.historyId}
+        initialMemo={memoModal.memo}
+        onSave={updateOutflowMemo}
       />
 
       {/* Popup Modal: Custom Deletion Confirmation */}
