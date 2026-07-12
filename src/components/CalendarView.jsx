@@ -13,6 +13,7 @@ const CalendarView = ({
   const { plans, products, inventory, calendarNotes } = useWysh();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDateNote, setSelectedDateNote] = useState(null);
+  const [selectedDate, setSelectedDate] = useState(null);
 
   // Find inventory record for the selected plan
   const selectedInvRecord = useMemo(() => {
@@ -161,6 +162,7 @@ const CalendarView = ({
 
   const handleDayClick = (dateStr) => {
     setSelectedPlan(null);
+    setSelectedDate(dateStr);
     const note = calendarNotes.find(n => n.dateStr === dateStr) || null;
     setSelectedDateNote(note);
   };
@@ -341,6 +343,7 @@ const CalendarView = ({
                         onClick={(e) => {
                           e.stopPropagation();
                           setSelectedPlan(plan);
+                          setSelectedDate(null);
                           setSelectedDateNote(null);
                         }}
                       >
@@ -387,12 +390,12 @@ const CalendarView = ({
           </div>
           
           <div id="plan-detail-content" style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', marginTop: '16px' }}>
-            {!selectedPlanDetails && !selectedDateNote ? (
+            {!selectedPlanDetails && !selectedDate ? (
               <div className="empty-state">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <p>달력에서 일정을 클릭하여 상세 정보를 확인하거나, 일반 날짜를 더블 클릭하여 새 메모를 등록해 보세요.</p>
+                <p>달력에서 일정을 클릭하여 상세 정보를 확인하거나, 일반 날짜를 터치하여 새 메모를 등록해 보세요.</p>
               </div>
             ) : selectedPlanDetails ? (
               <>
@@ -491,27 +494,35 @@ const CalendarView = ({
                   </div>
                   <div className="info-row">
                     <span className="label">메모 일자</span>
-                    <span className="value" style={{ fontWeight: 600 }}>{selectedDateNote.dateStr}</span>
+                    <span className="value" style={{ fontWeight: 600 }}>{selectedDate}</span>
                   </div>
-                  <div className="info-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '6px' }}>
-                    <span className="label">메모 제목</span>
-                    <span className="value" style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{selectedDateNote.title}</span>
-                  </div>
-                  <div className="info-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '6px', marginTop: '8px', borderBottom: 'none' }}>
-                    <span className="label">메모 상세 내용</span>
-                    <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '12px', width: '100%', fontSize: '0.85rem', lineHeight: '1.5', whiteSpace: 'pre-wrap', color: 'var(--text-secondary)' }}>
-                      {selectedDateNote.content || '(입력된 상세 내용이 없습니다)'}
+                  {selectedDateNote ? (
+                    <>
+                      <div className="info-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '6px' }}>
+                        <span className="label">메모 제목</span>
+                        <span className="value" style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{selectedDateNote.title}</span>
+                      </div>
+                      <div className="info-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '6px', marginTop: '8px', borderBottom: 'none' }}>
+                        <span className="label">메모 상세 내용</span>
+                        <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '12px', width: '100%', fontSize: '0.85rem', lineHeight: '1.5', whiteSpace: 'pre-wrap', color: 'var(--text-secondary)' }}>
+                          {selectedDateNote.content || '(입력된 상세 내용이 없습니다)'}
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="empty-state" style={{ minHeight: '100px', padding: '20px 10px' }}>
+                      <p style={{ fontSize: '0.85rem' }}>이 날짜에 등록된 메모가 없습니다.</p>
                     </div>
-                  </div>
+                  )}
                 </div>
 
                 <div style={{ marginTop: '16px' }}>
                   <button 
-                    className="btn-secondary" 
+                    className={selectedDateNote ? "btn-secondary" : "btn-primary"}
                     style={{ width: '100%', justifyContent: 'center' }}
-                    onClick={() => onOpenNoteModal(selectedDateNote.dateStr, selectedDateNote)}
+                    onClick={() => onOpenNoteModal(selectedDate, selectedDateNote)}
                   >
-                    📝 메모 수정 / 삭제
+                    📝 {selectedDateNote ? '메모 수정 / 삭제' : '새 메모 등록하기'}
                   </button>
                 </div>
               </>

@@ -1307,5 +1307,149 @@ button svg * {
     cursor: not-allowed;
 }
 
+/* Mobile Responsive Styles (Max-width: 768px) */
+@media (max-width: 768px) {
+    /* Layout */
+    .app-container {
+        padding: 12px;
+    }
+    
+    /* Header */
+    .app-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 16px;
+        padding-bottom: 16px;
+        margin-bottom: 16px;
+    }
+    
+    .brand-section {
+        width: 100%;
+    }
+    
+    .header-stats {
+        width: 100%;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+        margin-top: 8px;
+    }
+    
+    .stat-card {
+        padding: 8px;
+        text-align: center;
+    }
+    
+    /* Navbar */
+    .app-nav {
+        flex-direction: row;
+        display: grid !important;
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 6px;
+        width: 100%;
+    }
+    
+    .nav-tab {
+        width: 100%;
+        justify-content: center;
+        padding: 10px 4px !important;
+        min-height: 44px;
+        font-size: 0.8rem !important;
+        flex-direction: column;
+        gap: 4px;
+    }
+    
+    .nav-tab svg {
+        width: 14px;
+        height: 14px;
+    }
+    
+    /* Splits and Grid systems */
+    .dashboard-grid, .recipe-split {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 16px;
+    }
+    
+    .dashboard-grid > div, .recipe-split > div {
+        width: 100% !important;
+    }
+    
+    /* Calendar Area Scroll for React & Vanilla */
+    .dashboard-grid > .glass-card, #calendar-widget-container {
+        width: 100% !important;
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .calendar-grid {
+        min-width: 650px; /* Prevent grid collapse */
+    }
+    
+    /* Table Responsive Wrapper */
+    .inventory-table-container, .table-responsive {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        margin-bottom: 16px;
+    }
+    
+    .wysh-table {
+        min-width: 650px; /* Prevent table text wrapping */
+    }
+
+    /* Modal dialogs & Drawers */
+    .modal-content, .drawer-content {
+        width: 95% !important;
+        max-width: 95% !important;
+        margin: 10px auto;
+        padding: 16px !important;
+    }
+    
+    /* Form controls touch size */
+    .form-control, input, select, textarea {
+        min-height: 44px; /* Touch target minimum height */
+        font-size: 16px !important; /* Prevent iOS safari zoom-in on focus */
+    }
+    
+    button {
+        min-height: 44px; /* Touch target size */
+    }
+    
+    .btn-primary, .btn-secondary, .btn-success, .btn-danger {
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 10px 16px;
+    }
+
+    /* Custom button inside lists */
+    .btn-delete-tiny, .btn-icon {
+        min-height: 36px;
+        min-width: 36px;
+    }
+    
+    /* Detail Panel */
+    .dashboard-detail-panel {
+        width: 100% !important;
+    }
+    
+    /* Form grids */
+    .form-group-grid {
+        grid-template-columns: 1fr !important;
+        gap: 12px;
+    }
+}
+
+@media print {
+    body {
+        width: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+}
+
+
 
 
