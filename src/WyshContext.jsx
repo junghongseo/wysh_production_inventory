@@ -626,10 +626,19 @@ export const WyshProvider = ({ children }) => {
   });
 
   const loginAdmin = (id, password) => {
-    const adminId = import.meta.env.VITE_ADMIN_ID || 'admin';
-    const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD || 'admin1234';
+    const adminId = (import.meta.env.VITE_ADMIN_ID || 'wysh').trim();
+    const adminPassword = (import.meta.env.VITE_ADMIN_PASSWORD || 'wysh0926!').trim();
 
-    if (id === adminId && password === adminPassword) {
+    console.log("--- Admin Login Debug ---");
+    console.log("Input ID:", `"${id}"`, "Length:", id.length);
+    console.log("Env ID:", `"${adminId}"`, "Length:", adminId.length);
+    console.log("Input PW:", `"${password}"`, "Length:", password.length);
+    console.log("Env PW:", `"${adminPassword}"`, "Length:", adminPassword.length);
+    console.log("ID Match:", id.trim() === adminId);
+    console.log("PW Match:", password.trim() === adminPassword);
+    console.log("-------------------------");
+
+    if (id.trim() === adminId && password.trim() === adminPassword) {
       setIsAdminLoggedIn(true);
       sessionStorage.setItem('wysh_admin_logged_in', 'true');
       return true;
