@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS products (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     weight INTEGER NOT NULL,
-    yield INTEGER NOT NULL,
+    yield NUMERIC NOT NULL,
     color TEXT NOT NULL,
     ingredients JSONB NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL

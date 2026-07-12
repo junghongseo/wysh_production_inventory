@@ -1,0 +1,166 @@
+import React, { useMemo } from 'react';
+import { useWysh } from '../WyshContext';
+
+const RecipeDrawer = ({ isOpen, onClose, planId }) => {
+  const { plans, products } = useWysh();
+
+  const details = useMemo(() => {
+    if (!isOpen || !planId) return null;
+    const plan = plans.find(p => p.id === planId);
+    if (!plan) return null;
+    const product = products.find(p => p.id === plan.productId);
+    if (!product) return null;
+
+    const totalWeightG = plan.totalQty * product.weight;
+    const totalInputWeightG = totalWeightG / (product.yield / 100);
+
+    let totalRatioSum = 0;
+    let totalWeightSum = 0;
+
+    const computedIngredients = product.ingredients.map(ing => {
+      const neededQtyG = totalInputWeightG * (ing.ratio / 100);
+      const neededQtyKg = neededQtyG / 1000;
+
+      totalRatioSum += ing.ratio;
+      totalWeightSum += neededQtyG;
+
+      const isLacticBacteria = ing.name.includes('유산균');
+      const displayG = isLacticBacteria
+        ? Number(neededQtyG.toFixed(1)).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+        : Math.round(neededQtyG).toLocaleString();
+
+      return {
+        name: ing.name,
+        ratio: ing.ratio,
+        displayG,
+        neededQtyKg
+      };
+    });
+
+    return {
+      plan,
+      product,
+      totalWeightG,
+      totalInputWeightG,
+      computedIngredients,
+      totalRatioSum,
+      totalWeightSum
+    };
+  }, [isOpen, planId, plans, products]);
+
+  const handlePrint = () => {
+    document.body.classList.add('printing-recipe');
+    window.print();
+    const handleAfterPrint = () => {
+      document.body.classList.remove('printing-recipe');
+    };
+    window.addEventListener('afterprint', handleAfterPrint, { once: true });
+    // Safety fallback
+    setTimeout(handleAfterPrint, 1500);
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="drawer-overlay open" onClick={onClose}>
+      <div className="drawer-content" onClick={(e) => e.stopPropagation()}>
+        <div className="drawer-header">
+          <h3>원재료 배합표</h3>
+          <button className="btn-icon" onClick={onClose} aria-label="닫기">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        {details && (
+          <div className="drawer-body">
+            <div className="info-row" style={{ marginBottom: '12px' }}>
+              <span className="label">차수계획명</span>
+              <span className="value" style={{ fontWeight: 600 }}>{details.plan.name}</span>
+            </div>
+            <div className="info-row" style={{ marginBottom: '12px' }}>
+              <span className="label">제품명</span>
+              <span className="value" style={{ fontWeight: 600 }}>{details.product.name}</span>
+            </div>
+            <div className="info-row" style={{ marginBottom: '12px' }}>
+              <span className="label">개별 제품 중량</span>
+              <span className="value" style={{ fontWeight: 600 }}>{details.product.weight.toLocaleString()} g</span>
+            </div>
+            <div className="info-row" style={{ marginBottom: '12px' }}>
+              <span className="label">수율</span>
+              <span className="value" style={{ fontWeight: 600 }}>{details.product.yield}%</span>
+            </div>
+            <div className="info-row" style={{ marginBottom: '12px' }}>
+              <span className="label">수량</span>
+              <span className="value" style={{ fontWeight: 600 }}>{details.plan.totalQty.toLocaleString()} 개</span>
+            </div>
+            <div className="info-row" style={{ marginBottom: '12px' }}>
+              <span className="label">총 생산 중량(g)</span>
+              <span className="value" style={{ fontWeight: 600 }}>{details.totalWeightG.toLocaleString()} g ({(details.totalWeightG / 1000).toFixed(2)} kg)</span>
+            </div>
+            <div className="info-row" style={{ marginBottom: '20px' }}>
+              <span className="label">가동 발효기</span>
+              <span className="value highlight" style={{ color: 'var(--color-primary)', fontSize: '1rem' }}>
+                {details.plan.fermenterType === 'small' ? '소형 발효기' : '대형 발효기'}
+              </span>
+            </div>
+
+            {/* Print / PDF Action Button */}
+            <div style={{ marginBottom: '20px' }} className="drawer-print-actions">
+              <button 
+                className="btn-success" 
+                onClick={handlePrint}
+                style={{ 
+                  width: '100%', 
+                  justifyContent: 'center', 
+                  background: 'linear-gradient(135deg, var(--color-primary), var(--color-accent))', 
+                  border: 'none', 
+                  fontWeight: 600 
+                }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
+                  <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                  <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                  <rect x="6" y="14" width="12" height="8"></rect>
+                </svg>
+                배합표 인쇄 / PDF 저장
+              </button>
+            </div>
+
+            <div className="wysh-table-wrapper">
+              <table className="wysh-table" id="recipe-drawer-table">
+                <thead>
+                  <tr>
+                    <th>원재료명</th>
+                    <th style={{ textAlign: 'right' }}>함량(%)</th>
+                    <th style={{ textAlign: 'right' }}>필요량(g)</th>
+                    <th style={{ textAlign: 'right' }}>참고량(kg)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {details.computedIngredients.map((ing, idx) => (
+                    <tr key={idx}>
+                      <td style={{ fontWeight: 500 }}>{ing.name}</td>
+                      <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)' }}>{ing.ratio}%</td>
+                      <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', fontWeight: 600 }}>{ing.displayG} g</td>
+                      <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', color: 'var(--text-secondary)', fontStyle: 'italic' }}>({ing.neededQtyKg.toFixed(2)} kg)</td>
+                    </tr>
+                  ))}
+                  <tr className="total-row">
+                    <td>합계</td>
+                    <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)' }}>{details.totalRatioSum.toFixed(2)}%</td>
+                    <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)' }}>{Math.round(details.totalWeightSum).toLocaleString()} g</td>
+                    <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', fontStyle: 'italic' }}>({(details.totalWeightSum / 1000).toFixed(2)} kg)</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default RecipeDrawer;

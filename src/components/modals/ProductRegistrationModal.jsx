@@ -1,0 +1,147 @@
+import React, { useState, useEffect } from 'react';
+import { useWysh } from '../../WyshContext';
+
+const ProductRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
+  const { addProduct } = useWysh();
+
+  const [name, setName] = useState('');
+  const [weight, setWeight] = useState('');
+  const [yieldRate, setYieldRate] = useState(28);
+  const [color, setColor] = useState('blue');
+
+  const colors = ['blue', 'purple', 'green', 'orange', 'pink', 'red', 'brown', 'black', 'gray', 'teal', 'yellow', 'indigo'];
+  const colorMap = {
+    blue: '#0ea5e9',
+    purple: '#a855f7',
+    green: '#10b981',
+    orange: '#f97316',
+    pink: '#ec4899',
+    red: '#ef4444',
+    brown: '#78350f',
+    black: '#0f172a',
+    gray: '#64748b',
+    teal: '#14b8a6',
+    yellow: '#eab308',
+    indigo: '#6366f1'
+  };
+
+  // Reset form fields when opened
+  useEffect(() => {
+    if (isOpen) {
+      setName('');
+      setWeight('');
+      setYieldRate(28);
+      setColor('blue');
+    }
+  }, [isOpen]);
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    
+    const newProduct = {
+      name: name.trim(),
+      weight: parseInt(weight) || 0,
+      yield: parseFloat(yieldRate) || 28,
+      color,
+      ingredients: [
+        { name: '원유', ratio: 100 }
+      ]
+    };
+
+    const added = addProduct(newProduct);
+    if (onSuccess) {
+      onSuccess(added);
+    }
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="modal-overlay open" id="product-registration-modal">
+      <div className="modal-content" style={{ width: '480px' }}>
+        <div className="modal-header">
+          <h3>새 요거트 제품 추가</h3>
+          <button className="btn-icon" onClick={onClose} aria-label="닫기">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        </div>
+        <form id="product-registration-form" onSubmit={handleSubmit}>
+          <div className="modal-body">
+            <div className="form-group">
+              <label htmlFor="new-product-name">제품명</label>
+              <input 
+                type="text" 
+                className="form-control" 
+                id="new-product-name" 
+                placeholder="예: 무가당 플레인 요거트" 
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                required 
+              />
+            </div>
+            <div className="form-group-grid">
+              <div className="form-group">
+                <label htmlFor="new-product-weight">단일 중량 (g)</label>
+                <input 
+                  type="number" 
+                  className="form-control" 
+                  id="new-product-weight" 
+                  min="1" 
+                  placeholder="예: 150" 
+                  value={weight}
+                  onChange={(e) => setWeight(e.target.value)}
+                  required 
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="new-product-yield">수율 (%)</label>
+                <input 
+                  type="number" 
+                  className="form-control" 
+                  id="new-product-yield" 
+                  min="1" 
+                  max="100" 
+                  step="0.1"
+                  placeholder="예: 28" 
+                  value={yieldRate}
+                  onChange={(e) => setYieldRate(e.target.value)}
+                  required 
+                />
+              </div>
+            </div>
+            <div className="form-group" style={{ marginTop: '16px' }}>
+              <label>생산 일정 표시 색상</label>
+              <div className="color-picker-grid" id="new-product-color-picker">
+                {colors.map(c => (
+                  <div 
+                    key={c}
+                    className={`color-swatch ${color === c ? 'active' : ''}`}
+                    data-color={c} 
+                    style={{ backgroundColor: colorMap[c] }}
+                    onClick={() => setColor(c)}
+                  ></div>
+                ))}
+              </div>
+            </div>
+            <div className="note-card" style={{ marginTop: '16px' }}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p style={{ fontSize: '0.8rem', lineHeight: '1.4' }}>제품을 등록한 뒤, '제품 및 레시피 설정' 탭에서 각 원재료(원유, 유산균 등)의 상세 배합 비율(합계 100%)을 구성할 수 있습니다.</p>
+            </div>
+          </div>
+          <div className="modal-footer">
+            <button type="button" className="btn-secondary" onClick={onClose}>취소</button>
+            <button type="submit" className="btn-primary">제품 등록</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default ProductRegistrationModal;

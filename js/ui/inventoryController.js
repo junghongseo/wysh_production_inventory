@@ -37,18 +37,25 @@ class InventoryController {
         if (!tbody) return;
         tbody.innerHTML = '';
 
-        if (plans.length === 0) {
+        // 최종 출고일(shippingLimit)이 오늘 날짜 기준 지나지 않은 계획만 필터링
+        const today = new Date();
+        const offset = today.getTimezoneOffset() * 60000;
+        const todayStr = new Date(today.getTime() - offset).toISOString().split('T')[0];
+        
+        const activePlans = plans.filter(plan => plan.shippingLimit >= todayStr);
+
+        if (activePlans.length === 0) {
             tbody.innerHTML = `
                 <tr>
                     <td colspan="7" class="empty-state" style="text-align: center; padding: 30px;">
-                        등록된 생산 계획이 없습니다. 먼저 일정 탭에서 계획을 수립하세요.
+                        출고 대기 중인 생산 차수가 없습니다. (최종출고일 이전 계획만 표시)
                     </td>
                 </tr>
             `;
             return;
         }
 
-        plans.forEach(plan => {
+        activePlans.forEach(plan => {
             const prod = products.find(p => p.id === plan.productId);
             const prodName = prod ? prod.name : '알수없음';
             
@@ -92,7 +99,15 @@ class InventoryController {
         const products = window.wyshStore.getProducts();
 
         dropdown.innerHTML = '<option value="" disabled selected>출고할 생산 차수를 선택하세요</option>';
-        plans.forEach(plan => {
+        
+        // 최종 출고일(shippingLimit)이 오늘 날짜 기준 지나지 않은 계획만 필터링
+        const today = new Date();
+        const offset = today.getTimezoneOffset() * 60000;
+        const todayStr = new Date(today.getTime() - offset).toISOString().split('T')[0];
+
+        const activePlans = plans.filter(plan => plan.shippingLimit >= todayStr);
+
+        activePlans.forEach(plan => {
             const prod = products.find(p => p.id === plan.productId);
             const prodName = prod ? prod.name : '알수없음';
             

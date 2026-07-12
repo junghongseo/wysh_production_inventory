@@ -438,35 +438,50 @@ class WyshStore {
 
     updateActualQty(planId, qty) {
         const inventory = this.getInventory();
-        const record = inventory.find(i => i.planId === planId);
+        let record = inventory.find(i => i.planId === planId);
         if (record) {
             record.actualQty = qty;
-            localStorage.setItem(STORAGE_KEYS.INVENTORY, JSON.stringify(inventory));
-            if (window.wyshObserver) window.wyshObserver.notify('inventory', inventory);
-
-            // Sync with Supabase
-            this.pushInventoryToSupabase(planId);
+        } else {
+            record = {
+                planId: planId,
+                actualQty: qty,
+                history: []
+            };
+            inventory.push(record);
         }
+        localStorage.setItem(STORAGE_KEYS.INVENTORY, JSON.stringify(inventory));
+        if (window.wyshObserver) window.wyshObserver.notify('inventory', inventory);
+
+        // Sync with Supabase
+        this.pushInventoryToSupabase(planId);
     }
 
     addOutflow(planId, qty, purpose) {
         const inventory = this.getInventory();
-        const record = inventory.find(i => i.planId === planId);
-        if (record) {
-            const date = new Date();
-            const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-            record.history.unshift({
-                id: 'h-' + Date.now(),
-                date: dateString,
-                qty: qty,
-                purpose: purpose
-            });
-            localStorage.setItem(STORAGE_KEYS.INVENTORY, JSON.stringify(inventory));
-            if (window.wyshObserver) window.wyshObserver.notify('inventory', inventory);
-
-            // Sync with Supabase
-            this.pushInventoryToSupabase(planId);
+        let record = inventory.find(i => i.planId === planId);
+        if (!record) {
+            const plan = this.getPlans().find(p => p.id === planId);
+            const initialQty = plan ? plan.totalQty : 0;
+            record = {
+                planId: planId,
+                actualQty: initialQty,
+                history: []
+            };
+            inventory.push(record);
         }
+        const date = new Date();
+        const dateString = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')} ${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
+        record.history.unshift({
+            id: 'h-' + Date.now(),
+            date: dateString,
+            qty: qty,
+            purpose: purpose
+        });
+        localStorage.setItem(STORAGE_KEYS.INVENTORY, JSON.stringify(inventory));
+        if (window.wyshObserver) window.wyshObserver.notify('inventory', inventory);
+
+        // Sync with Supabase
+        this.pushInventoryToSupabase(planId);
     }
 
     deleteHistoryItem(planId, historyId) {
@@ -483,7 +498,18 @@ class WyshStore {
     }
 
     getInventoryRecord(planId) {
-        return this.getInventory().find(i => i.planId === planId);
+        const record = this.getInventory().find(i => i.planId === planId);
+        if (!record) {
+            const plan = this.getPlans().find(p => p.id === planId);
+            if (plan) {
+                return {
+                    planId: planId,
+                    actualQty: plan.totalQty,
+                    history: []
+                };
+            }
+        }
+        return record;
     }
 }
 

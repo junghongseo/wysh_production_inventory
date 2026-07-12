@@ -1,0 +1,267 @@
+import React, { useState, useMemo } from 'react';
+import { useWysh } from '../WyshContext';
+
+const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory }) => {
+  const { plans, products, inventory, addOutflow, getInventoryRecord } = useWysh();
+
+  const [outflowPlanId, setOutflowPlanId] = useState('');
+  const [outflowQty, setOutflowQty] = useState('');
+  const [outflowPurpose, setOutflowPurpose] = useState('');
+
+  // Local-time safe today string
+  const todayStr = useMemo(() => {
+    const today = new Date();
+    const offset = today.getTimezoneOffset() * 60000;
+    return new Date(today.getTime() - offset).toISOString().split('T')[0];
+  }, []);
+
+  // Filter plans whose shipping limit has not passed
+  const activePlans = useMemo(() => {
+    return plans.filter(plan => plan.shippingLimit >= todayStr);
+  }, [plans, todayStr]);
+
+  // Compute stats for each active plan
+  const activeInventoryData = useMemo(() => {
+    return activePlans.map(plan => {
+      const prod = products.find(p => p.id === plan.productId);
+      const prodName = prod ? prod.name : '알수없음';
+      
+      const invRecord = inventory.find(i => i.planId === plan.id) || { actualQty: plan.totalQty, history: [] };
+      const totalOutflows = invRecord.history ? invRecord.history.reduce((sum, item) => sum + item.qty, 0) : 0;
+      const currentStock = invRecord.actualQty - totalOutflows;
+
+      return {
+        plan,
+        prodName,
+        actualQty: invRecord.actualQty,
+        currentStock
+      };
+    });
+  }, [activePlans, products, inventory]);
+
+  // Combine and sort outflow history
+  const outflowHistory = useMemo(() => {
+    const historyList = [];
+    inventory.forEach(inv => {
+      const plan = plans.find(p => p.id === inv.planId);
+      const planName = plan ? plan.name : '삭제된 계획';
+      
+      if (inv.history) {
+        inv.history.forEach(hist => {
+          historyList.push({
+            planId: inv.planId,
+            planName: planName,
+            ...hist
+          });
+        });
+      }
+    });
+    // Sort by date string descending
+    return historyList.sort((a, b) => b.date.localeCompare(a.date));
+  }, [inventory, plans]);
+
+  // Handle Outflow submission
+  const handleOutflowSubmit = (e) => {
+    e.preventDefault();
+    const qty = parseInt(outflowQty) || 0;
+    
+    if (!outflowPlanId) {
+      alert('출고할 생산 차수를 선택하세요.');
+      return;
+    }
+    if (qty <= 0) {
+      alert('출고 수량은 1개 이상이어야 합니다.');
+      return;
+    }
+    if (!outflowPurpose.trim()) {
+      alert('용도를 입력해 주세요.');
+      return;
+    }
+
+    // Check inventory limit
+    const record = getInventoryRecord(outflowPlanId);
+    if (record) {
+      const totalOutflows = record.history ? record.history.reduce((sum, item) => sum + item.qty, 0) : 0;
+      const currentStock = record.actualQty - totalOutflows;
+
+      if (qty > currentStock) {
+        alert(`출고 실패: 현재 재고 수량(${currentStock}개)을 초과하는 수량은 출고할 수 없습니다.`);
+        return;
+      }
+    }
+
+    addOutflow(outflowPlanId, qty, outflowPurpose.trim());
+
+    // Reset inputs
+    setOutflowQty('');
+    setOutflowPurpose('');
+  };
+
+  return (
+    <div className="inventory-layout">
+      {/* Upper Table: Batch Production Qty */}
+      <div className="glass-card">
+        <div className="inventory-header-row" style={{ marginBottom: '16px' }}>
+          <h3 style={{ fontSize: '1.15rem', fontWeight: 600 }}>차수별 생산 및 재고 리스트</h3>
+        </div>
+        
+        <div className="wysh-table-wrapper">
+          <table className="wysh-table" id="inventory-table">
+            <thead>
+              <tr>
+                <th>차수 ID</th>
+                <th>생산 계획명</th>
+                <th>생산 품목</th>
+                <th style={{ textAlign: 'right' }}>계획 수량(개)</th>
+                <th style={{ textAlign: 'right' }}>실제 입고(개)</th>
+                <th style={{ textAlign: 'right' }}>현재 재고(개)</th>
+                <th style={{ textAlign: 'center' }}>작업</th>
+              </tr>
+            </thead>
+            <tbody id="inventory-table-body">
+              {activeInventoryData.length === 0 ? (
+                <tr>
+                  <td colSpan="7" className="empty-state" style={{ textAlign: 'center', padding: '30px' }}>
+                    출고 대기 중인 생산 차수가 없습니다. (최종출고일 이전 계획만 표시)
+                  </td>
+                </tr>
+              ) : (
+                activeInventoryData.map(({ plan, prodName, actualQty, currentStock }) => (
+                  <tr key={plan.id}>
+                    <td style={{ fontFamily: 'var(--font-outfit)', fontWeight: 600, color: 'var(--color-primary)' }}>{plan.id}</td>
+                    <td style={{ fontWeight: 500 }}>{plan.name}</td>
+                    <td>{prodName}</td>
+                    <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)' }}>{plan.totalQty.toLocaleString()}</td>
+                    <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', fontWeight: 600, color: 'var(--color-success)' }}>{actualQty.toLocaleString()}</td>
+                    <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', fontWeight: 700, color: currentStock < 100 ? 'var(--color-danger)' : 'var(--color-primary)' }}>
+                      {currentStock.toLocaleString()}
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      <button 
+                        className="btn-secondary modify-qty-btn" 
+                        onClick={() => onOpenModifyQtyModal(plan.id)}
+                        style={{ padding: '4px 8px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M12 20h9"></path>
+                          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                        </svg>
+                        실제 생산량 수정
+                      </button>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Lower Split: Outflow Form & Timeline History */}
+      <div className="inventory-grid-split">
+        {/* Usage Input Form */}
+        <div className="glass-card">
+          <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '16px' }}>사용(출고) 입력</h3>
+          <form id="outflow-form" onSubmit={handleOutflowSubmit}>
+            <div className="form-group">
+              <label htmlFor="outflow-plan-select">출고 차수 선택</label>
+              <select 
+                className="form-control" 
+                id="outflow-plan-select" 
+                value={outflowPlanId}
+                onChange={(e) => setOutflowPlanId(e.target.value)}
+                required
+              >
+                <option value="" disabled>출고할 생산 차수를 선택하세요</option>
+                {activePlans.map(plan => {
+                  const prod = products.find(p => p.id === plan.productId);
+                  const prodName = prod ? prod.name : '알수없음';
+                  return (
+                    <option key={plan.id} value={plan.id}>
+                      [{plan.id}] {plan.name} ({prodName})
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+            <div className="form-group-grid">
+              <div className="form-group">
+                <label htmlFor="outflow-qty">출고 수량 (개)</label>
+                <input 
+                  type="number" 
+                  className="form-control" 
+                  id="outflow-qty" 
+                  min="1" 
+                  placeholder="수량 입력" 
+                  value={outflowQty}
+                  onChange={(e) => setOutflowQty(e.target.value)}
+                  required 
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="outflow-purpose">용도 (예: 정상 출고, 마케팅 시식, 폐기 등)</label>
+                <input 
+                  type="text" 
+                  className="form-control" 
+                  id="outflow-purpose" 
+                  placeholder="용도 직접 입력" 
+                  value={outflowPurpose}
+                  onChange={(e) => setOutflowPurpose(e.target.value)}
+                  required 
+                />
+              </div>
+            </div>
+            <button type="submit" className="btn-success" style={{ width: '100%', justifyContent: 'center', marginTop: '8px' }}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+              출고 내역 반영하기
+            </button>
+          </form>
+        </div>
+
+        {/* Outflow Timeline History */}
+        <div className="glass-card" style={{ display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 600 }}>출고 히스토리</h3>
+            <span id="history-filter-badge" style={{ fontSize: 0.75, color: 'var(--text-muted)' }}>전체 내역</span>
+          </div>
+          <div className="history-timeline" id="inventory-history-timeline">
+            {outflowHistory.length === 0 ? (
+              <div className="empty-state" style={{ padding: '20px' }}>
+                <p>출고 내역이 없습니다. 양식을 작성하여 반영해 보세요.</p>
+              </div>
+            ) : (
+              outflowHistory.map(item => (
+                <div key={item.id} className="timeline-item">
+                  <div className="timeline-item-meta">
+                    <span className="date">{item.date}</span>
+                    <span className="purpose">
+                      <strong style={{ color: 'var(--color-primary)' }}>{item.planId}</strong>{' '}
+                      ({item.purpose}) - {item.planName}
+                    </span>
+                  </div>
+                  <div className="timeline-item-values">
+                    <span className="qty">-{item.qty}개</span>
+                    <button 
+                      className="btn-delete-tiny" 
+                      title="출고 취소"
+                      onClick={() => onDeleteHistory(item.planId, item.id)}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default InventoryView;
