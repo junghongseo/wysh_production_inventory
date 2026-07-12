@@ -11,9 +11,10 @@ import ProductRegistrationModal from './components/modals/ProductRegistrationMod
 import ModifyQtyModal from './components/modals/ModifyQtyModal';
 import ConfirmModal from './components/modals/ConfirmModal';
 import MemoModal from './components/modals/MemoModal';
+import CalendarNoteModal from './components/modals/CalendarNoteModal';
 
 const App = () => {
-  const { deletePlan, deleteProduct, deleteHistoryItem, updateOutflowMemo, loading } = useWysh();
+  const { deletePlan, deleteProduct, deleteHistoryItem, updateOutflowMemo, saveCalendarNote, deleteCalendarNote, loading } = useWysh();
 
   // Tab state
   const [activeTab, setActiveTab] = useState('calendar-view');
@@ -28,6 +29,7 @@ const App = () => {
   const [modifyQtyModal, setModifyQtyModal] = useState({ isOpen: false, planId: null });
   const [recipeDrawer, setRecipeDrawer] = useState({ isOpen: false, planId: null });
   const [memoModal, setMemoModal] = useState({ isOpen: false, planId: null, historyId: null, memo: '' });
+  const [noteModal, setNoteModal] = useState({ isOpen: false, dateStr: '', existingNote: null });
   const [confirmModal, setConfirmModal] = useState({
     isOpen: false,
     title: '',
@@ -149,6 +151,7 @@ const App = () => {
             onOpenEditModal={handleOpenPlanEdit}
             onOpenRecipeDrawer={handleOpenRecipeDrawer}
             onDeletePlan={handleDeletePlan}
+            onOpenNoteModal={(dateStr, existing) => setNoteModal({ isOpen: true, dateStr, existingNote: existing })}
           />
         )}
       </main>
@@ -220,6 +223,16 @@ const App = () => {
         message={confirmModal.message}
         onConfirm={confirmModal.onConfirm}
         onClose={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+      />
+
+      {/* Popup Modal: Calendar Day Custom Memo */}
+      <CalendarNoteModal
+        isOpen={noteModal.isOpen}
+        onClose={() => setNoteModal({ isOpen: false, dateStr: '', existingNote: null })}
+        dateStr={noteModal.dateStr}
+        existingNote={noteModal.existingNote}
+        onSave={saveCalendarNote}
+        onDelete={deleteCalendarNote}
       />
     </div>
   );

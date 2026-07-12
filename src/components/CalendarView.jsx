@@ -7,10 +7,12 @@ const CalendarView = ({
   onOpenRegisterModal, 
   onOpenEditModal, 
   onOpenRecipeDrawer, 
-  onDeletePlan 
+  onDeletePlan,
+  onOpenNoteModal
 }) => {
-  const { plans, products, inventory } = useWysh();
+  const { plans, products, inventory, calendarNotes } = useWysh();
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [selectedDateNote, setSelectedDateNote] = useState(null);
 
   // Find inventory record for the selected plan
   const selectedInvRecord = useMemo(() => {
@@ -157,6 +159,17 @@ const CalendarView = ({
     return record.actualQty - outflowSum;
   }, [selectedPlan, selectedInvRecord]);
 
+  const handleDayClick = (dateStr) => {
+    setSelectedPlan(null);
+    const note = calendarNotes.find(n => n.dateStr === dateStr) || null;
+    setSelectedDateNote(note);
+  };
+
+  const handleDayDoubleClick = (dateStr) => {
+    const existing = calendarNotes.find(n => n.dateStr === dateStr) || null;
+    onOpenNoteModal(dateStr, existing);
+  };
+
   return (
     <div className="dashboard-grid">
       {/* Left: Calendar Area */}
@@ -259,10 +272,38 @@ const CalendarView = ({
             return (
               <div 
                 key={idx} 
-                className={`calendar-day-cell ${!cell.isCurrentMonth ? 'other-month' : ''} ${isToday ? 'today' : ''} ${isShippingHighlight ? 'highlight-shipping' : ''} ${isExpiryHighlight ? 'highlight-expiry' : ''}`}
-                onClick={() => setSelectedPlan(null)}
+                className={`calendar-day-cell ${!cell.isCurrentMonth ? 'other-month' : ''} ${isToday ? 'today' : ''} ${isShippingHighlight ? 'highlight-shipping' : ''} ${isExpiryHighlight ? 'highlight-expiry' : ''} ${calendarNotes.some(n => n.dateStr === cell.dateStr) ? 'has-note' : ''}`}
+                onClick={() => handleDayClick(cell.dateStr)}
+                onDoubleClick={() => handleDayDoubleClick(cell.dateStr)}
+                style={{ cursor: 'pointer' }}
               >
-                <div className="day-number">{cell.date.getDate()}</div>
+                <div className="day-number-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: '4px' }}>
+                  {(() => {
+                    const cellNote = calendarNotes.find(n => n.dateStr === cell.dateStr);
+                    return cellNote ? (
+                      <span 
+                        className="day-note-badge" 
+                        title={`제목: ${cellNote.title}\n내용: ${cellNote.content}`}
+                        style={{ 
+                          fontSize: '0.72rem', 
+                          fontWeight: 600, 
+                          color: 'var(--color-primary)', 
+                          background: 'rgba(14, 165, 233, 0.1)', 
+                          padding: '1px 5px', 
+                          borderRadius: '4px', 
+                          maxWidth: '70%', 
+                          overflow: 'hidden', 
+                          textOverflow: 'ellipsis', 
+                          whiteSpace: 'nowrap',
+                          display: 'inline-block'
+                        }}
+                      >
+                        📌 {cellNote.title}
+                      </span>
+                    ) : null;
+                  })()}
+                  <div className="day-number" style={{ marginLeft: 'auto' }}>{cell.date.getDate()}</div>
+                </div>
                 
                 <div className="calendar-events-container">
                   {/* Rendered slots (events or placeholders) */}
@@ -300,6 +341,7 @@ const CalendarView = ({
                         onClick={(e) => {
                           e.stopPropagation();
                           setSelectedPlan(plan);
+                          setSelectedDateNote(null);
                         }}
                       >
                         {dayLabel}
@@ -337,22 +379,22 @@ const CalendarView = ({
       </div>
 
 
-      {/* Right: Selected Plan Detail Panel */}
+      {/* Right: Detail Panel */}
       <div className="dashboard-detail-panel">
         <div className="glass-card" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
           <div className="detail-header">
-            <h3>선택된 생산 계획 상세 정보</h3>
+            <h3>상세 정보</h3>
           </div>
           
           <div id="plan-detail-content" style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', marginTop: '16px' }}>
-            {!selectedPlanDetails ? (
+            {!selectedPlanDetails && !selectedDateNote ? (
               <div className="empty-state">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
-                <p>달력에서 일정을 선택하면 상세 정보 및 레시피가 활성화됩니다.</p>
+                <p>달력에서 일정을 클릭하여 상세 정보를 확인하거나, 일반 날짜를 더블 클릭하여 새 메모를 등록해 보세요.</p>
               </div>
-            ) : (
+            ) : selectedPlanDetails ? (
               <>
                 <div className="info-grid">
                   <div className="info-row">
@@ -437,6 +479,39 @@ const CalendarView = ({
                       <line x1="10" y1="11" x2="10" y2="17"></line>
                       <line x1="14" y1="11" x2="14" y2="17"></line>
                     </svg>
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="info-grid">
+                  <div className="info-row" style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '10px', marginBottom: '12px' }}>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>구분</span>
+                    <strong style={{ color: 'var(--color-primary)' }}>📅 일반 날짜 메모</strong>
+                  </div>
+                  <div className="info-row">
+                    <span className="label">메모 일자</span>
+                    <span className="value" style={{ fontWeight: 600 }}>{selectedDateNote.dateStr}</span>
+                  </div>
+                  <div className="info-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '6px' }}>
+                    <span className="label">메모 제목</span>
+                    <span className="value" style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{selectedDateNote.title}</span>
+                  </div>
+                  <div className="info-row" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '6px', marginTop: '8px', borderBottom: 'none' }}>
+                    <span className="label">메모 상세 내용</span>
+                    <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '12px', width: '100%', fontSize: '0.85rem', lineHeight: '1.5', whiteSpace: 'pre-wrap', color: 'var(--text-secondary)' }}>
+                      {selectedDateNote.content || '(입력된 상세 내용이 없습니다)'}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ marginTop: '16px' }}>
+                  <button 
+                    className="btn-secondary" 
+                    style={{ width: '100%', justifyContent: 'center' }}
+                    onClick={() => onOpenNoteModal(selectedDateNote.dateStr, selectedDateNote)}
+                  >
+                    📝 메모 수정 / 삭제
                   </button>
                 </div>
               </>

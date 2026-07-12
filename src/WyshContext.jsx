@@ -6,7 +6,8 @@ const WyshContext = createContext();
 const STORAGE_KEYS = {
   PRODUCTS: 'wysh_products',
   PLANS: 'wysh_plans',
-  INVENTORY: 'wysh_inventory'
+  INVENTORY: 'wysh_inventory',
+  CALENDAR_NOTES: 'wysh_calendar_notes'
 };
 
 const DEFAULT_PRODUCTS = [
@@ -106,6 +107,7 @@ export const WyshProvider = ({ children }) => {
   const [products, setProducts] = useState([]);
   const [plans, setPlans] = useState([]);
   const [inventory, setInventory] = useState([]);
+  const [calendarNotes, setCalendarNotes] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Initialize data from LocalStorage
@@ -113,6 +115,7 @@ export const WyshProvider = ({ children }) => {
     let localProducts = JSON.parse(localStorage.getItem(STORAGE_KEYS.PRODUCTS));
     let localPlans = JSON.parse(localStorage.getItem(STORAGE_KEYS.PLANS));
     let localInventory = JSON.parse(localStorage.getItem(STORAGE_KEYS.INVENTORY));
+    let localCalendarNotes = JSON.parse(localStorage.getItem(STORAGE_KEYS.CALENDAR_NOTES));
 
     if (!localProducts) {
       localProducts = DEFAULT_PRODUCTS;
@@ -147,10 +150,15 @@ export const WyshProvider = ({ children }) => {
       localInventory = DEFAULT_INVENTORY;
       localStorage.setItem(STORAGE_KEYS.INVENTORY, JSON.stringify(DEFAULT_INVENTORY));
     }
+    if (!localCalendarNotes) {
+      localCalendarNotes = [];
+      localStorage.setItem(STORAGE_KEYS.CALENDAR_NOTES, JSON.stringify([]));
+    }
 
     setProducts(localProducts);
     setPlans(localPlans);
     setInventory(localInventory);
+    setCalendarNotes(localCalendarNotes);
     setLoading(false);
 
     // Sync from Supabase if connected
@@ -176,6 +184,25 @@ export const WyshProvider = ({ children }) => {
         .from('inventory')
         .select('*');
       if (errInventory) throw errInventory;
+
+      // Safe pull for calendar_notes to avoid crash if table not initialized
+      let mappedCalendarNotes = [];
+      try {
+        const { data: remoteNotes, error: errNotes } = await supabase
+          .from('calendar_notes')
+          .select('*');
+        if (errNotes) {
+          console.warn("Supabase Fetch Warn: calendar_notes query failed, maybe table is not created yet.", errNotes);
+        } else if (remoteNotes) {
+          mappedCalendarNotes = remoteNotes.map(n => ({
+            dateStr: n.date_str,
+            title: n.title,
+            content: n.content
+          }));
+        }
+      } catch (errNotesFetch) {
+        console.warn("Supabase Fetch Warning (calendar_notes):", errNotesFetch);
+      }
 
       console.log("Supabase Fetch: Successfully pulled data from Cloud DB.");
 
@@ -216,10 +243,12 @@ export const WyshProvider = ({ children }) => {
       localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(mappedProducts));
       localStorage.setItem(STORAGE_KEYS.PLANS, JSON.stringify(mappedPlans));
       localStorage.setItem(STORAGE_KEYS.INVENTORY, JSON.stringify(mappedInventory));
+      localStorage.setItem(STORAGE_KEYS.CALENDAR_NOTES, JSON.stringify(mappedCalendarNotes));
 
       setProducts(mappedProducts);
       setPlans(mappedPlans);
       setInventory(mappedInventory);
+      setCalendarNotes(mappedCalendarNotes);
     } catch (e) {
       console.error("Supabase Pull Failure (Using LocalStorage offline-first fallback):", e);
     }
@@ -544,11 +573,60 @@ export const WyshProvider = ({ children }) => {
     return record;
   };
 
+  const pushCalendarNoteToSupabase = async (note) => {
+    if (!supabase) return;
+    try {
+      const dbNote = {
+        date_str: note.dateStr,
+        title: note.title,
+        content: note.content
+      };
+      const { error } = await supabase.from('calendar_notes').upsert(dbNote);
+      if (error) throw error;
+    } catch (e) {
+      console.error("Supabase Push Error (CalendarNote):", e);
+    }
+  };
+
+  const deleteCalendarNoteFromSupabase = async (dateStr) => {
+    if (!supabase) return;
+    try {
+      const { error } = await supabase.from('calendar_notes').delete().eq('date_str', dateStr);
+      if (error) throw error;
+    } catch (e) {
+      console.error("Supabase Push Error (Delete CalendarNote):", e);
+    }
+  };
+
+  const saveCalendarNote = (dateStr, title, content) => {
+    const updatedNotes = [...calendarNotes];
+    const existingIdx = updatedNotes.findIndex(n => n.dateStr === dateStr);
+    const newNote = { dateStr, title, content };
+
+    if (existingIdx > -1) {
+      updatedNotes[existingIdx] = newNote;
+    } else {
+      updatedNotes.push(newNote);
+    }
+
+    setCalendarNotes(updatedNotes);
+    localStorage.setItem(STORAGE_KEYS.CALENDAR_NOTES, JSON.stringify(updatedNotes));
+    pushCalendarNoteToSupabase(newNote);
+  };
+
+  const deleteCalendarNote = (dateStr) => {
+    const updatedNotes = calendarNotes.filter(n => n.dateStr !== dateStr);
+    setCalendarNotes(updatedNotes);
+    localStorage.setItem(STORAGE_KEYS.CALENDAR_NOTES, JSON.stringify(updatedNotes));
+    deleteCalendarNoteFromSupabase(dateStr);
+  };
+
   return (
     <WyshContext.Provider value={{
       products,
       plans,
       inventory,
+      calendarNotes,
       loading,
       addProduct,
       updateProduct,
@@ -562,6 +640,8 @@ export const WyshProvider = ({ children }) => {
       deleteHistoryItem,
       updateOutflowMemo,
       getInventoryRecord,
+      saveCalendarNote,
+      deleteCalendarNote,
       syncFromSupabase
     }}>
       {children}
