@@ -373,7 +373,7 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal 
                 />
               </div>
               <div className="form-group">
-                <label htmlFor="outflow-purpose">용도 (예: 정상 출고, 마케팅 시식, 폐기 등)</label>
+                <label htmlFor="outflow-purpose">용도 (예: 정상 출고, 마케팅 발송, 폐기 등)</label>
                 <input 
                   type="text" 
                   className="form-control" 
