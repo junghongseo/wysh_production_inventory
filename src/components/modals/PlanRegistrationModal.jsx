@@ -127,30 +127,20 @@ const PlanRegistrationModal = ({ isOpen, onClose, editPlanId }) => {
       return { valid: false, success: false, message: '' };
     }
 
-    // Capacity validation
+    let capacityWarning = null;
+
+    // Capacity validation (Warning only, does not block submission)
     if (totalVolumeL > 0) {
       if (totalVolumeL >= 120 && totalVolumeL <= 280) {
         if (fermenterType === 'large') {
-          return {
-            valid: false,
-            success: false,
-            message: `⚠️ 계산된 원재료 총량(${totalVolumeL.toFixed(2)}L)은 소형 규격(120L~280L)에 해당합니다. 소형 발효기를 선택하세요.`
-          };
+          capacityWarning = `⚠️ 계산된 원재료 총량(${totalVolumeL.toFixed(2)}L)은 소형 규격(120L~280L)에 해당합니다.`;
         }
       } else if (totalVolumeL >= 300 && totalVolumeL <= 580) {
         if (fermenterType === 'small') {
-          return {
-            valid: false,
-            success: false,
-            message: `⚠️ 계산된 원재료 총량(${totalVolumeL.toFixed(2)}L)은 대형 규격(300L~580L)에 해당합니다. 대형 발효기를 선택하세요.`
-          };
+          capacityWarning = `⚠️ 계산된 원재료 총량(${totalVolumeL.toFixed(2)}L)은 대형 규격(300L~580L)에 해당합니다.`;
         }
       } else {
-        return {
-          valid: false,
-          success: false,
-          message: `❌ 원재료 총량이 소형(120L~280L) 또는 대형(300L~580L) 발효기 규격을 벗어났습니다. 수량을 조정하세요.`
-        };
+        capacityWarning = `⚠️ 계산된 원재료 총량(${totalVolumeL.toFixed(2)}L)이 발효기 적정 용량 범위를 벗어났습니다. (소형: 120L~280L, 대형: 300L~580L)`;
       }
     }
 
@@ -166,6 +156,14 @@ const PlanRegistrationModal = ({ isOpen, onClose, editPlanId }) => {
         valid: false,
         success: false,
         message: `❌ 일정 충돌: ${startDate} 일자에 이미 ${typeStr} 발효기가 배정되어 사용 중입니다. 날짜나 발효기를 변경하세요.`
+      };
+    }
+
+    if (capacityWarning) {
+      return {
+        valid: true,
+        success: false,
+        message: capacityWarning
       };
     }
 

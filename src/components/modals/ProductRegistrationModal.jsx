@@ -65,7 +65,7 @@ const ProductRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
 
   return (
     <div className="modal-overlay open" id="product-registration-modal">
-      <div className="modal-content" style={{ width: '480px' }}>
+      <div className="modal-content" style={{ width: '540px' }}>
         <div className="modal-header">
           <h3>새 요거트 제품 추가</h3>
           <button className="btn-icon" onClick={onClose} aria-label="닫기">
@@ -147,9 +147,9 @@ const ProductRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
                 />
               </div>
             </div>
-            <div className="form-group" style={{ marginTop: '16px' }}>
+            <div className="form-group" style={{ marginTop: '12px' }}>
               <label>생산 일정 표시 색상</label>
-              <div className="color-picker-grid" id="new-product-color-picker">
+              <div className="color-picker-grid" id="new-product-color-picker" style={{ maxWidth: '100%', gridTemplateColumns: 'repeat(12, 1fr)', gap: '8px', marginTop: '6px' }}>
                 {colors.map(c => (
                   <div 
                     key={c}
