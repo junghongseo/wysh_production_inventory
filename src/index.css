@@ -1248,3 +1248,17 @@ button svg * {
     animation: fadeIn 0.3s ease;
 }
 
+/* Table row click selection and hover style */
+.wysh-table tbody tr.clickable-row {
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+.wysh-table tbody tr.clickable-row:hover {
+    background: rgba(0, 0, 0, 0.02) !important;
+}
+.wysh-table tbody tr.clickable-row.selected-row {
+    background: rgba(2, 132, 199, 0.06) !important;
+    border-left: 3px solid var(--color-primary);
+}
+
+

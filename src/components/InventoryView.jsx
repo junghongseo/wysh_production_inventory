@@ -7,6 +7,7 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory }) => {
   const [outflowPlanId, setOutflowPlanId] = useState('');
   const [outflowQty, setOutflowQty] = useState('');
   const [outflowPurpose, setOutflowPurpose] = useState('');
+  const [selectedInventoryPlanId, setSelectedInventoryPlanId] = useState(null);
 
   // Local-time safe today string
   const todayStr = useMemo(() => {
@@ -15,9 +16,9 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory }) => {
     return new Date(today.getTime() - offset).toISOString().split('T')[0];
   }, []);
 
-  // Filter plans whose shipping limit has not passed
+  // Filter plans whose shipping limit has not passed AND bottling has completed
   const activePlans = useMemo(() => {
-    return plans.filter(plan => plan.shippingLimit >= todayStr);
+    return plans.filter(plan => plan.shippingLimit >= todayStr && todayStr >= plan.bottlingDate);
   }, [plans, todayStr]);
 
   // Compute stats for each active plan
@@ -43,6 +44,9 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory }) => {
   const outflowHistory = useMemo(() => {
     const historyList = [];
     inventory.forEach(inv => {
+      // Filter logs by selected plan if set
+      if (selectedInventoryPlanId && inv.planId !== selectedInventoryPlanId) return;
+
       const plan = plans.find(p => p.id === inv.planId);
       const planName = plan ? plan.name : '삭제된 계획';
       
@@ -58,7 +62,8 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory }) => {
     });
     // Sort by date string descending
     return historyList.sort((a, b) => b.date.localeCompare(a.date));
-  }, [inventory, plans]);
+  }, [inventory, plans, selectedInventoryPlanId]);
+
 
   // Handle Outflow submission
   const handleOutflowSubmit = (e) => {
@@ -126,31 +131,41 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory }) => {
                   </td>
                 </tr>
               ) : (
-                activeInventoryData.map(({ plan, prodName, actualQty, currentStock }) => (
-                  <tr key={plan.id}>
-                    <td style={{ fontFamily: 'var(--font-outfit)', fontWeight: 600, color: 'var(--color-primary)' }}>{plan.id}</td>
-                    <td style={{ fontWeight: 500 }}>{plan.name}</td>
-                    <td>{prodName}</td>
-                    <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)' }}>{plan.totalQty.toLocaleString()}</td>
-                    <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', fontWeight: 600, color: 'var(--color-success)' }}>{actualQty.toLocaleString()}</td>
-                    <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', fontWeight: 700, color: currentStock < 100 ? 'var(--color-danger)' : 'var(--color-primary)' }}>
-                      {currentStock.toLocaleString()}
-                    </td>
-                    <td style={{ textAlign: 'center' }}>
-                      <button 
-                        className="btn-secondary modify-qty-btn" 
-                        onClick={() => onOpenModifyQtyModal(plan.id)}
-                        style={{ padding: '4px 8px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M12 20h9"></path>
-                          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-                        </svg>
-                        실제 생산량 수정
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                activeInventoryData.map(({ plan, prodName, actualQty, currentStock }) => {
+                  const isSelected = selectedInventoryPlanId === plan.id;
+                  return (
+                    <tr 
+                      key={plan.id}
+                      className={`clickable-row ${isSelected ? 'selected-row' : ''}`}
+                      onClick={() => setSelectedInventoryPlanId(isSelected ? null : plan.id)}
+                    >
+                      <td style={{ fontFamily: 'var(--font-outfit)', fontWeight: 600, color: 'var(--color-primary)' }}>{plan.id}</td>
+                      <td style={{ fontWeight: 500 }}>{plan.name}</td>
+                      <td>{prodName}</td>
+                      <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)' }}>{plan.totalQty.toLocaleString()}</td>
+                      <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', fontWeight: 600, color: 'var(--color-success)' }}>{actualQty.toLocaleString()}</td>
+                      <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', fontWeight: 700, color: currentStock < 100 ? 'var(--color-danger)' : 'var(--color-primary)' }}>
+                        {currentStock.toLocaleString()}
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <button 
+                          className="btn-secondary modify-qty-btn" 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onOpenModifyQtyModal(plan.id);
+                          }}
+                          style={{ padding: '4px 8px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M12 20h9"></path>
+                            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                          </svg>
+                          실제 생산량 수정
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -224,7 +239,20 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory }) => {
         <div className="glass-card" style={{ display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--border-color)', paddingBottom: '12px' }}>
             <h3 style={{ fontSize: '1.1rem', fontWeight: 600 }}>출고 히스토리</h3>
-            <span id="history-filter-badge" style={{ fontSize: 0.75, color: 'var(--text-muted)' }}>전체 내역</span>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+              <span id="history-filter-badge" style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                {selectedInventoryPlanId ? `[${selectedInventoryPlanId}] 내역` : '전체 내역'}
+              </span>
+              {selectedInventoryPlanId && (
+                <button 
+                  onClick={() => setSelectedInventoryPlanId(null)}
+                  className="btn-secondary"
+                  style={{ padding: '2px 8px', fontSize: '0.75rem', borderStyle: 'dashed' }}
+                >
+                  전체 보기
+                </button>
+              )}
+            </div>
           </div>
           <div className="history-timeline" id="inventory-history-timeline">
             {outflowHistory.length === 0 ? (
