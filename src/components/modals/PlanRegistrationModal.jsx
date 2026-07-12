@@ -309,6 +309,7 @@ const PlanRegistrationModal = ({ isOpen, onClose, editPlanId }) => {
                   min="0" 
                   value={avgOrder}
                   onChange={(e) => setAvgOrder(parseInt(e.target.value) || 0)}
+                  onFocus={(e) => e.target.select()}
                   required 
                 />
               </div>
@@ -321,6 +322,7 @@ const PlanRegistrationModal = ({ isOpen, onClose, editPlanId }) => {
                   min="0" 
                   value={marketing}
                   onChange={(e) => setMarketing(parseInt(e.target.value) || 0)}
+                  onFocus={(e) => e.target.select()}
                   required 
                 />
               </div>
@@ -335,6 +337,7 @@ const PlanRegistrationModal = ({ isOpen, onClose, editPlanId }) => {
                   min="0" 
                   value={buffer}
                   onChange={(e) => setBuffer(parseInt(e.target.value) || 0)}
+                  onFocus={(e) => e.target.select()}
                   required 
                 />
               </div>

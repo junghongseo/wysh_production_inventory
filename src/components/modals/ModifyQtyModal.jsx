@@ -70,6 +70,7 @@ const ModifyQtyModal = ({ isOpen, onClose, planId }) => {
                   min="0" 
                   value={actualQty}
                   onChange={(e) => setActualQty(e.target.value)}
+                  onFocus={(e) => e.target.select()}
                   required 
                 />
               </div>
