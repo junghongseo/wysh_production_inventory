@@ -363,7 +363,7 @@ const RecipesView = ({
 
               <div style={{ marginTop: '24px', borderTop: '1px solid var(--border-color)', paddingTop: '16px', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
                 <button type="button" className="btn-secondary btn-reset-recipe" onClick={handleResetRecipe}>원래대로</button>
-                <button type="submit" className="btn-success" id="save-recipe-btn" disabled={!isRatioValid}>레시피 비율 저장</button>
+                <button type="submit" className="btn-success" id="save-recipe-btn" disabled={!isRatioValid}>저장</button>
               </div>
             </form>
           )}
