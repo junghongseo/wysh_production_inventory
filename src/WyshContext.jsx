@@ -621,6 +621,27 @@ export const WyshProvider = ({ children }) => {
     deleteCalendarNoteFromSupabase(dateStr);
   };
 
+  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(() => {
+    return sessionStorage.getItem('wysh_admin_logged_in') === 'true';
+  });
+
+  const loginAdmin = (id, password) => {
+    const adminId = import.meta.env.VITE_ADMIN_ID || 'admin';
+    const adminPassword = import.meta.env.VITE_ADMIN_PASSWORD || 'admin1234';
+
+    if (id === adminId && password === adminPassword) {
+      setIsAdminLoggedIn(true);
+      sessionStorage.setItem('wysh_admin_logged_in', 'true');
+      return true;
+    }
+    return false;
+  };
+
+  const logoutAdmin = () => {
+    setIsAdminLoggedIn(false);
+    sessionStorage.removeItem('wysh_admin_logged_in');
+  };
+
   return (
     <WyshContext.Provider value={{
       products,
@@ -642,7 +663,10 @@ export const WyshProvider = ({ children }) => {
       getInventoryRecord,
       saveCalendarNote,
       deleteCalendarNote,
-      syncFromSupabase
+      syncFromSupabase,
+      isAdminLoggedIn,
+      loginAdmin,
+      logoutAdmin
     }}>
       {children}
     </WyshContext.Provider>
