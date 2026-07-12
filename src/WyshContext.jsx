@@ -109,6 +109,8 @@ export const WyshProvider = ({ children }) => {
   const [inventory, setInventory] = useState([]);
   const [calendarNotes, setCalendarNotes] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isDbConnected, setIsDbConnected] = useState(false);
+  const [dbError, setDbError] = useState(null);
 
   // Initialize data from LocalStorage
   useEffect(() => {
@@ -166,7 +168,11 @@ export const WyshProvider = ({ children }) => {
   }, []);
 
   const syncFromSupabase = async () => {
-    if (!supabase) return;
+    if (!supabase) {
+      setIsDbConnected(false);
+      setDbError("Supabase client not initialized (missing environment variables)");
+      return;
+    }
     try {
       console.log("Supabase Client detected. Syncing remote database state...");
 
@@ -249,8 +255,12 @@ export const WyshProvider = ({ children }) => {
       setPlans(mappedPlans);
       setInventory(mappedInventory);
       setCalendarNotes(mappedCalendarNotes);
+      setIsDbConnected(true);
+      setDbError(null);
     } catch (e) {
       console.error("Supabase Pull Failure (Using LocalStorage offline-first fallback):", e);
+      setIsDbConnected(false);
+      setDbError(e.message || String(e));
     }
   };
 
@@ -675,7 +685,9 @@ export const WyshProvider = ({ children }) => {
       syncFromSupabase,
       isAdminLoggedIn,
       loginAdmin,
-      logoutAdmin
+      logoutAdmin,
+      isDbConnected,
+      dbError
     }}>
       {children}
     </WyshContext.Provider>

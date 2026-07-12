@@ -14,7 +14,7 @@ import MemoModal from './components/modals/MemoModal';
 import CalendarNoteModal from './components/modals/CalendarNoteModal';
 
 const App = () => {
-  const { deletePlan, deleteProduct, deleteHistoryItem, updateOutflowMemo, saveCalendarNote, deleteCalendarNote, loading } = useWysh();
+  const { deletePlan, deleteProduct, deleteHistoryItem, updateOutflowMemo, saveCalendarNote, deleteCalendarNote, loading, isDbConnected, dbError } = useWysh();
 
   // Tab state
   const [activeTab, setActiveTab] = useState('calendar-view');
@@ -125,8 +125,36 @@ const App = () => {
             <img src="/WYSH2_로고_1772157440156.webp" alt="WYSH Logo" style={{ width: '42px', height: '42px', objectFit: 'contain', borderRadius: '8px' }} />
           </div>
           <div className="brand-title-group">
-            <h1>WYSH Production & Inventory</h1>
-            <p>생산 계획 및 차수별 재고 통합 관리 솔루션</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+              <h1 style={{ margin: 0 }}>WYSH Production & Inventory</h1>
+              <span style={{
+                fontSize: '0.65rem',
+                padding: '2px 8px',
+                borderRadius: '12px',
+                fontWeight: 600,
+                color: '#ffffff',
+                backgroundColor: isDbConnected ? 'var(--color-success, #10b981)' : 'var(--color-warning, #f59e0b)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '4px',
+                verticalAlign: 'middle'
+              }}>
+                <span style={{
+                  width: '6px',
+                  height: '6px',
+                  borderRadius: '50%',
+                  backgroundColor: '#ffffff',
+                  display: 'inline-block'
+                }}></span>
+                {isDbConnected ? '클라우드 동기화 완료' : '로컬 오프라인 모드'}
+              </span>
+            </div>
+            <p style={{ margin: '4px 0 0 0' }}>생산 계획 및 차수별 재고 통합 관리 솔루션</p>
+            {dbError && (
+              <p style={{ fontSize: '0.7rem', color: 'var(--color-danger, #ef4444)', margin: '4px 0 0 0', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                ⚠️ 동기화 실패: {dbError}
+              </p>
+            )}
           </div>
         </div>
         <HeaderStats />
