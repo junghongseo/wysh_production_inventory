@@ -124,8 +124,8 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory }) => {
         });
       }
     });
-    // Sort by date string descending
-    return historyList.sort((a, b) => b.date.localeCompare(a.date));
+    // Sort strictly by date timestamp descending
+    return historyList.sort((a, b) => new Date(b.date.replace(/-/g, '/')) - new Date(a.date.replace(/-/g, '/')));
   }, [inventory, plans, selectedInventoryPlanId]);
 
 
@@ -420,7 +420,7 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory }) => {
               outflowHistory.map(item => (
                 <div key={item.id} className="timeline-item">
                   <div className="timeline-item-meta">
-                    <span className="date">{item.date}</span>
+                    <span className="date">{item.date.split(' ')[0]}</span>
                     <span className="purpose">
                       <strong style={{ color: 'var(--color-primary)' }}>{item.planId}</strong>{' '}
                       ({item.purpose}) - {item.planName}
