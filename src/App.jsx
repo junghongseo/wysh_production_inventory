@@ -111,8 +111,15 @@ const App = () => {
     <div className="app-container">
       {/* Header */}
       <header className="app-header">
-        <div className="brand-section">
-          <div className="brand-logo">W</div>
+        <div 
+          className="brand-section" 
+          onClick={() => setActiveTab('calendar-view')}
+          style={{ cursor: 'pointer' }}
+          title="생산 일정 및 배합표 탭으로 이동"
+        >
+          <div className="brand-logo" style={{ background: 'transparent', boxShadow: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <img src="/WYSH2_로고_1772157440156.webp" alt="WYSH Logo" style={{ width: '42px', height: '42px', objectFit: 'contain', borderRadius: '8px' }} />
+          </div>
           <div className="brand-title-group">
             <h1>WYSH Production & Inventory</h1>
             <p>생산 계획 및 차수별 재고 통합 관리 솔루션</p>

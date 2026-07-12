@@ -9,6 +9,13 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory }) => {
   const [outflowPurpose, setOutflowPurpose] = useState('');
   const [selectedInventoryPlanId, setSelectedInventoryPlanId] = useState(null);
 
+  // Filter States
+  const [statusFilter, setStatusFilter] = useState('active'); // 'active' | 'all'
+  const [monthFilter, setMonthFilter] = useState(''); // 'YYYY-MM' or ''
+  const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
   // Local-time safe today string
   const todayStr = useMemo(() => {
     const today = new Date();
@@ -16,14 +23,25 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory }) => {
     return new Date(today.getTime() - offset).toISOString().split('T')[0];
   }, []);
 
-  // Filter plans whose shipping limit has not passed AND bottling has completed
+  // Filter plans whose shipping limit has not passed AND bottling has completed (strictly for drop-down selection)
   const activePlans = useMemo(() => {
     return plans.filter(plan => plan.shippingLimit >= todayStr && todayStr >= plan.bottlingDate);
   }, [plans, todayStr]);
 
-  // Compute stats for each active plan
-  const activeInventoryData = useMemo(() => {
-    return activePlans.map(plan => {
+  // Extract list of months dynamically for dropdown filtering
+  const uniqueMonths = useMemo(() => {
+    const months = plans.map(p => p.startDate.substring(0, 7));
+    return [...new Set(months)].sort((a, b) => b.localeCompare(a));
+  }, [plans]);
+
+  // Reset page number back to 1 on filter query changes
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [statusFilter, monthFilter, searchTerm]);
+
+  // Compute stats for all plans in the system
+  const allInventoryData = useMemo(() => {
+    return plans.map(plan => {
       const prod = products.find(p => p.id === plan.productId);
       const prodName = prod ? prod.name : '알수없음';
       
@@ -38,7 +56,45 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory }) => {
         currentStock
       };
     });
-  }, [activePlans, products, inventory]);
+  }, [plans, products, inventory]);
+
+  // Apply filters on allInventoryData
+  const filteredInventoryData = useMemo(() => {
+    return allInventoryData.filter(item => {
+      const { plan, prodName } = item;
+
+      // Status filter
+      if (statusFilter === 'active') {
+        const isActive = plan.shippingLimit >= todayStr && todayStr >= plan.bottlingDate;
+        if (!isActive) return false;
+      }
+
+      // Month filter
+      if (monthFilter && !plan.startDate.startsWith(monthFilter)) {
+        return false;
+      }
+
+      // Search term text search
+      if (searchTerm.trim()) {
+        const query = searchTerm.toLowerCase();
+        const matchName = plan.name.toLowerCase().includes(query);
+        const matchId = plan.id.toLowerCase().includes(query);
+        const matchProdName = prodName.toLowerCase().includes(query);
+        if (!matchName && !matchId && !matchProdName) return false;
+      }
+
+      return true;
+    });
+  }, [allInventoryData, statusFilter, monthFilter, searchTerm, todayStr]);
+
+  // Paginate filtered plans list
+  const totalPages = Math.ceil(filteredInventoryData.length / itemsPerPage);
+  
+  const paginatedInventoryData = useMemo(() => {
+    const startIdx = (currentPage - 1) * itemsPerPage;
+    return filteredInventoryData.slice(startIdx, startIdx + itemsPerPage);
+  }, [filteredInventoryData, currentPage, itemsPerPage]);
+
 
   // Combine and sort outflow history
   const outflowHistory = useMemo(() => {
@@ -109,6 +165,41 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory }) => {
         <div className="inventory-header-row" style={{ marginBottom: '16px' }}>
           <h3 style={{ fontSize: '1.15rem', fontWeight: 600 }}>차수별 생산 및 재고 리스트</h3>
         </div>
+
+        {/* Filter / Search Bar */}
+        <div className="inventory-filter-bar">
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <input 
+              type="text" 
+              className="form-control" 
+              placeholder="계획명, 차수 ID, 제품명 검색..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <select 
+              className="form-control" 
+              value={statusFilter} 
+              onChange={(e) => setStatusFilter(e.target.value)}
+            >
+              <option value="active">출고 가능 계획만 보기</option>
+              <option value="all">전체 계획 보기</option>
+            </select>
+          </div>
+          <div className="form-group" style={{ marginBottom: 0 }}>
+            <select 
+              className="form-control" 
+              value={monthFilter} 
+              onChange={(e) => setMonthFilter(e.target.value)}
+            >
+              <option value="">전체 월</option>
+              {uniqueMonths.map(m => (
+                <option key={m} value={m}>{m.substring(0, 4)}년 {parseInt(m.substring(5, 7))}월</option>
+              ))}
+            </select>
+          </div>
+        </div>
         
         <div className="wysh-table-wrapper">
           <table className="wysh-table" id="inventory-table">
@@ -124,14 +215,14 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory }) => {
               </tr>
             </thead>
             <tbody id="inventory-table-body">
-              {activeInventoryData.length === 0 ? (
+              {paginatedInventoryData.length === 0 ? (
                 <tr>
                   <td colSpan="7" className="empty-state" style={{ textAlign: 'center', padding: '30px' }}>
-                    출고 대기 중인 생산 차수가 없습니다. (최종출고일 이전 계획만 표시)
+                    조건에 부합하는 생산 차수가 없습니다.
                   </td>
                 </tr>
               ) : (
-                activeInventoryData.map(({ plan, prodName, actualQty, currentStock }) => {
+                paginatedInventoryData.map(({ plan, prodName, actualQty, currentStock }) => {
                   const isSelected = selectedInventoryPlanId === plan.id;
                   return (
                     <tr 
@@ -170,6 +261,35 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory }) => {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Controls */}
+        {totalPages > 1 && (
+          <div className="pagination-wrapper">
+            <button 
+              className="pagination-btn" 
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+            >
+              이전
+            </button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(pageNum => (
+               <button 
+                 key={pageNum}
+                 className={`pagination-btn ${currentPage === pageNum ? 'active' : ''}`}
+                 onClick={() => setCurrentPage(pageNum)}
+               >
+                 {pageNum}
+               </button>
+            ))}
+            <button 
+              className="pagination-btn" 
+              disabled={currentPage === totalPages}
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+            >
+              다음
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Lower Split: Outflow Form & Timeline History */}
