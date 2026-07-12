@@ -74,20 +74,39 @@ const PlanRegistrationModal = ({ isOpen, onClose, editPlanId }) => {
     }
   }, [isOpen, editPlanId, plans]);
 
+  // Memoize selected product
+  const selectedProduct = useMemo(() => {
+    return products.find(p => p.id === productId) || null;
+  }, [productId, products]);
+
+  // Helper to calculate shipping limit and expiry dates dynamically
+  const calculateDerivedDates = (botDate, prod) => {
+    if (!botDate) return;
+    const sDays = prod ? (prod.shippingLimitDays ?? 7) : 7;
+    const eDays = prod ? (prod.expiryDays ?? 22) : 22;
+    setShippingLimit(dateAddDays(botDate, sDays));
+    setExpiryDate(dateAddDays(botDate, eDays));
+  };
+
   // Date trigger: Start date change
   const handleStartDateChange = (val) => {
     setStartDate(val);
     const botDate = dateAddDays(val, 2);
     setBottlingDate(botDate);
-    setShippingLimit(dateAddDays(botDate, 7));
-    setExpiryDate(dateAddDays(botDate, 22));
+    calculateDerivedDates(botDate, selectedProduct);
   };
 
   // Date trigger: Bottling date change
   const handleBottlingDateChange = (val) => {
     setBottlingDate(val);
-    setShippingLimit(dateAddDays(val, 7));
-    setExpiryDate(dateAddDays(val, 22));
+    calculateDerivedDates(val, selectedProduct);
+  };
+
+  // Product selection handler
+  const handleProductChange = (id) => {
+    setProductId(id);
+    const prod = products.find(p => p.id === id);
+    calculateDerivedDates(bottlingDate, prod);
   };
 
   // Calculations
@@ -235,7 +254,7 @@ const PlanRegistrationModal = ({ isOpen, onClose, editPlanId }) => {
                   className="form-control" 
                   id="plan-product" 
                   value={productId}
-                  onChange={(e) => setProductId(e.target.value)}
+                  onChange={(e) => handleProductChange(e.target.value)}
                   required
                 >
                   <option value="" disabled>품목을 선택하세요</option>
@@ -262,7 +281,7 @@ const PlanRegistrationModal = ({ isOpen, onClose, editPlanId }) => {
             {/* Row 3: Date Auto-calculations */}
             <div className="form-group-grid">
               <div className="form-group">
-                <label htmlFor="plan-bottling-date">병입 일자 (시작일 + 2일)</label>
+                <label htmlFor="plan-bottling-date">병입 일자</label>
                 <input 
                   type="date" 
                   className="form-control" 
@@ -273,7 +292,7 @@ const PlanRegistrationModal = ({ isOpen, onClose, editPlanId }) => {
                 />
               </div>
               <div className="form-group">
-                <label htmlFor="plan-shipping-limit">최종 출고기한 (병입일 + 7일)</label>
+                <label htmlFor="plan-shipping-limit">최종 출고기한 {selectedProduct ? `(병입일 + ${selectedProduct.shippingLimitDays}일)` : ''}</label>
                 <input 
                   type="date" 
                   className="form-control" 
@@ -285,7 +304,7 @@ const PlanRegistrationModal = ({ isOpen, onClose, editPlanId }) => {
               </div>
             </div>
             <div className="form-group">
-              <label htmlFor="plan-expiry-date">소비기한 (병입일 + 22일)</label>
+              <label htmlFor="plan-expiry-date">소비기한 {selectedProduct ? `(병입일 + ${selectedProduct.expiryDays}일)` : ''}</label>
               <input 
                 type="date" 
                 className="form-control" 

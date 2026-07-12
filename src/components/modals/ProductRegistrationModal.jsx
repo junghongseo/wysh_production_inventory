@@ -8,6 +8,8 @@ const ProductRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
   const [weight, setWeight] = useState('');
   const [yieldRate, setYieldRate] = useState(28);
   const [color, setColor] = useState('blue');
+  const [shippingLimitDays, setShippingLimitDays] = useState(7);
+  const [expiryDays, setExpiryDays] = useState(22);
 
   const colors = ['blue', 'purple', 'green', 'orange', 'pink', 'red', 'brown', 'black', 'gray', 'teal', 'yellow', 'indigo'];
   const colorMap = {
@@ -32,6 +34,8 @@ const ProductRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
       setWeight('');
       setYieldRate(28);
       setColor('blue');
+      setShippingLimitDays(7);
+      setExpiryDays(22);
     }
   }, [isOpen]);
 
@@ -43,6 +47,8 @@ const ProductRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
       weight: parseInt(weight) || 0,
       yield: parseFloat(yieldRate) || 28,
       color,
+      shippingLimitDays: parseInt(shippingLimitDays) || 7,
+      expiryDays: parseInt(expiryDays) || 22,
       ingredients: [
         { name: '원유', ratio: 100 }
       ]
@@ -109,6 +115,34 @@ const ProductRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
                   placeholder="예: 28" 
                   value={yieldRate}
                   onChange={(e) => setYieldRate(e.target.value)}
+                  required 
+                />
+              </div>
+            </div>
+            <div className="form-group-grid" style={{ marginTop: '12px' }}>
+              <div className="form-group">
+                <label htmlFor="new-product-shipping-days">최종 출고 기한 (일)</label>
+                <input 
+                  type="number" 
+                  className="form-control" 
+                  id="new-product-shipping-days" 
+                  min="1" 
+                  value={shippingLimitDays}
+                  onChange={(e) => setShippingLimitDays(e.target.value)}
+                  onFocus={(e) => e.target.select()}
+                  required 
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="new-product-expiry-days">소비 기한 (일)</label>
+                <input 
+                  type="number" 
+                  className="form-control" 
+                  id="new-product-expiry-days" 
+                  min="1" 
+                  value={expiryDays}
+                  onChange={(e) => setExpiryDays(e.target.value)}
+                  onFocus={(e) => e.target.select()}
                   required 
                 />
               </div>

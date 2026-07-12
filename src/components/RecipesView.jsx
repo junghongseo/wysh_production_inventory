@@ -15,6 +15,8 @@ const RecipesView = ({
   const [productWeight, setProductWeight] = useState('');
   const [productYield, setProductYield] = useState('');
   const [productColor, setProductColor] = useState('blue');
+  const [productShippingLimitDays, setProductShippingLimitDays] = useState(7);
+  const [productExpiryDays, setProductExpiryDays] = useState(22);
   const [ingredients, setIngredients] = useState([]);
 
   // Initialize editor form when selectedProduct changes
@@ -24,6 +26,8 @@ const RecipesView = ({
       setProductWeight(selectedProduct.weight);
       setProductYield(selectedProduct.yield || 28);
       setProductColor(selectedProduct.color || 'blue');
+      setProductShippingLimitDays(selectedProduct.shippingLimitDays || 7);
+      setProductExpiryDays(selectedProduct.expiryDays || 22);
       // Clone ingredients to avoid direct mutation
       setIngredients(selectedProduct.ingredients ? JSON.parse(JSON.stringify(selectedProduct.ingredients)) : []);
     } else {
@@ -31,6 +35,8 @@ const RecipesView = ({
       setProductWeight('');
       setProductYield('');
       setProductColor('blue');
+      setProductShippingLimitDays(7);
+      setProductExpiryDays(22);
       setIngredients([]);
     }
   }, [selectedProduct]);
@@ -111,11 +117,13 @@ const RecipesView = ({
     }
 
     const updated = {
-      id: selectedProduct.id,
-      name: productName,
+      ...selectedProduct,
+      name: productName.trim(),
       weight: parseInt(productWeight) || 0,
       yield: parseFloat(productYield) || 28,
       color: productColor,
+      shippingLimitDays: parseInt(productShippingLimitDays) || 7,
+      expiryDays: parseInt(productExpiryDays) || 22,
       ingredients: ingredients.map(ing => ({
         name: ing.name.trim(),
         ratio: ing.ratio
@@ -124,7 +132,7 @@ const RecipesView = ({
 
     updateProduct(updated);
     setSelectedProduct(updated);
-    alert('제품 레시피 정보가 안전하게 저장되었습니다.');
+    alert('제품 설정 및 레시피 정보가 안전하게 저장되었습니다.');
   };
 
   return (
@@ -177,7 +185,7 @@ const RecipesView = ({
       {/* Right: Recipe Editor */}
       <div className="glass-card">
         <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h3 id="recipe-editor-title" style={{ fontSize: '1.15rem', fontWeight: 600 }}>제품별 레시피 및 단일 중량 설정</h3>
+          <h3 id="recipe-editor-title" style={{ fontSize: '1.15rem', fontWeight: 600 }}>제품별 설정 및 레시피</h3>
           <span 
             id="recipe-product-badge" 
             style={{ 
@@ -251,6 +259,35 @@ const RecipesView = ({
                     step="0.1"
                     value={productYield}
                     onChange={(e) => setProductYield(e.target.value)}
+                    required 
+                  />
+                </div>
+              </div>
+
+              <div className="form-group-grid" style={{ gridTemplateColumns: '1fr 1fr', marginTop: '12px' }}>
+                <div className="form-group">
+                  <label htmlFor="edit-product-shipping-days">최종 출고 기한 (일)</label>
+                  <input 
+                    type="number" 
+                    className="form-control" 
+                    id="edit-product-shipping-days" 
+                    min="1"
+                    value={productShippingLimitDays}
+                    onChange={(e) => setProductShippingLimitDays(e.target.value)}
+                    onFocus={(e) => e.target.select()}
+                    required 
+                  />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="edit-product-expiry-days">소비 기한 (일)</label>
+                  <input 
+                    type="number" 
+                    className="form-control" 
+                    id="edit-product-expiry-days" 
+                    min="1"
+                    value={productExpiryDays}
+                    onChange={(e) => setProductExpiryDays(e.target.value)}
+                    onFocus={(e) => e.target.select()}
                     required 
                   />
                 </div>

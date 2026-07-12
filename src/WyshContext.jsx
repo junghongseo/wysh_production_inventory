@@ -16,6 +16,8 @@ const DEFAULT_PRODUCTS = [
     weight: 150,
     yield: 28,
     color: 'blue',
+    shippingLimitDays: 7,
+    expiryDays: 22,
     ingredients: [
       { name: '원유', ratio: 95 },
       { name: '유산균', ratio: 5 }
@@ -27,6 +29,8 @@ const DEFAULT_PRODUCTS = [
     weight: 130,
     yield: 30,
     color: 'purple',
+    shippingLimitDays: 7,
+    expiryDays: 22,
     ingredients: [
       { name: '원유', ratio: 80 },
       { name: '블루베리 퓨레', ratio: 18 },
@@ -39,6 +43,8 @@ const DEFAULT_PRODUCTS = [
     weight: 130,
     yield: 30,
     color: 'pink',
+    shippingLimitDays: 7,
+    expiryDays: 22,
     ingredients: [
       { name: '원유', ratio: 80 },
       { name: '딸기 잼', ratio: 18 },
@@ -125,6 +131,12 @@ export const WyshProvider = ({ children }) => {
         else if (p.id === 'prod-3') p.color = 'pink';
         else p.color = 'blue';
       }
+      if (p.shippingLimitDays === undefined) {
+        p.shippingLimitDays = 7;
+      }
+      if (p.expiryDays === undefined) {
+        p.expiryDays = 22;
+      }
     });
 
     if (!localPlans) {
@@ -173,7 +185,9 @@ export const WyshProvider = ({ children }) => {
         weight: p.weight,
         yield: p.yield,
         color: p.color,
-        ingredients: p.ingredients
+        ingredients: p.ingredients,
+        shippingLimitDays: p.shipping_limit_days !== undefined && p.shipping_limit_days !== null ? p.shipping_limit_days : 7,
+        expiryDays: p.expiry_days !== undefined && p.expiry_days !== null ? p.expiry_days : 22
       }));
 
       const mappedPlans = remotePlans.map(p => ({
@@ -220,7 +234,9 @@ export const WyshProvider = ({ children }) => {
         weight: product.weight,
         yield: product.yield,
         color: product.color,
-        ingredients: product.ingredients
+        ingredients: product.ingredients,
+        shipping_limit_days: product.shippingLimitDays,
+        expiry_days: product.expiryDays
       };
       const { error } = await supabase.from('products').upsert(dbProduct);
       if (error) throw error;
