@@ -216,7 +216,6 @@ const CalendarView = ({
               const prodName = prod ? prod.name : '알수없음';
               
               const d1 = plan.startDate;
-              const d2 = addDays(d1, 1);
               const d3 = plan.bottlingDate;
 
               let isPlanDay = false;
@@ -227,14 +226,14 @@ const CalendarView = ({
                 isPlanDay = true;
                 dayLabel = `🧪 발효 | ${prodName}`;
                 dayClass = 'event-day-1';
-              } else if (cell.dateStr === d2) {
-                isPlanDay = true;
-                dayLabel = `🌀 유청분리`;
-                dayClass = 'event-day-2';
               } else if (cell.dateStr === d3) {
                 isPlanDay = true;
                 dayLabel = `🍼 병입 | 완료`;
                 dayClass = 'event-day-3';
+              } else if (cell.dateStr > d1 && cell.dateStr < d3) {
+                isPlanDay = true;
+                dayLabel = `🌀 유청분리`;
+                dayClass = 'event-day-2';
               }
 
               if (isPlanDay) {
