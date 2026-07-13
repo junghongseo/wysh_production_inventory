@@ -2,7 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { useWysh } from '../WyshContext';
 
 const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal }) => {
-  const { plans, products, inventory, addOutflow, getInventoryRecord } = useWysh();
+  const { plans, products, inventory, addOutflow, updateOutflow, getInventoryRecord } = useWysh();
 
   const [outflowPlanId, setOutflowPlanId] = useState('');
   const [outflowQty, setOutflowQty] = useState('');
@@ -10,6 +10,7 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal 
   const [outflowDate, setOutflowDate] = useState('');
   const [outflowMemo, setOutflowMemo] = useState('');
   const [selectedInventoryPlanId, setSelectedInventoryPlanId] = useState(null);
+  const [editingHistoryId, setEditingHistoryId] = useState(null);
 
   // Filter States
   const [statusFilter, setStatusFilter] = useState('active'); // 'active' | 'all'
@@ -129,6 +130,25 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal 
     return historyList.sort((a, b) => new Date(b.date.replace(/-/g, '/')) - new Date(a.date.replace(/-/g, '/')));
   }, [inventory, plans, selectedInventoryPlanId]);
 
+  // Handle start/cancel edit outflow
+  const handleStartEdit = (item) => {
+    setEditingHistoryId(item.id);
+    setOutflowPlanId(item.planId);
+    setOutflowDate(item.date.split(' ')[0]);
+    setOutflowQty(item.qty.toString());
+    setOutflowPurpose(item.purpose);
+    setOutflowMemo(item.memo || '');
+  };
+
+  const handleCancelEdit = () => {
+    setEditingHistoryId(null);
+    setOutflowPlanId('');
+    setOutflowQty('');
+    setOutflowPurpose('');
+    setOutflowMemo('');
+    setOutflowDate(todayStr);
+  };
+
 
   // Handle Outflow submission
   const handleOutflowSubmit = (e) => {
@@ -166,8 +186,16 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal 
       const totalOutflows = record.history ? record.history.reduce((sum, item) => sum + item.qty, 0) : 0;
       const currentStock = record.actualQty - totalOutflows;
 
-      if (qty > currentStock) {
-        alert(`출고 실패: 현재 재고 수량(${currentStock}개)을 초과하는 수량은 출고할 수 없습니다.`);
+      let maxAvailable = currentStock;
+      if (editingHistoryId) {
+        const oldItem = record.history.find(h => h.id === editingHistoryId);
+        if (oldItem) {
+          maxAvailable += oldItem.qty;
+        }
+      }
+
+      if (qty > maxAvailable) {
+        alert(`출고 실패: 현재 재고 수량(${maxAvailable}개)을 초과하는 수량은 출고할 수 없습니다.`);
         return;
       }
     }
@@ -177,13 +205,17 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal 
     const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
     const finalDateStr = `${outflowDate} ${timeStr}`;
 
-    addOutflow(outflowPlanId, qty, outflowPurpose.trim(), finalDateStr, outflowMemo.trim());
-
-    // Reset inputs
-    setOutflowQty('');
-    setOutflowPurpose('');
-    setOutflowMemo('');
-    setOutflowDate(todayStr);
+    if (editingHistoryId) {
+      updateOutflow(outflowPlanId, editingHistoryId, qty, outflowPurpose.trim(), finalDateStr, outflowMemo.trim());
+      handleCancelEdit();
+    } else {
+      addOutflow(outflowPlanId, qty, outflowPurpose.trim(), finalDateStr, outflowMemo.trim());
+      // Reset inputs
+      setOutflowQty('');
+      setOutflowPurpose('');
+      setOutflowMemo('');
+      setOutflowDate(todayStr);
+    }
   };
 
   return (
@@ -324,7 +356,19 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal 
       <div className="inventory-grid-split">
         {/* Usage Input Form */}
         <div className="glass-card">
-          <h3 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '16px' }}>사용(출고) 입력</h3>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 600, margin: 0 }}>사용(출고) {editingHistoryId ? '수정' : '입력'}</h3>
+            {editingHistoryId && (
+              <button 
+                type="button" 
+                className="btn-secondary" 
+                onClick={handleCancelEdit}
+                style={{ padding: '4px 8px', fontSize: '0.75rem', borderStyle: 'dashed' }}
+              >
+                수정 취소
+              </button>
+            )}
+          </div>
           <form id="outflow-form" onSubmit={handleOutflowSubmit}>
             <div className="form-group">
               <label htmlFor="outflow-plan-select">출고 차수 선택</label>
@@ -333,9 +377,21 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal 
                 id="outflow-plan-select" 
                 value={outflowPlanId}
                 onChange={(e) => setOutflowPlanId(e.target.value)}
+                disabled={!!editingHistoryId}
                 required
               >
                 <option value="" disabled>출고할 생산 차수를 선택하세요</option>
+                {editingHistoryId && !activePlans.some(p => p.id === outflowPlanId) && (() => {
+                  const plan = plans.find(p => p.id === outflowPlanId);
+                  if (!plan) return null;
+                  const prod = products.find(p => p.id === plan.productId);
+                  const prodName = prod ? prod.name : '알수없음';
+                  return (
+                    <option key={plan.id} value={plan.id}>
+                      [{plan.id}] {plan.name} ({prodName}) (출고 기한 경과)
+                    </option>
+                  );
+                })()}
                 {activePlans.map(plan => {
                   const prod = products.find(p => p.id === plan.productId);
                   const prodName = prod ? prod.name : '알수없음';
@@ -396,11 +452,15 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal 
                 onChange={(e) => setOutflowMemo(e.target.value)}
               />
             </div>
-            <button type="submit" className="btn-success" style={{ width: '100%', justifyContent: 'center', marginTop: '8px' }}>
+            <button type="submit" className={editingHistoryId ? "btn-primary" : "btn-success"} style={{ width: '100%', justifyContent: 'center', marginTop: '8px' }}>
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="20 6 9 17 4 12"></polyline>
+                {editingHistoryId ? (
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                ) : (
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                )}
               </svg>
-              출고 내역 반영하기
+              {editingHistoryId ? '출고 내역 수정완료' : '출고 내역 반영하기'}
             </button>
           </form>
         </div>
@@ -431,7 +491,17 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal 
               </div>
             ) : (
               outflowHistory.map(item => (
-                <div key={item.id} className="timeline-item">
+                <div 
+                  key={item.id} 
+                  className="timeline-item"
+                  style={{
+                    cursor: 'pointer',
+                    borderColor: editingHistoryId === item.id ? 'var(--color-primary)' : 'var(--border-color)',
+                    background: editingHistoryId === item.id ? 'rgba(2, 132, 199, 0.05)' : 'var(--bg-secondary)',
+                    transition: 'var(--transition-smooth)'
+                  }}
+                  onClick={() => handleStartEdit(item)}
+                >
                   <div className="timeline-item-meta">
                     <span className="date">{item.date.split(' ')[0]}</span>
                     <span className="purpose">
@@ -444,7 +514,7 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal 
                       <button 
                         type="button" 
                         title="출고 메모 확인/수정" 
-                        onClick={() => onOpenMemoModal(item.planId, item.id, item.memo)}
+                        onClick={(e) => { e.stopPropagation(); onOpenMemoModal(item.planId, item.id, item.memo); }}
                         style={{ background: 'transparent', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -460,7 +530,7 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal 
                     <button 
                       className="btn-delete-tiny" 
                       title="출고 취소"
-                      onClick={() => onDeleteHistory(item.planId, item.id)}
+                      onClick={(e) => { e.stopPropagation(); onDeleteHistory(item.planId, item.id); }}
                     >
                       <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <line x1="18" y1="6" x2="6" y2="18"></line>

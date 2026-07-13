@@ -570,6 +570,30 @@ export const WyshProvider = ({ children }) => {
     }
   };
 
+  const updateOutflow = (planId, historyId, qty, purpose, dateString, memo) => {
+    let updatedRecord = null;
+    const updatedInventory = inventory.map(i => {
+      if (i.planId === planId) {
+        updatedRecord = {
+          ...i,
+          history: i.history.map(h => 
+            h.id === historyId 
+              ? { ...h, qty, purpose, date: dateString, memo: memo || '' } 
+              : h
+          )
+        };
+        return updatedRecord;
+      }
+      return i;
+    });
+
+    setInventory(updatedInventory);
+    localStorage.setItem(STORAGE_KEYS.INVENTORY, JSON.stringify(updatedInventory));
+    if (updatedRecord) {
+      pushInventoryToSupabase(updatedRecord);
+    }
+  };
+
   const getInventoryRecord = (planId) => {
     const record = inventory.find(i => i.planId === planId);
     if (!record) {
@@ -679,6 +703,7 @@ export const WyshProvider = ({ children }) => {
       deletePlan,
       updateActualQty,
       addOutflow,
+      updateOutflow,
       deleteHistoryItem,
       updateOutflowMemo,
       getInventoryRecord,
