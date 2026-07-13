@@ -168,7 +168,8 @@ class WyshStore {
                 bufferQty: p.buffer_qty,
                 totalQty: p.total_qty,
                 fermenterType: p.fermenter_type,
-                totalVolumeL: parseFloat(p.total_volume_l)
+                totalVolumeL: parseFloat(p.total_volume_l),
+                memo: p.memo || ''
             }));
 
             const inventory = remoteInventory.map(i => ({
@@ -240,7 +241,8 @@ class WyshStore {
                 buffer_qty: plan.bufferQty,
                 total_qty: plan.totalQty,
                 fermenter_type: plan.fermenterType,
-                total_volume_l: plan.totalVolumeL
+                total_volume_l: plan.totalVolumeL,
+                memo: plan.memo
             };
             const { error } = await client.from('plans').upsert(dbPlan);
             if (error) throw error;

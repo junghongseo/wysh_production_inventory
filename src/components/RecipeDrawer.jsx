@@ -156,6 +156,21 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
                 </tbody>
               </table>
             </div>
+
+            {details.plan.memo && (
+              <div className="note-card" style={{ marginTop: '20px', flexDirection: 'column', alignItems: 'stretch', gap: '6px', width: '100%', boxSizing: 'border-box' }}>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center', fontWeight: 600, color: 'var(--color-primary)' }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 0 }}>
+                    <path d="M12 20h9"></path>
+                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                  </svg>
+                  <span>생산 메모</span>
+                </div>
+                <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.5', width: '100%', color: 'var(--text-primary)', fontSize: '0.85rem', textAlign: 'left' }}>
+                  {details.plan.memo}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>

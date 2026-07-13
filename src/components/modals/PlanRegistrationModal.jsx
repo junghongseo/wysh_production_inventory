@@ -33,6 +33,7 @@ const PlanRegistrationModal = ({ isOpen, onClose, editPlanId }) => {
   const [marketing, setMarketing] = useState(0);
   const [buffer, setBuffer] = useState(0);
   const [fermenterType, setFermenterType] = useState('');
+  const [planMemo, setPlanMemo] = useState('');
 
   // Mode check
   const isEditMode = !!editPlanId;
@@ -53,6 +54,7 @@ const PlanRegistrationModal = ({ isOpen, onClose, editPlanId }) => {
           setMarketing(plan.marketingQty);
           setBuffer(plan.bufferQty);
           setFermenterType(plan.fermenterType);
+          setPlanMemo(plan.memo || '');
         }
       } else {
         // Reset form
@@ -64,6 +66,7 @@ const PlanRegistrationModal = ({ isOpen, onClose, editPlanId }) => {
         setAvgOrder(0);
         setMarketing(0);
         setBuffer(0);
+        setPlanMemo('');
 
         // Date calculations default
         const botDate = dateAddDays(today, 2);
@@ -191,7 +194,8 @@ const PlanRegistrationModal = ({ isOpen, onClose, editPlanId }) => {
       bufferQty: buffer,
       totalQty,
       fermenterType,
-      totalVolumeL
+      totalVolumeL,
+      memo: planMemo.trim()
     };
 
     if (isEditMode) {
@@ -399,6 +403,22 @@ const PlanRegistrationModal = ({ isOpen, onClose, editPlanId }) => {
                   <option value="large">대형 발효기 (300L ~ 580L)</option>
                 </select>
               </div>
+            </div>
+
+            <hr style={{ border: 'none', borderTop: '1px solid var(--border-color)', margin: '16px 0' }} />
+
+            {/* Row 6: Memo (Optional) */}
+            <div className="form-group">
+              <label htmlFor="plan-memo">메모 (선택사항)</label>
+              <textarea 
+                className="form-control" 
+                id="plan-memo" 
+                rows="3"
+                placeholder="생산 관련 특이사항이나 메모를 입력하세요..." 
+                value={planMemo}
+                onChange={(e) => setPlanMemo(e.target.value)}
+                style={{ resize: 'vertical', minHeight: '80px', padding: '10px' }}
+              />
             </div>
           </div>
           

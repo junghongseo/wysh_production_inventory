@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS plans (
     total_qty INTEGER NOT NULL,
     fermenter_type TEXT NOT NULL,
     total_volume_l NUMERIC NOT NULL,
+    memo TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
