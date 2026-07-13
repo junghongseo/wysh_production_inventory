@@ -326,6 +326,15 @@ class PlanController {
                     <span class="label" style="color:var(--color-primary);">총 생산 목표량</span>
                     <span class="value" style="font-size: 1rem; font-weight:700; color:var(--color-primary);">${plan.totalQty.toLocaleString()} 개</span>
                 </div>
+                ${plan.memo ? `
+                <div style="margin-top: 10px; padding: 10px; background: rgba(255,255,255,0.02); border: 1px dashed var(--border-color); border-radius: 6px; font-size: 0.8rem; color: var(--text-secondary); text-align: left; white-space: pre-wrap;">
+                    <div style="font-size: 0.75rem; font-weight: 600; color: var(--color-primary); margin-bottom: 4px; display: flex; align-items: center; gap: 4px;">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink: 0;"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
+                        생산 메모
+                    </div>
+                    <div style="line-height: 1.4;">${plan.memo}</div>
+                </div>
+                ` : ''}
             </div>
             
             <div style="margin-top: 16px; display: flex; gap: 10px;">
