@@ -226,13 +226,14 @@ const PlanRegistrationModal = ({ isOpen, onClose, editPlanId }) => {
         </div>
         
         <form id="plan-registration-form" onSubmit={handleSubmit}>
-          <div className="modal-body">
-            {/* Validation Banner */}
-            {validation.message && (
-              <div className={`validation-banner show ${validation.success ? 'success' : ''}`}>
+          {validation.message && (
+            <div style={{ padding: '20px 24px 0 24px', flexShrink: 0 }}>
+              <div className={`validation-banner show ${validation.success ? 'success' : ''}`} style={{ marginBottom: 0 }}>
                 {validation.message}
               </div>
-            )}
+            </div>
+          )}
+          <div className="modal-body">
 
             {/* Row 1: Plan Name */}
             <div className="form-group">
