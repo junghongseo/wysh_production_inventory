@@ -149,7 +149,7 @@ class RecipeController {
                     </div>
                     <div class="form-group">
                         <label for="edit-product-yield">수율 (%)</label>
-                        <input type="number" class="form-control" id="edit-product-yield" value="${this.selectedProduct.yield || 28}" min="1" max="100" required>
+                        <input type="number" class="form-control" id="edit-product-yield" value="${this.selectedProduct.yield || 28}" min="1" max="100" step="0.1" required>
                     </div>
                 </div>
 
@@ -316,7 +316,7 @@ class RecipeController {
         const store = window.wyshStore;
         const prodName = document.getElementById('edit-product-name').value;
         const prodWeight = parseInt(document.getElementById('edit-product-weight').value) || 0;
-        const prodYield = parseInt(document.getElementById('edit-product-yield').value) || 28;
+        const prodYield = parseFloat(document.getElementById('edit-product-yield').value) || 28;
         const prodColor = document.getElementById('edit-product-color').value;
 
         const rowElems = document.querySelectorAll('.recipe-ingredient-row');
@@ -350,7 +350,7 @@ class RecipeController {
         e.preventDefault();
         const name = document.getElementById('new-product-name').value;
         const weight = parseInt(document.getElementById('new-product-weight').value) || 0;
-        const yieldRate = parseInt(document.getElementById('new-product-yield').value) || 28;
+        const yieldRate = parseFloat(document.getElementById('new-product-yield').value) || 28;
         const color = document.getElementById('new-product-color').value;
 
         const store = window.wyshStore;
