@@ -29,7 +29,7 @@ const PlanRegistrationModal = ({ isOpen, onClose, editPlanId }) => {
   const [bottlingDate, setBottlingDate] = useState('');
   const [shippingLimit, setShippingLimit] = useState('');
   const [expiryDate, setExpiryDate] = useState('');
-  const [avgOrder, setAvgOrder] = useState(0);
+  const [expectedOrder, setExpectedOrder] = useState(0);
   const [marketing, setMarketing] = useState(0);
   const [buffer, setBuffer] = useState(0);
   const [fermenterType, setFermenterType] = useState('');
@@ -50,7 +50,7 @@ const PlanRegistrationModal = ({ isOpen, onClose, editPlanId }) => {
           setBottlingDate(plan.bottlingDate);
           setShippingLimit(plan.shippingLimit);
           setExpiryDate(plan.expiryDate);
-          setAvgOrder(plan.avgOrderQty);
+          setExpectedOrder(plan.expectedOrderQty);
           setMarketing(plan.marketingQty);
           setBuffer(plan.bufferQty);
           setFermenterType(plan.fermenterType);
@@ -63,7 +63,7 @@ const PlanRegistrationModal = ({ isOpen, onClose, editPlanId }) => {
         const today = getTodayStr();
         setStartDate(today);
         setFermenterType('');
-        setAvgOrder(0);
+        setExpectedOrder(0);
         setMarketing(0);
         setBuffer(0);
         setPlanMemo('');
@@ -114,8 +114,8 @@ const PlanRegistrationModal = ({ isOpen, onClose, editPlanId }) => {
 
   // Calculations
   const totalQty = useMemo(() => {
-    return (avgOrder * 7) + marketing + buffer;
-  }, [avgOrder, marketing, buffer]);
+    return expectedOrder + marketing + buffer;
+  }, [expectedOrder, marketing, buffer]);
 
   const totalVolumeL = useMemo(() => {
     if (!productId) return 0;
@@ -189,7 +189,7 @@ const PlanRegistrationModal = ({ isOpen, onClose, editPlanId }) => {
       bottlingDate,
       shippingLimit,
       expiryDate,
-      avgOrderQty: avgOrder,
+      expectedOrderQty: expectedOrder,
       marketingQty: marketing,
       bufferQty: buffer,
       totalQty,
@@ -322,14 +322,14 @@ const PlanRegistrationModal = ({ isOpen, onClose, editPlanId }) => {
             {/* Row 4: Quantities Input */}
             <div className="form-group-grid">
               <div className="form-group">
-                <label htmlFor="plan-avg-order">일 평균 주문수량 (개)</label>
+                <label htmlFor="plan-expected-order">주문 예상 수량 (개)</label>
                 <input 
                   type="number" 
                   className="form-control" 
-                  id="plan-avg-order" 
+                  id="plan-expected-order" 
                   min="0" 
-                  value={avgOrder}
-                  onChange={(e) => setAvgOrder(parseInt(e.target.value) || 0)}
+                  value={expectedOrder}
+                  onChange={(e) => setExpectedOrder(parseInt(e.target.value) || 0)}
                   onFocus={(e) => e.target.select()}
                   required 
                 />

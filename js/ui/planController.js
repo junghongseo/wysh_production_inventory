@@ -79,7 +79,7 @@ class PlanController {
         }
 
         // Qty triggers
-        ['plan-avg-order', 'plan-marketing', 'plan-buffer'].forEach(id => {
+        ['plan-expected-order', 'plan-marketing', 'plan-buffer'].forEach(id => {
             const input = document.getElementById(id);
             if (input) {
                 input.oninput = () => this.calculatePlanQuantities();
@@ -138,7 +138,7 @@ class PlanController {
 
     calculatePlanQuantities() {
         const productId = document.getElementById('plan-product').value;
-        const avgOrder = parseInt(document.getElementById('plan-avg-order').value) || 0;
+        const avgOrder = parseInt(document.getElementById('plan-expected-order').value) || 0;
         const marketing = parseInt(document.getElementById('plan-marketing').value) || 0;
         const buffer = parseInt(document.getElementById('plan-buffer').value) || 0;
 
@@ -207,7 +207,7 @@ class PlanController {
         const bottlingDate = document.getElementById('plan-bottling-date').value;
         const shippingLimit = document.getElementById('plan-shipping-limit').value;
         const expiryDate = document.getElementById('plan-expiry-date').value;
-        const avgOrder = parseInt(document.getElementById('plan-avg-order').value) || 0;
+        const avgOrder = parseInt(document.getElementById('plan-expected-order').value) || 0;
         const marketing = parseInt(document.getElementById('plan-marketing').value) || 0;
         const buffer = parseInt(document.getElementById('plan-buffer').value) || 0;
         const fermenterType = document.getElementById('plan-fermenter').value;
@@ -225,7 +225,7 @@ class PlanController {
                 bottlingDate,
                 shippingLimit,
                 expiryDate,
-                avgOrderQty: avgOrder,
+                expectedOrderQty: avgOrder,
                 marketingQty: marketing,
                 bufferQty: buffer,
                 totalQty,
@@ -243,7 +243,7 @@ class PlanController {
                 bottlingDate,
                 shippingLimit,
                 expiryDate,
-                avgOrderQty: avgOrder,
+                expectedOrderQty: avgOrder,
                 marketingQty: marketing,
                 bufferQty: buffer,
                 totalQty,
@@ -309,8 +309,8 @@ class PlanController {
                 
                 <div style="margin-top: 10px; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; background: rgba(255,255,255,0.02); padding: 8px; border-radius: 8px;">
                     <div style="text-align: center;">
-                        <div style="font-size: 0.7rem; color:var(--text-muted);">주문(7일)</div>
-                        <div style="font-size: 0.85rem; font-weight:600; font-family:var(--font-outfit);">${plan.avgOrderQty * 7}</div>
+                        <div style="font-size: 0.7rem; color:var(--text-muted);">주문 예상</div>
+                        <div style="font-size: 0.85rem; font-weight:600; font-family:var(--font-outfit);">${plan.expectedOrderQty}</div>
                     </div>
                     <div style="text-align: center; border-left: 1px solid var(--border-color); border-right: 1px solid var(--border-color);">
                         <div style="font-size: 0.7rem; color:var(--text-muted);">마케팅</div>
@@ -381,7 +381,7 @@ class PlanController {
         document.getElementById('plan-bottling-date').value = plan.bottlingDate;
         document.getElementById('plan-shipping-limit').value = plan.shippingLimit;
         document.getElementById('plan-expiry-date').value = plan.expiryDate;
-        document.getElementById('plan-avg-order').value = plan.avgOrderQty;
+        document.getElementById('plan-expected-order').value = plan.expectedOrderQty;
         document.getElementById('plan-marketing').value = plan.marketingQty;
         document.getElementById('plan-buffer').value = plan.bufferQty;
         document.getElementById('plan-total-qty').value = plan.totalQty;

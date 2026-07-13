@@ -26,7 +26,7 @@ class WyshService {
 
     // Sum Quantity calculation
     calculateTotalQty(avgOrder, marketing, buffer) {
-        return (avgOrder * 7) + marketing + buffer;
+        return avgOrder + marketing + buffer;
     }
 
     // Volume in L calculation considering yield rate

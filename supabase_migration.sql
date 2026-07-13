@@ -25,7 +25,7 @@ CREATE TABLE IF NOT EXISTS plans (
     bottling_date DATE NOT NULL,
     shipping_limit DATE NOT NULL,
     expiry_date DATE NOT NULL,
-    avg_order_qty INTEGER NOT NULL,
+    expected_order_qty INTEGER NOT NULL,
     marketing_qty INTEGER NOT NULL,
     buffer_qty INTEGER NOT NULL,
     total_qty INTEGER NOT NULL,
@@ -84,9 +84,9 @@ INSERT INTO products (id, name, weight, yield, color, ingredients) VALUES
 ON CONFLICT (id) DO NOTHING;
 
 -- Seed Plans
-INSERT INTO plans (id, name, product_id, start_date, bottling_date, shipping_limit, expiry_date, avg_order_qty, marketing_qty, buffer_qty, total_qty, fermenter_type, total_volume_l) VALUES
-('P-20260708-01', '7월 1주차 플레인 생산', 'prod-1', '2026-07-08', '2026-07-10', '2026-07-17', '2026-07-29', 100, 50, 50, 800, 'large', 428.57),
-('P-20260713-01', '7월 2주차 블루베리 생산', 'prod-2', '2026-07-13', '2026-07-15', '2026-07-22', '2026-08-06', 300, 110, 100, 2310, 'large', 1001.00)
+INSERT INTO plans (id, name, product_id, start_date, bottling_date, shipping_limit, expiry_date, expected_order_qty, marketing_qty, buffer_qty, total_qty, fermenter_type, total_volume_l) VALUES
+('P-20260708-01', '7월 1주차 플레인 생산', 'prod-1', '2026-07-08', '2026-07-10', '2026-07-17', '2026-07-29', 700, 50, 50, 800, 'large', 428.57),
+('P-20260713-01', '7월 2주차 블루베리 생산', 'prod-2', '2026-07-13', '2026-07-15', '2026-07-22', '2026-08-06', 2100, 110, 100, 2310, 'large', 1001.00)
 ON CONFLICT (id) DO NOTHING;
 
 -- Seed Inventory

@@ -440,8 +440,8 @@ const CalendarView = ({
                   
                   <div style={{ marginTop: '10px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', background: 'rgba(255,255,255,0.02)', padding: '8px', borderRadius: '8px' }}>
                     <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>주문(7일)</div>
-                      <div style={{ fontSize: '0.85rem', fontWeight: 600, fontFamily: 'var(--font-outfit)' }}>{selectedPlanDetails.plan.avgOrderQty * 7}</div>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>주문 예상</div>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 600, fontFamily: 'var(--font-outfit)' }}>{selectedPlanDetails.plan.expectedOrderQty}</div>
                     </div>
                     <div style={{ textAlign: 'center', borderLeft: '1px solid var(--border-color)', borderRight: '1px solid var(--border-color)' }}>
                       <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>마케팅</div>
