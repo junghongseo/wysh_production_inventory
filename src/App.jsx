@@ -5,6 +5,7 @@ import Navbar from './components/Navbar';
 import CalendarView from './components/CalendarView';
 import InventoryView from './components/InventoryView';
 import RecipesView from './components/RecipesView';
+import OrderView from './components/OrderView';
 import RecipeDrawer from './components/RecipeDrawer';
 import PlanRegistrationModal from './components/modals/PlanRegistrationModal';
 import ProductRegistrationModal from './components/modals/ProductRegistrationModal';
@@ -205,6 +206,12 @@ const App = () => {
             onDeleteProduct={handleDeleteProduct}
             onConfirmModal={triggerConfirm}
           />
+        )}
+      </section>
+
+      <section className={`tab-content ${activeTab === 'order-view' ? 'active' : ''}`} id="order-view">
+        {activeTab === 'order-view' && (
+          <OrderView />
         )}
       </section>
 
