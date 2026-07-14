@@ -267,6 +267,8 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal 
               <tr>
                 <th>차수 ID</th>
                 <th>생산 계획명</th>
+                <th>출고기한</th>
+                <th>소비기한</th>
                 <th>생산 품목</th>
                 <th style={{ textAlign: 'right' }}>계획 수량(개)</th>
                 <th style={{ textAlign: 'right' }}>실제 입고(개)</th>
@@ -277,7 +279,7 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal 
             <tbody id="inventory-table-body">
               {paginatedInventoryData.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="empty-state" style={{ textAlign: 'center', padding: '30px' }}>
+                  <td colSpan="9" className="empty-state" style={{ textAlign: 'center', padding: '30px' }}>
                     조건에 부합하는 생산 차수가 없습니다.
                   </td>
                 </tr>
@@ -292,6 +294,8 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal 
                     >
                       <td style={{ fontFamily: 'var(--font-outfit)', fontWeight: 600, color: 'var(--color-primary)' }}>{plan.id}</td>
                       <td style={{ fontWeight: 500 }}>{plan.name}</td>
+                      <td style={{ fontFamily: 'var(--font-outfit)', color: 'var(--text-secondary)' }}>{plan.shippingLimit}</td>
+                      <td style={{ fontFamily: 'var(--font-outfit)', color: 'var(--text-secondary)' }}>{plan.expiryDate}</td>
                       <td>{prodName}</td>
                       <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)' }}>{plan.totalQty.toLocaleString()}</td>
                       <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', fontWeight: 600, color: 'var(--color-success)' }}>{actualQty.toLocaleString()}</td>
