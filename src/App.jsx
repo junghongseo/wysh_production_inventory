@@ -126,7 +126,7 @@ const App = () => {
           </div>
           <div className="brand-title-group">
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <h1 style={{ margin: 0 }}>WYSH Production & Inventory</h1>
+              <h1 style={{ margin: 0 }}>Wyshboard</h1>
               {!isDbConnected && (
                 <span style={{
                   fontSize: '0.65rem',
@@ -151,7 +151,7 @@ const App = () => {
                 </span>
               )}
             </div>
-            <p style={{ margin: '4px 0 0 0' }}>생산 계획 및 차수별 재고 통합 관리 솔루션</p>
+            <p style={{ margin: '4px 0 0 0' }}>생산부터 재고까지, 위시의 모든 흐름을 한눈에</p>
             {dbError && (
               <p style={{ fontSize: '0.7rem', color: 'var(--color-danger, #ef4444)', margin: '4px 0 0 0', display: 'flex', alignItems: 'center', gap: '4px' }}>
                 ⚠️ 동기화 실패: {dbError}
