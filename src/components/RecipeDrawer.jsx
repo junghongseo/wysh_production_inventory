@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { useWysh } from '../WyshContext';
 
 const RecipeDrawer = ({ isOpen, onClose, planId }) => {
@@ -48,7 +48,7 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
     };
   }, [isOpen, planId, plans, products]);
 
-  const handlePrint = () => {
+  const handlePrint = useCallback(() => {
     document.body.classList.add('printing-recipe');
     window.print();
     const handleAfterPrint = () => {
@@ -57,7 +57,7 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
     window.addEventListener('afterprint', handleAfterPrint, { once: true });
     // Safety fallback
     setTimeout(handleAfterPrint, 1500);
-  };
+  }, []);
 
   if (!isOpen) return null;
 
@@ -178,4 +178,4 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
   );
 };
 
-export default RecipeDrawer;
+export default React.memo(RecipeDrawer);

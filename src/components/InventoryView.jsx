@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useWysh } from '../WyshContext';
 
 const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal, isAdminLoggedIn }) => {
@@ -131,27 +131,27 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal,
   }, [inventory, plans, selectedInventoryPlanId]);
 
   // Handle start/cancel edit outflow
-  const handleStartEdit = (item) => {
+  const handleStartEdit = useCallback((item) => {
     setEditingHistoryId(item.id);
     setOutflowPlanId(item.planId);
     setOutflowDate(item.date.split(' ')[0]);
     setOutflowQty(item.qty.toString());
     setOutflowPurpose(item.purpose);
     setOutflowMemo(item.memo || '');
-  };
+  }, []);
 
-  const handleCancelEdit = () => {
+  const handleCancelEdit = useCallback(() => {
     setEditingHistoryId(null);
     setOutflowPlanId('');
     setOutflowQty('');
     setOutflowPurpose('');
     setOutflowMemo('');
     setOutflowDate(todayStr);
-  };
+  }, [todayStr]);
 
 
   // Handle Outflow submission
-  const handleOutflowSubmit = (e) => {
+  const handleOutflowSubmit = useCallback((e) => {
     e.preventDefault();
     const qty = parseInt(outflowQty) || 0;
     
@@ -216,7 +216,18 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal,
       setOutflowMemo('');
       setOutflowDate(todayStr);
     }
-  };
+  }, [
+    outflowQty,
+    outflowPlanId,
+    outflowPurpose,
+    outflowDate,
+    todayStr,
+    getInventoryRecord,
+    editingHistoryId,
+    updateOutflow,
+    handleCancelEdit,
+    addOutflow
+  ]);
 
   return (
     <div className="inventory-layout">

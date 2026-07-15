@@ -1,6 +1,15 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useCallback } from 'react';
 import * as XLSX from 'xlsx';
 import html2canvas from 'html2canvas';
+
+const cleanItemName = (name) => {
+  let nameStr = String(name || '').trim();
+  // Remove bracket prefix (e.g. [RENEWAL])
+  nameStr = nameStr.replace(/^\[[^\]]+\]\s*/, '');
+  // Remove weight/capacity suffix (e.g. 330g, 350g, 20g, 20G, 330ml, etc.)
+  nameStr = nameStr.replace(/\s*\d+\s*(?:[gG](?:[rR][aA][mM])?|[mM][lL])\s*$/, '');
+  return nameStr.trim();
+};
 
 const OrderView = () => {
   const [file, setFile] = useState(null);
@@ -21,33 +30,24 @@ const OrderView = () => {
     return new Date(today.getTime() - offset).toISOString().split('T')[0];
   }, []);
 
-  const cleanItemName = (name) => {
-    let nameStr = String(name || '').trim();
-    // Remove bracket prefix (e.g. [RENEWAL])
-    nameStr = nameStr.replace(/^\[[^\]]+\]\s*/, '');
-    // Remove weight/capacity suffix (e.g. 330g, 350g, 20g, 20G, 330ml, etc.)
-    nameStr = nameStr.replace(/\s*\d+\s*(?:[gG](?:[rR][aA][mM])?|[mM][lL])\s*$/, '');
-    return nameStr.trim();
-  };
-
-  const handleFileChange = (e) => {
+  const handleFileChange = useCallback((e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile) {
       setFile(selectedFile);
       setError('');
     }
-  };
+  }, []);
 
-  const handleDragOver = (e) => {
+  const handleDragOver = useCallback((e) => {
     e.preventDefault();
     setIsDragOver(true);
-  };
+  }, []);
 
-  const handleDragLeave = () => {
+  const handleDragLeave = useCallback(() => {
     setIsDragOver(false);
-  };
+  }, []);
 
-  const handleDrop = (e) => {
+  const handleDrop = useCallback((e) => {
     e.preventDefault();
     setIsDragOver(false);
     const droppedFile = e.dataTransfer.files[0];
@@ -61,9 +61,9 @@ const OrderView = () => {
         setError('엑셀 파일(.xlsx, .xls)만 업로드 가능합니다.');
       }
     }
-  };
+  }, []);
 
-  const processExcel = () => {
+  const processExcel = useCallback(() => {
     if (!file) {
       setError('정리할 엑셀 파일을 먼저 선택해 주세요.');
       return;
@@ -268,9 +268,9 @@ const OrderView = () => {
     };
 
     reader.readAsArrayBuffer(file);
-  };
+  }, [file, todayStr]);
 
-  const handleDownloadImage = () => {
+  const handleDownloadImage = useCallback(() => {
     if (!captureRef.current) return;
 
     const originalBtn = document.getElementById('download-btn');
@@ -296,7 +296,7 @@ const OrderView = () => {
         originalBtn.innerText = '이미지 저장하기';
       }
     });
-  };
+  }, [todayStr]);
 
   // Get total count
   const totalCount = results ? results.reduce((acc, curr) => acc + curr.count, 0) : 0;

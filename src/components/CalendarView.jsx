@@ -1,5 +1,20 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { useWysh } from '../WyshContext';
+
+// Local-time safe YYYY-MM-DD formatter
+const formatDate = (date) => {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+};
+
+// Safe add days to date string
+const addDays = (dateStr, days) => {
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + days);
+  return formatDate(d);
+};
 
 const CalendarView = ({ 
   selectedPlan, 
@@ -22,33 +37,17 @@ const CalendarView = ({
     return inventory.find(i => i.planId === selectedPlan.id) || null;
   }, [selectedPlan, inventory]);
 
+  const nextMonth = useCallback(() => {
+    setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
+  }, []);
 
-  // Local-time safe YYYY-MM-DD formatter
-  const formatDate = (date) => {
-    const y = date.getFullYear();
-    const m = String(date.getMonth() + 1).padStart(2, '0');
-    const d = String(date.getDate()).padStart(2, '0');
-    return `${y}-${m}-${d}`;
-  };
+  const prevMonth = useCallback(() => {
+    setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
+  }, []);
 
-  // Safe add days to date string
-  const addDays = (dateStr, days) => {
-    const d = new Date(dateStr + 'T00:00:00');
-    d.setDate(d.getDate() + days);
-    return formatDate(d);
-  };
-
-  const nextMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 1));
-  };
-
-  const prevMonth = () => {
-    setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
-  };
-
-  const setToday = () => {
+  const setToday = useCallback(() => {
     setCurrentDate(new Date());
-  };
+  }, []);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -87,7 +86,7 @@ const CalendarView = ({
     return cells;
   }, [year, month]);
 
-  const todayStr = formatDate(new Date());
+  const todayStr = useMemo(() => formatDate(new Date()), []);
 
   // Calculate layout slot indices to prevent overlapping plan blocks from snapping vertical positions
   const planSlots = useMemo(() => {
@@ -133,10 +132,59 @@ const CalendarView = ({
     };
   }, [plans]);
 
-  // Find product by plan
-  const getProductForPlan = (productId) => {
+  // Find product by plan (useCallback optimized)
+  const getProductForPlan = useCallback((productId) => {
     return products.find(p => p.id === productId);
-  };
+  }, [products]);
+
+  // Pre-calculate active plan events on all days to prevent nested loops in rendering
+  const cellEventsMap = useMemo(() => {
+    const map = {};
+    calendarCells.forEach(cell => {
+      const cellEvents = Array(planSlots.maxSlotCount).fill(null);
+      plans.forEach((plan, planIdx) => {
+        const prod = products.find(p => p.id === plan.productId);
+        const prodName = prod ? prod.name : '알수없음';
+        
+        const d1 = plan.startDate;
+        const d3 = plan.bottlingDate;
+
+        let isPlanDay = false;
+        let dayLabel = '';
+        let dayClass = '';
+
+        if (cell.dateStr === d1) {
+          isPlanDay = true;
+          dayLabel = `🧪 발효 | ${prodName}`;
+          dayClass = 'event-day-1';
+        } else if (cell.dateStr === d3) {
+          isPlanDay = true;
+          dayLabel = `🍼 병입 | 완료`;
+          dayClass = 'event-day-3';
+        } else if (cell.dateStr > d1 && cell.dateStr < d3) {
+          isPlanDay = true;
+          dayLabel = `🌀 유청분리`;
+          dayClass = 'event-day-2';
+        }
+
+        if (isPlanDay) {
+          const assignedSlotIdx = planSlots.map[plan.id];
+          if (assignedSlotIdx !== undefined && assignedSlotIdx >= 0) {
+            cellEvents[assignedSlotIdx] = {
+              plan,
+              prod,
+              prodName,
+              dayLabel,
+              dayClass,
+              planIdx
+            };
+          }
+        }
+      });
+      map[cell.dateStr] = cellEvents;
+    });
+    return map;
+  }, [calendarCells, plans, products, planSlots]);
 
   // Right sidebar details calculations
   const selectedPlanDetails = useMemo(() => {
@@ -151,7 +199,7 @@ const CalendarView = ({
       singleWeight: product ? product.weight : 0,
       yieldRate: product ? (product.yield || 28) : 0
     };
-  }, [selectedPlan, plans, products]);
+  }, [selectedPlan, plans, getProductForPlan]);
 
   // Compute remaining stock for the selected plan
   const selectedPlanStock = useMemo(() => {
@@ -161,17 +209,17 @@ const CalendarView = ({
     return record.actualQty - outflowSum;
   }, [selectedPlan, selectedInvRecord]);
 
-  const handleDayClick = (dateStr) => {
+  const handleDayClick = useCallback((dateStr) => {
     setSelectedPlan(null);
     setSelectedDate(dateStr);
     const note = calendarNotes.find(n => n.dateStr === dateStr) || null;
     setSelectedDateNote(note);
-  };
+  }, [setSelectedPlan, setSelectedDate, calendarNotes, setSelectedDateNote]);
 
-  const handleDayDoubleClick = (dateStr) => {
+  const handleDayDoubleClick = useCallback((dateStr) => {
     const existing = calendarNotes.find(n => n.dateStr === dateStr) || null;
     onOpenNoteModal(dateStr, existing);
-  };
+  }, [calendarNotes, onOpenNoteModal]);
 
   return (
     <div className="dashboard-grid">
@@ -224,48 +272,8 @@ const CalendarView = ({
             const isShippingHighlight = selectedPlan && cell.dateStr === selectedPlan.shippingLimit;
             const isExpiryHighlight = selectedPlan && cell.dateStr === selectedPlan.expiryDate;
 
-            // Map plans active on this day to their corresponding precalculated slot positions
-            const cellEvents = Array(planSlots.maxSlotCount).fill(null);
-
-            plans.forEach((plan, planIdx) => {
-              const prod = getProductForPlan(plan.productId);
-              const prodName = prod ? prod.name : '알수없음';
-              
-              const d1 = plan.startDate;
-              const d3 = plan.bottlingDate;
-
-              let isPlanDay = false;
-              let dayLabel = '';
-              let dayClass = '';
-
-              if (cell.dateStr === d1) {
-                isPlanDay = true;
-                dayLabel = `🧪 발효 | ${prodName}`;
-                dayClass = 'event-day-1';
-              } else if (cell.dateStr === d3) {
-                isPlanDay = true;
-                dayLabel = `🍼 병입 | 완료`;
-                dayClass = 'event-day-3';
-              } else if (cell.dateStr > d1 && cell.dateStr < d3) {
-                isPlanDay = true;
-                dayLabel = `🌀 유청분리`;
-                dayClass = 'event-day-2';
-              }
-
-              if (isPlanDay) {
-                const assignedSlotIdx = planSlots.map[plan.id];
-                if (assignedSlotIdx !== undefined && assignedSlotIdx >= 0) {
-                  cellEvents[assignedSlotIdx] = {
-                    plan,
-                    prod,
-                    prodName,
-                    dayLabel,
-                    dayClass,
-                    planIdx
-                  };
-                }
-              }
-            });
+            // Retrieve pre-calculated cell events slots in O(1) time
+            const cellEvents = cellEventsMap[cell.dateStr] || Array(planSlots.maxSlotCount).fill(null);
 
             // Filter outflows related to the selected plan on this day
             const dayOutflows = selectedInvRecord?.history

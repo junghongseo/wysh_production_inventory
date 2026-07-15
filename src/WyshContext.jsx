@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from './supabaseClient';
 
 const WyshContext = createContext();
@@ -167,7 +167,7 @@ export const WyshProvider = ({ children }) => {
     syncFromSupabase();
   }, []);
 
-  const syncFromSupabase = async () => {
+  const syncFromSupabase = useCallback(async () => {
     if (!supabase) {
       setIsDbConnected(false);
       setDbError("Supabase client not initialized (missing environment variables)");
@@ -263,9 +263,9 @@ export const WyshProvider = ({ children }) => {
       setIsDbConnected(false);
       setDbError(e.message || String(e));
     }
-  };
+  }, []);
 
-  const pushProductToSupabase = async (product) => {
+  const pushProductToSupabase = useCallback(async (product) => {
     if (!supabase) return;
     try {
       const dbProduct = {
@@ -283,9 +283,9 @@ export const WyshProvider = ({ children }) => {
     } catch (e) {
       console.error("Supabase Push Error (Product):", e);
     }
-  };
+  }, []);
 
-  const deleteProductFromSupabase = async (id) => {
+  const deleteProductFromSupabase = useCallback(async (id) => {
     if (!supabase) return;
     try {
       const { error } = await supabase.from('products').delete().eq('id', id);
@@ -293,9 +293,9 @@ export const WyshProvider = ({ children }) => {
     } catch (e) {
       console.error("Supabase Push Error (Delete Product):", e);
     }
-  };
+  }, []);
 
-  const pushPlanToSupabase = async (plan) => {
+  const pushPlanToSupabase = useCallback(async (plan) => {
     if (!supabase) return;
     try {
       const dbPlan = {
@@ -319,9 +319,9 @@ export const WyshProvider = ({ children }) => {
     } catch (e) {
       console.error("Supabase Push Error (Plan):", e);
     }
-  };
+  }, []);
 
-  const deletePlanFromSupabase = async (id) => {
+  const deletePlanFromSupabase = useCallback(async (id) => {
     if (!supabase) return;
     try {
       const { error } = await supabase.from('plans').delete().eq('id', id);
@@ -329,9 +329,9 @@ export const WyshProvider = ({ children }) => {
     } catch (e) {
       console.error("Supabase Push Error (Delete Plan):", e);
     }
-  };
+  }, []);
 
-  const pushInventoryToSupabase = async (record) => {
+  const pushInventoryToSupabase = useCallback(async (record) => {
     if (!supabase || !record) return;
     try {
       const dbInventory = {
@@ -344,10 +344,10 @@ export const WyshProvider = ({ children }) => {
     } catch (e) {
       console.error("Supabase Push Error (Inventory):", e);
     }
-  };
+  }, []);
 
   // 1. Products Actions
-  const addProduct = (productData) => {
+  const addProduct = useCallback((productData) => {
     const newProduct = {
       ...productData,
       id: 'prod-' + Date.now()
@@ -357,16 +357,16 @@ export const WyshProvider = ({ children }) => {
     localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(updatedProducts));
     pushProductToSupabase(newProduct);
     return newProduct;
-  };
+  }, [products, pushProductToSupabase]);
 
-  const updateProduct = (updatedProd) => {
+  const updateProduct = useCallback((updatedProd) => {
     const updatedProducts = products.map(p => p.id === updatedProd.id ? updatedProd : p);
     setProducts(updatedProducts);
     localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(updatedProducts));
     pushProductToSupabase(updatedProd);
-  };
+  }, [products, pushProductToSupabase]);
 
-  const deleteProduct = (id) => {
+  const deleteProduct = useCallback((id) => {
     const updatedProducts = products.filter(p => p.id !== id);
     setProducts(updatedProducts);
     localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(updatedProducts));
@@ -386,14 +386,14 @@ export const WyshProvider = ({ children }) => {
     // Supabase Sync (Cloud cascade references handle plan & inventory deletions if configured,
     // but we execute the delete query to be explicit)
     deleteProductFromSupabase(id);
-  };
+  }, [products, plans, inventory, deleteProductFromSupabase]);
 
-  const getProductById = (id) => {
+  const getProductById = useCallback((id) => {
     return products.find(p => p.id === id);
-  };
+  }, [products]);
 
   // 2. Plans Actions
-  const addPlan = (planData) => {
+  const addPlan = useCallback((planData) => {
     const dateStr = planData.startDate.replace(/-/g, '');
     const sameDayCount = plans.filter(p => p.startDate === planData.startDate).length;
     const newPlan = {
@@ -419,9 +419,9 @@ export const WyshProvider = ({ children }) => {
     pushInventoryToSupabase(newInv);
 
     return newPlan;
-  };
+  }, [plans, inventory, pushPlanToSupabase, pushInventoryToSupabase]);
 
-  const updatePlan = (updatedPlan) => {
+  const updatePlan = useCallback((updatedPlan) => {
     const index = plans.findIndex(p => p.id === updatedPlan.id);
     if (index === -1) return;
 
@@ -451,9 +451,9 @@ export const WyshProvider = ({ children }) => {
     if (updatedInv) {
       pushInventoryToSupabase(updatedInv);
     }
-  };
+  }, [plans, inventory, pushPlanToSupabase, pushInventoryToSupabase]);
 
-  const deletePlan = (id) => {
+  const deletePlan = useCallback((id) => {
     const updatedPlans = plans.filter(p => p.id !== id);
     setPlans(updatedPlans);
     localStorage.setItem(STORAGE_KEYS.PLANS, JSON.stringify(updatedPlans));
@@ -463,10 +463,10 @@ export const WyshProvider = ({ children }) => {
     localStorage.setItem(STORAGE_KEYS.INVENTORY, JSON.stringify(updatedInventory));
 
     deletePlanFromSupabase(id);
-  };
+  }, [plans, inventory, deletePlanFromSupabase]);
 
   // 3. Inventory Actions
-  const updateActualQty = (planId, qty) => {
+  const updateActualQty = useCallback((planId, qty) => {
     let updatedRecord = null;
     const updatedInventory = inventory.map(i => {
       if (i.planId === planId) {
@@ -484,9 +484,9 @@ export const WyshProvider = ({ children }) => {
     setInventory(updatedInventory);
     localStorage.setItem(STORAGE_KEYS.INVENTORY, JSON.stringify(updatedInventory));
     pushInventoryToSupabase(updatedRecord);
-  };
+  }, [inventory, pushInventoryToSupabase]);
 
-  const addOutflow = (planId, qty, purpose, customDateString, memo) => {
+  const addOutflow = useCallback((planId, qty, purpose, customDateString, memo) => {
     let updatedRecord = null;
     let dateString = customDateString;
     
@@ -528,9 +528,9 @@ export const WyshProvider = ({ children }) => {
     setInventory(updatedInventory);
     localStorage.setItem(STORAGE_KEYS.INVENTORY, JSON.stringify(updatedInventory));
     pushInventoryToSupabase(updatedRecord);
-  };
+  }, [inventory, plans, pushInventoryToSupabase]);
 
-  const deleteHistoryItem = (planId, historyId) => {
+  const deleteHistoryItem = useCallback((planId, historyId) => {
     let updatedRecord = null;
     const updatedInventory = inventory.map(i => {
       if (i.planId === planId) {
@@ -548,9 +548,9 @@ export const WyshProvider = ({ children }) => {
     if (updatedRecord) {
       pushInventoryToSupabase(updatedRecord);
     }
-  };
+  }, [inventory, pushInventoryToSupabase]);
 
-  const updateOutflowMemo = (planId, historyId, newMemo) => {
+  const updateOutflowMemo = useCallback((planId, historyId, newMemo) => {
     let updatedRecord = null;
     const updatedInventory = inventory.map(i => {
       if (i.planId === planId) {
@@ -568,9 +568,9 @@ export const WyshProvider = ({ children }) => {
     if (updatedRecord) {
       pushInventoryToSupabase(updatedRecord);
     }
-  };
+  }, [inventory, pushInventoryToSupabase]);
 
-  const updateOutflow = (planId, historyId, qty, purpose, dateString, memo) => {
+  const updateOutflow = useCallback((planId, historyId, qty, purpose, dateString, memo) => {
     let updatedRecord = null;
     const updatedInventory = inventory.map(i => {
       if (i.planId === planId) {
@@ -592,9 +592,9 @@ export const WyshProvider = ({ children }) => {
     if (updatedRecord) {
       pushInventoryToSupabase(updatedRecord);
     }
-  };
+  }, [inventory, pushInventoryToSupabase]);
 
-  const getInventoryRecord = (planId) => {
+  const getInventoryRecord = useCallback((planId) => {
     const record = inventory.find(i => i.planId === planId);
     if (!record) {
       const plan = plans.find(p => p.id === planId);
@@ -607,9 +607,9 @@ export const WyshProvider = ({ children }) => {
       }
     }
     return record;
-  };
+  }, [inventory, plans]);
 
-  const pushCalendarNoteToSupabase = async (note) => {
+  const pushCalendarNoteToSupabase = useCallback(async (note) => {
     if (!supabase) return;
     try {
       const dbNote = {
@@ -622,9 +622,9 @@ export const WyshProvider = ({ children }) => {
     } catch (e) {
       console.error("Supabase Push Error (CalendarNote):", e);
     }
-  };
+  }, []);
 
-  const deleteCalendarNoteFromSupabase = async (dateStr) => {
+  const deleteCalendarNoteFromSupabase = useCallback(async (dateStr) => {
     if (!supabase) return;
     try {
       const { error } = await supabase.from('calendar_notes').delete().eq('date_str', dateStr);
@@ -632,9 +632,9 @@ export const WyshProvider = ({ children }) => {
     } catch (e) {
       console.error("Supabase Push Error (Delete CalendarNote):", e);
     }
-  };
+  }, []);
 
-  const saveCalendarNote = (dateStr, title, content) => {
+  const saveCalendarNote = useCallback((dateStr, title, content) => {
     const updatedNotes = [...calendarNotes];
     const existingIdx = updatedNotes.findIndex(n => n.dateStr === dateStr);
     const newNote = { dateStr, title, content };
@@ -648,20 +648,20 @@ export const WyshProvider = ({ children }) => {
     setCalendarNotes(updatedNotes);
     localStorage.setItem(STORAGE_KEYS.CALENDAR_NOTES, JSON.stringify(updatedNotes));
     pushCalendarNoteToSupabase(newNote);
-  };
+  }, [calendarNotes, pushCalendarNoteToSupabase]);
 
-  const deleteCalendarNote = (dateStr) => {
+  const deleteCalendarNote = useCallback((dateStr) => {
     const updatedNotes = calendarNotes.filter(n => n.dateStr !== dateStr);
     setCalendarNotes(updatedNotes);
     localStorage.setItem(STORAGE_KEYS.CALENDAR_NOTES, JSON.stringify(updatedNotes));
     deleteCalendarNoteFromSupabase(dateStr);
-  };
+  }, [calendarNotes, deleteCalendarNoteFromSupabase]);
 
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(() => {
     return sessionStorage.getItem('wysh_admin_logged_in') === 'true';
   });
 
-  const loginAdmin = (id, password) => {
+  const loginAdmin = useCallback((id, password) => {
     const adminId = (import.meta.env.VITE_ADMIN_ID || 'wysh').trim();
     const adminPassword = (import.meta.env.VITE_ADMIN_PASSWORD || 'wysh0926!').trim();
 
@@ -680,42 +680,71 @@ export const WyshProvider = ({ children }) => {
       return true;
     }
     return false;
-  };
+  }, []);
 
-  const logoutAdmin = () => {
+  const logoutAdmin = useCallback(() => {
     setIsAdminLoggedIn(false);
     sessionStorage.removeItem('wysh_admin_logged_in');
-  };
+  }, []);
+
+  const contextValue = useMemo(() => ({
+    products,
+    plans,
+    inventory,
+    calendarNotes,
+    loading,
+    addProduct,
+    updateProduct,
+    deleteProduct,
+    getProductById,
+    addPlan,
+    updatePlan,
+    deletePlan,
+    updateActualQty,
+    addOutflow,
+    updateOutflow,
+    deleteHistoryItem,
+    updateOutflowMemo,
+    getInventoryRecord,
+    saveCalendarNote,
+    deleteCalendarNote,
+    syncFromSupabase,
+    isAdminLoggedIn,
+    loginAdmin,
+    logoutAdmin,
+    isDbConnected,
+    dbError
+  }), [
+    products,
+    plans,
+    inventory,
+    calendarNotes,
+    loading,
+    addProduct,
+    updateProduct,
+    deleteProduct,
+    getProductById,
+    addPlan,
+    updatePlan,
+    deletePlan,
+    updateActualQty,
+    addOutflow,
+    updateOutflow,
+    deleteHistoryItem,
+    updateOutflowMemo,
+    getInventoryRecord,
+    saveCalendarNote,
+    deleteCalendarNote,
+    syncFromSupabase,
+    isAdminLoggedIn,
+    loginAdmin,
+    logoutAdmin,
+    isDbConnected,
+    dbError
+  ]);
 
   return (
-    <WyshContext.Provider value={{
-      products,
-      plans,
-      inventory,
-      calendarNotes,
-      loading,
-      addProduct,
-      updateProduct,
-      deleteProduct,
-      getProductById,
-      addPlan,
-      updatePlan,
-      deletePlan,
-      updateActualQty,
-      addOutflow,
-      updateOutflow,
-      deleteHistoryItem,
-      updateOutflowMemo,
-      getInventoryRecord,
-      saveCalendarNote,
-      deleteCalendarNote,
-      syncFromSupabase,
-      isAdminLoggedIn,
-      loginAdmin,
-      logoutAdmin,
-      isDbConnected,
-      dbError
-    }}>
+    <WyshContext.Provider value={contextValue}>
       {children}
     </WyshContext.Provider>
   );
