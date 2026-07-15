@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 
-const CalendarNoteModal = ({ isOpen, onClose, dateStr, existingNote, onSave, onDelete }) => {
+const CalendarNoteModal = ({ isOpen, onClose, dateStr, existingNote, onSave, onDelete, isAdminLoggedIn }) => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
 
@@ -16,19 +16,22 @@ const CalendarNoteModal = ({ isOpen, onClose, dateStr, existingNote, onSave, onD
         setContent('');
       }
       
-      // Auto focus on title input after opening animation
-      setTimeout(() => {
-        if (titleInputRef.current) {
-          titleInputRef.current.focus();
-        }
-      }, 80);
+      // Auto focus on title input after opening animation (only for admins)
+      if (isAdminLoggedIn) {
+        setTimeout(() => {
+          if (titleInputRef.current) {
+            titleInputRef.current.focus();
+          }
+        }, 80);
+      }
     }
-  }, [isOpen, existingNote]);
+  }, [isOpen, existingNote, isAdminLoggedIn]);
 
   if (!isOpen) return null;
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!isAdminLoggedIn) return;
     if (!title.trim()) {
       alert('메모 제목을 입력해주세요.');
       return;
@@ -38,6 +41,7 @@ const CalendarNoteModal = ({ isOpen, onClose, dateStr, existingNote, onSave, onD
   };
 
   const handleDeleteClick = () => {
+    if (!isAdminLoggedIn) return;
     if (window.confirm('이 날짜의 메모를 정말로 삭제하시겠습니까?')) {
       onDelete(dateStr);
       onClose();
@@ -48,7 +52,7 @@ const CalendarNoteModal = ({ isOpen, onClose, dateStr, existingNote, onSave, onD
     <div className="modal-overlay open" id="calendar-note-modal">
       <div className="modal-content" style={{ width: '420px' }}>
         <div className="modal-header">
-          <h3>📅 {existingNote ? '일정 메모 수정' : '일정 메모 등록'}</h3>
+          <h3>📅 {!isAdminLoggedIn ? '일정 메모 조회' : existingNote ? '일정 메모 수정' : '일정 메모 등록'}</h3>
           <button className="btn-icon" onClick={onClose} aria-label="닫기">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -75,6 +79,7 @@ const CalendarNoteModal = ({ isOpen, onClose, dateStr, existingNote, onSave, onD
                 onChange={(e) => setTitle(e.target.value)}
                 onFocus={(e) => e.target.select()}
                 required 
+                readOnly={!isAdminLoggedIn}
               />
             </div>
             <div className="form-group" style={{ marginTop: '12px' }}>
@@ -83,37 +88,46 @@ const CalendarNoteModal = ({ isOpen, onClose, dateStr, existingNote, onSave, onD
                 className="form-control" 
                 id="note-content" 
                 rows="4"
-                placeholder="상세한 메모 내용을 입력하세요" 
+                placeholder={isAdminLoggedIn ? "상세한 메모 내용을 입력하세요" : "등록된 메모 내용이 없습니다."}
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
                 style={{ resize: 'vertical', minHeight: '80px', fontFamily: 'inherit', fontSize: '0.9rem', padding: '10px' }}
+                readOnly={!isAdminLoggedIn}
               />
             </div>
           </div>
           <div className="modal-footer" style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
-            <button type="button" className="btn-secondary" onClick={onClose} style={{ flex: 1, height: '38px', justifyContent: 'center' }}>
-              취소
-            </button>
-            {existingNote && (
-              <button 
-                type="button" 
-                className="btn-success" 
-                onClick={handleDeleteClick} 
-                style={{ 
-                  flex: 1, 
-                  height: '38px', 
-                  justifyContent: 'center', 
-                  backgroundColor: 'var(--color-danger)', 
-                  borderColor: 'var(--color-danger)', 
-                  color: '#ffffff' 
-                }}
-              >
-                삭제
+            {!isAdminLoggedIn ? (
+              <button type="button" className="btn-primary" onClick={onClose} style={{ flex: 1, height: '38px', justifyContent: 'center' }}>
+                확인
               </button>
+            ) : (
+              <>
+                <button type="button" className="btn-secondary" onClick={onClose} style={{ flex: 1, height: '38px', justifyContent: 'center' }}>
+                  취소
+                </button>
+                {existingNote && (
+                  <button 
+                    type="button" 
+                    className="btn-success" 
+                    onClick={handleDeleteClick} 
+                    style={{ 
+                      flex: 1, 
+                      height: '38px', 
+                      justifyContent: 'center', 
+                      backgroundColor: 'var(--color-danger)', 
+                      borderColor: 'var(--color-danger)', 
+                      color: '#ffffff' 
+                    }}
+                  >
+                    삭제
+                  </button>
+                )}
+                <button type="submit" className="btn-primary" style={{ flex: 1, height: '38px', justifyContent: 'center' }}>
+                  저장
+                </button>
+              </>
             )}
-            <button type="submit" className="btn-primary" style={{ flex: 1, height: '38px', justifyContent: 'center' }}>
-              저장
-            </button>
           </div>
         </form>
       </div>

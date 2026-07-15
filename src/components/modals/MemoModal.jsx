@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-const MemoModal = ({ isOpen, onClose, planId, historyId, initialMemo, onSave }) => {
+const MemoModal = ({ isOpen, onClose, planId, historyId, initialMemo, onSave, isAdminLoggedIn }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [memoText, setMemoText] = useState('');
 
@@ -14,6 +14,7 @@ const MemoModal = ({ isOpen, onClose, planId, historyId, initialMemo, onSave }) 
   if (!isOpen) return null;
 
   const handleSave = () => {
+    if (!isAdminLoggedIn) return;
     onSave(planId, historyId, memoText.trim());
     setIsEditing(false);
     onClose();
@@ -95,9 +96,11 @@ const MemoModal = ({ isOpen, onClose, planId, historyId, initialMemo, onSave }) 
               <button type="button" className="btn-secondary" onClick={onClose} style={{ width: '110px', justifyContent: 'center' }}>
                 닫기
               </button>
-              <button type="button" className="btn-primary" onClick={() => setIsEditing(true)} style={{ width: '110px', justifyContent: 'center' }}>
-                수정
-              </button>
+              {isAdminLoggedIn && (
+                <button type="button" className="btn-primary" onClick={() => setIsEditing(true)} style={{ width: '110px', justifyContent: 'center' }}>
+                  수정
+                </button>
+              )}
             </>
           )}
         </div>

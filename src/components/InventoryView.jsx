@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useWysh } from '../WyshContext';
 
-const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal }) => {
+const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal, isAdminLoggedIn }) => {
   const { plans, products, inventory, addOutflow, updateOutflow, getInventoryRecord } = useWysh();
 
   const [outflowPlanId, setOutflowPlanId] = useState('');
@@ -303,20 +303,24 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal 
                         {currentStock.toLocaleString()}
                       </td>
                       <td style={{ textAlign: 'center' }}>
-                        <button 
-                          className="btn-secondary modify-qty-btn" 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onOpenModifyQtyModal(plan.id);
-                          }}
-                          style={{ padding: '4px 8px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-                        >
-                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                            <path d="M12 20h9"></path>
-                            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-                          </svg>
-                          실제 생산량 수정
-                        </button>
+                        {isAdminLoggedIn ? (
+                          <button 
+                            className="btn-secondary modify-qty-btn" 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onOpenModifyQtyModal(plan.id);
+                            }}
+                            style={{ padding: '4px 8px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M12 20h9"></path>
+                              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                            </svg>
+                            실제 생산량 수정
+                          </button>
+                        ) : (
+                          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>-</span>
+                        )}
                       </td>
                     </tr>
                   );
@@ -373,6 +377,29 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal 
               </button>
             )}
           </div>
+          {!isAdminLoggedIn && (
+            <div style={{
+              background: 'rgba(14, 165, 233, 0.08)',
+              border: '1px solid rgba(14, 165, 233, 0.2)',
+              borderRadius: '8px',
+              padding: '12px',
+              marginBottom: '16px',
+              fontSize: '0.82rem',
+              color: 'var(--color-primary)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              fontWeight: 500,
+              lineHeight: '1.4'
+            }}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="16" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+              </svg>
+              읽기 전용 상태입니다. 출고 정보 등록 및 수정은 관리자 로그인 후 사용하실 수 있습니다.
+            </div>
+          )}
           <form id="outflow-form" onSubmit={handleOutflowSubmit}>
             <div className="form-group">
               <label htmlFor="outflow-plan-select">출고 차수 선택</label>
@@ -381,7 +408,7 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal 
                 id="outflow-plan-select" 
                 value={outflowPlanId}
                 onChange={(e) => setOutflowPlanId(e.target.value)}
-                disabled={!!editingHistoryId}
+                disabled={!isAdminLoggedIn || !!editingHistoryId}
                 required
               >
                 <option value="" disabled>출고할 생산 차수를 선택하세요</option>
@@ -417,6 +444,7 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal 
                   value={outflowDate}
                   onChange={(e) => setOutflowDate(e.target.value)}
                   required 
+                  disabled={!isAdminLoggedIn}
                 />
               </div>
               <div className="form-group">
@@ -430,6 +458,7 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal 
                   value={outflowQty}
                   onChange={(e) => setOutflowQty(e.target.value)}
                   required 
+                  disabled={!isAdminLoggedIn}
                 />
               </div>
               <div className="form-group">
@@ -442,6 +471,7 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal 
                   value={outflowPurpose}
                   onChange={(e) => setOutflowPurpose(e.target.value)}
                   required 
+                  disabled={!isAdminLoggedIn}
                 />
               </div>
             </div>
@@ -454,18 +484,21 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal 
                 placeholder="출고와 관련된 세부 특이사항 메모를 입력하세요 (선택)" 
                 value={outflowMemo}
                 onChange={(e) => setOutflowMemo(e.target.value)}
+                disabled={!isAdminLoggedIn}
               />
             </div>
-            <button type="submit" className={editingHistoryId ? "btn-primary" : "btn-success"} style={{ width: '100%', justifyContent: 'center', marginTop: '8px' }}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                {editingHistoryId ? (
-                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-                ) : (
-                  <polyline points="20 6 9 17 4 12"></polyline>
-                )}
-              </svg>
-              {editingHistoryId ? '출고 내역 수정완료' : '출고 내역 반영하기'}
-            </button>
+            {isAdminLoggedIn && (
+              <button type="submit" className={editingHistoryId ? "btn-primary" : "btn-success"} style={{ width: '100%', justifyContent: 'center', marginTop: '8px' }}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  {editingHistoryId ? (
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                  ) : (
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  )}
+                </svg>
+                {editingHistoryId ? '출고 내역 수정완료' : '출고 내역 반영하기'}
+              </button>
+            )}
           </form>
         </div>
 
@@ -499,12 +532,12 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal 
                   key={item.id} 
                   className="timeline-item"
                   style={{
-                    cursor: 'pointer',
+                    cursor: isAdminLoggedIn ? 'pointer' : 'default',
                     borderColor: editingHistoryId === item.id ? 'var(--color-primary)' : 'var(--border-color)',
                     background: editingHistoryId === item.id ? 'rgba(2, 132, 199, 0.05)' : 'var(--bg-secondary)',
                     transition: 'var(--transition-smooth)'
                   }}
-                  onClick={() => handleStartEdit(item)}
+                  onClick={isAdminLoggedIn ? () => handleStartEdit(item) : undefined}
                 >
                   <div className="timeline-item-meta">
                     <span className="date">{item.date.split(' ')[0]}</span>
@@ -517,7 +550,7 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal 
                     {item.memo && (
                       <button 
                         type="button" 
-                        title="출고 메모 확인/수정" 
+                        title={isAdminLoggedIn ? "출고 메모 확인/수정" : "출고 메모 확인"} 
                         onClick={(e) => { e.stopPropagation(); onOpenMemoModal(item.planId, item.id, item.memo); }}
                         style={{ background: 'transparent', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                       >
@@ -531,16 +564,18 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal 
                       </button>
                     )}
                     <span className="qty">-{item.qty}개</span>
-                    <button 
-                      className="btn-delete-tiny" 
-                      title="출고 취소"
-                      onClick={(e) => { e.stopPropagation(); onDeleteHistory(item.planId, item.id); }}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                      </svg>
-                    </button>
+                    {isAdminLoggedIn && (
+                      <button 
+                        className="btn-delete-tiny" 
+                        title="출고 취소"
+                        onClick={(e) => { e.stopPropagation(); onDeleteHistory(item.planId, item.id); }}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <line x1="18" y1="6" x2="6" y2="18"></line>
+                          <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                      </button>
+                    )}
                   </div>
                 </div>
               ))

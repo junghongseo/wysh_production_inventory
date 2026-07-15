@@ -13,12 +13,23 @@ import ModifyQtyModal from './components/modals/ModifyQtyModal';
 import ConfirmModal from './components/modals/ConfirmModal';
 import MemoModal from './components/modals/MemoModal';
 import CalendarNoteModal from './components/modals/CalendarNoteModal';
+import AdminLoginModal from './components/modals/AdminLoginModal';
 
 const App = () => {
-  const { deletePlan, deleteProduct, deleteHistoryItem, updateOutflowMemo, saveCalendarNote, deleteCalendarNote, loading, isDbConnected, dbError } = useWysh();
+  const { deletePlan, deleteProduct, deleteHistoryItem, updateOutflowMemo, saveCalendarNote, deleteCalendarNote, loading, isDbConnected, dbError, isAdminLoggedIn, loginAdmin, logoutAdmin } = useWysh();
 
   // Tab state
   const [activeTab, setActiveTab] = useState('calendar-view');
+
+  // Admin login modal state
+  const [adminLoginModalOpen, setAdminLoginModalOpen] = useState(false);
+
+  // Redirect to calendar-view if user logs out while on recipes-view
+  React.useEffect(() => {
+    if (!isAdminLoggedIn && activeTab === 'recipes-view') {
+      setActiveTab('calendar-view');
+    }
+  }, [isAdminLoggedIn, activeTab]);
 
   // Selection states
   const [selectedPlan, setSelectedPlan] = useState(null);
@@ -115,7 +126,7 @@ const App = () => {
   return (
     <div className="app-container">
       {/* Header */}
-      <header className="app-header">
+      <header className="app-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
         <div 
           className="brand-section" 
           onClick={() => setActiveTab('calendar-view')}
@@ -160,7 +171,91 @@ const App = () => {
             )}
           </div>
         </div>
-        <HeaderStats />
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginLeft: 'auto' }}>
+          {/* Admin Authority Indicator */}
+          <div className="glass-card" style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            padding: '8px 16px',
+            borderRadius: '12px',
+            background: 'var(--bg-secondary)',
+            border: '1px solid var(--border-color)',
+            boxShadow: 'var(--glass-shadow)',
+            backdropFilter: 'blur(10px)',
+            transition: 'var(--transition-smooth)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{
+                width: '10px',
+                height: '10px',
+                borderRadius: '50%',
+                backgroundColor: isAdminLoggedIn ? 'var(--color-success, #10b981)' : 'var(--color-primary, #0ea5e9)',
+                display: 'inline-block',
+                boxShadow: isAdminLoggedIn ? '0 0 8px #10b981' : '0 0 8px #0ea5e9',
+                transition: 'all 0.3s ease'
+              }}></span>
+              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                {isAdminLoggedIn ? '관리자 모드' : '일반 사용자 모드'}
+              </span>
+            </div>
+            {isAdminLoggedIn ? (
+              <button 
+                onClick={logoutAdmin}
+                className="btn-secondary"
+                style={{
+                  padding: '6px 12px',
+                  fontSize: '0.78rem',
+                  borderRadius: '8px',
+                  borderColor: 'rgba(239, 68, 68, 0.4)',
+                  color: 'var(--color-danger)',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  background: 'transparent',
+                  transition: 'var(--transition-smooth)'
+                }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                  <polyline points="16 17 21 12 16 7"></polyline>
+                  <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+                로그아웃
+              </button>
+            ) : (
+              <button 
+                onClick={() => setAdminLoginModalOpen(true)}
+                className="btn-primary"
+                style={{
+                  padding: '6px 12px',
+                  fontSize: '0.78rem',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  background: 'linear-gradient(135deg, var(--color-primary), var(--color-accent))',
+                  border: 'none',
+                  color: '#ffffff',
+                  boxShadow: '0 4px 10px rgba(2, 132, 199, 0.15)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  transition: 'var(--transition-smooth)'
+                }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+                관리자 로그인
+              </button>
+            )}
+          </div>
+          <HeaderStats />
+        </div>
       </header>
 
       {/* Main Navigation */}
@@ -170,7 +265,7 @@ const App = () => {
         if (tab === 'recipes-view' && !selectedProduct) {
           setSelectedProduct(null);
         }
-      }} />
+      }} isAdminLoggedIn={isAdminLoggedIn} />
 
       {/* Main Content Tabs */}
       <main className={`tab-content ${activeTab === 'calendar-view' ? 'active' : ''}`} id="calendar-view">
@@ -183,6 +278,7 @@ const App = () => {
             onOpenRecipeDrawer={handleOpenRecipeDrawer}
             onDeletePlan={handleDeletePlan}
             onOpenNoteModal={(dateStr, existing) => setNoteModal({ isOpen: true, dateStr, existingNote: existing })}
+            isAdminLoggedIn={isAdminLoggedIn}
           />
         )}
       </main>
@@ -193,6 +289,7 @@ const App = () => {
             onOpenModifyQtyModal={handleOpenModifyQty}
             onDeleteHistory={handleDeleteHistory}
             onOpenMemoModal={(planId, historyId, memo) => setMemoModal({ isOpen: true, planId, historyId, memo })}
+            isAdminLoggedIn={isAdminLoggedIn}
           />
         )}
       </section>
@@ -251,6 +348,7 @@ const App = () => {
         historyId={memoModal.historyId}
         initialMemo={memoModal.memo}
         onSave={updateOutflowMemo}
+        isAdminLoggedIn={isAdminLoggedIn}
       />
 
       {/* Popup Modal: Custom Deletion Confirmation */}
@@ -270,6 +368,14 @@ const App = () => {
         existingNote={noteModal.existingNote}
         onSave={saveCalendarNote}
         onDelete={deleteCalendarNote}
+        isAdminLoggedIn={isAdminLoggedIn}
+      />
+
+      {/* Admin Login Modal */}
+      <AdminLoginModal
+        isOpen={adminLoginModalOpen}
+        onClose={() => setAdminLoginModalOpen(false)}
+        onLogin={loginAdmin}
       />
     </div>
   );
