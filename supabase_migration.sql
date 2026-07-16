@@ -94,3 +94,36 @@ INSERT INTO inventory (plan_id, actual_qty, history) VALUES
 ('P-20260708-01', 800, '[{"id": "h-1", "date": "2026-07-10 10:00", "qty": 150, "purpose": "출고"}, {"id": "h-2", "date": "2026-07-10 14:00", "qty": 20, "purpose": "마케팅 활용"}]'::jsonb),
 ('P-20260713-01', 2310, '[]'::jsonb)
 ON CONFLICT (plan_id) DO NOTHING;
+
+
+-- =========================================================================
+-- 4. Report System & Custom Product Process Settings
+-- =========================================================================
+
+-- Add default fermentation/process settings columns to products table
+ALTER TABLE products ADD COLUMN IF NOT EXISTS default_sterilization_temp NUMERIC;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS default_sterilization_time INTEGER;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS default_cooling_temp NUMERIC;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS default_inoculation_temp NUMERIC;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS default_heating_temp NUMERIC;
+ALTER TABLE products ADD COLUMN IF NOT EXISTS default_heater_temp NUMERIC;
+
+-- Create reports table (Fermentation, Whey Separation, Bottling, Packaging)
+CREATE TABLE IF NOT EXISTS reports (
+    id TEXT PRIMARY KEY,
+    plan_id TEXT REFERENCES plans(id) ON DELETE CASCADE,
+    type TEXT NOT NULL,                -- 'fermentation', 'whey_separation', 'bottling', 'packaging'
+    worker_name TEXT NOT NULL,         -- verifier signature
+    checked_items JSONB NOT NULL DEFAULT '[]'::jsonb, -- checked checkbox items
+    details JSONB NOT NULL DEFAULT '{}'::jsonb,       -- key-value inputs
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Enable RLS and add policies
+ALTER TABLE reports ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow public read access to reports" ON reports FOR SELECT USING (true);
+CREATE POLICY "Allow public write access to reports" ON reports FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update access to reports" ON reports FOR UPDATE USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public delete access to reports" ON reports FOR DELETE USING (true);
+

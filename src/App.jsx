@@ -5,6 +5,7 @@ import Navbar from './components/Navbar';
 import CalendarView from './components/CalendarView';
 import InventoryView from './components/InventoryView';
 import RecipesView from './components/RecipesView';
+import ReportsView from './components/ReportsView';
 import OrderView from './components/OrderView';
 import RecipeDrawer from './components/RecipeDrawer';
 import PlanRegistrationModal from './components/modals/PlanRegistrationModal';
@@ -291,6 +292,12 @@ const App = () => {
             onOpenMemoModal={(planId, historyId, memo) => setMemoModal({ isOpen: true, planId, historyId, memo })}
             isAdminLoggedIn={isAdminLoggedIn}
           />
+        )}
+      </section>
+
+      <section className={`tab-content ${activeTab === 'reports-view' ? 'active' : ''}`} id="reports-view">
+        {activeTab === 'reports-view' && (
+          <ReportsView />
         )}
       </section>
 

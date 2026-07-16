@@ -10,6 +10,12 @@ const ProductRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
   const [color, setColor] = useState('blue');
   const [shippingLimitDays, setShippingLimitDays] = useState(7);
   const [expiryDays, setExpiryDays] = useState(22);
+  const [defaultSterilizationTemp, setDefaultSterilizationTemp] = useState(85);
+  const [defaultSterilizationTime, setDefaultSterilizationTime] = useState(30);
+  const [defaultCoolingTemp, setDefaultCoolingTemp] = useState(40);
+  const [defaultInoculationTemp, setDefaultInoculationTemp] = useState(42);
+  const [defaultHeatingTemp, setDefaultHeatingTemp] = useState(43);
+  const [defaultHeaterTemp, setDefaultHeaterTemp] = useState(44);
 
   const colors = ['blue', 'purple', 'green', 'orange', 'pink', 'red', 'brown', 'black', 'gray', 'teal', 'yellow', 'indigo'];
   const colorMap = {
@@ -36,6 +42,12 @@ const ProductRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
       setColor('blue');
       setShippingLimitDays(7);
       setExpiryDays(22);
+      setDefaultSterilizationTemp(85);
+      setDefaultSterilizationTime(30);
+      setDefaultCoolingTemp(40);
+      setDefaultInoculationTemp(42);
+      setDefaultHeatingTemp(43);
+      setDefaultHeaterTemp(44);
     }
   }, [isOpen]);
 
@@ -51,7 +63,13 @@ const ProductRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
       expiryDays: parseInt(expiryDays) || 22,
       ingredients: [
         { name: '원유', ratio: 100 }
-      ]
+      ],
+      defaultSterilizationTemp: parseFloat(defaultSterilizationTemp) || 85,
+      defaultSterilizationTime: parseInt(defaultSterilizationTime) || 30,
+      defaultCoolingTemp: parseFloat(defaultCoolingTemp) || 40,
+      defaultInoculationTemp: parseFloat(defaultInoculationTemp) || 42,
+      defaultHeatingTemp: parseFloat(defaultHeatingTemp) || 43,
+      defaultHeaterTemp: parseFloat(defaultHeaterTemp) || 44
     };
 
     const added = addProduct(newProduct);
@@ -159,6 +177,84 @@ const ProductRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
                     onClick={() => setColor(c)}
                   ></div>
                 ))}
+              </div>
+            </div>
+            <div style={{ marginTop: '16px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
+              <h4 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: '12px' }}>발효 공정 기본 설정값</h4>
+              
+              <div className="form-group-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
+                <div className="form-group">
+                  <label htmlFor="new-product-sterilization-temp">기본 살균 온도 (°C)</label>
+                  <input 
+                    type="number" 
+                    className="form-control" 
+                    id="new-product-sterilization-temp" 
+                    value={defaultSterilizationTemp}
+                    onChange={(e) => setDefaultSterilizationTemp(e.target.value)}
+                    required 
+                  />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="new-product-sterilization-time">기본 살균 시간 (분)</label>
+                  <input 
+                    type="number" 
+                    className="form-control" 
+                    id="new-product-sterilization-time" 
+                    value={defaultSterilizationTime}
+                    onChange={(e) => setDefaultSterilizationTime(e.target.value)}
+                    required 
+                  />
+                </div>
+              </div>
+
+              <div className="form-group-grid" style={{ gridTemplateColumns: '1fr 1fr', marginTop: '8px' }}>
+                <div className="form-group">
+                  <label htmlFor="new-product-cooling-temp">기본 냉각 설정 온도 (°C)</label>
+                  <input 
+                    type="number" 
+                    className="form-control" 
+                    id="new-product-cooling-temp" 
+                    value={defaultCoolingTemp}
+                    onChange={(e) => setDefaultCoolingTemp(e.target.value)}
+                    required 
+                  />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="new-product-inoculation-temp">기본 접종 온도 (°C)</label>
+                  <input 
+                    type="number" 
+                    className="form-control" 
+                    id="new-product-inoculation-temp" 
+                    value={defaultInoculationTemp}
+                    onChange={(e) => setDefaultInoculationTemp(e.target.value)}
+                    required 
+                  />
+                </div>
+              </div>
+
+              <div className="form-group-grid" style={{ gridTemplateColumns: '1fr 1fr', marginTop: '8px' }}>
+                <div className="form-group">
+                  <label htmlFor="new-product-heating-temp">기본 가열 설정 온도 (°C)</label>
+                  <input 
+                    type="number" 
+                    className="form-control" 
+                    id="new-product-heating-temp" 
+                    value={defaultHeatingTemp}
+                    onChange={(e) => setDefaultHeatingTemp(e.target.value)}
+                    required 
+                  />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="new-product-heater-temp">기본 히터 설정 온도 (°C)</label>
+                  <input 
+                    type="number" 
+                    className="form-control" 
+                    id="new-product-heater-temp" 
+                    value={defaultHeaterTemp}
+                    onChange={(e) => setDefaultHeaterTemp(e.target.value)}
+                    required 
+                  />
+                </div>
               </div>
             </div>
             <div className="note-card" style={{ marginTop: '16px' }}>

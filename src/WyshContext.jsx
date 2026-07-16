@@ -7,7 +7,8 @@ const STORAGE_KEYS = {
   PRODUCTS: 'wysh_products',
   PLANS: 'wysh_plans',
   INVENTORY: 'wysh_inventory',
-  CALENDAR_NOTES: 'wysh_calendar_notes'
+  CALENDAR_NOTES: 'wysh_calendar_notes',
+  REPORTS: 'wysh_reports'
 };
 
 const DEFAULT_PRODUCTS = [
@@ -22,7 +23,13 @@ const DEFAULT_PRODUCTS = [
     ingredients: [
       { name: '원유', ratio: 95 },
       { name: '유산균', ratio: 5 }
-    ]
+    ],
+    defaultSterilizationTemp: 85,
+    defaultSterilizationTime: 30,
+    defaultCoolingTemp: 40,
+    defaultInoculationTemp: 42,
+    defaultHeatingTemp: 43,
+    defaultHeaterTemp: 44
   },
   {
     id: 'prod-2',
@@ -36,7 +43,13 @@ const DEFAULT_PRODUCTS = [
       { name: '원유', ratio: 80 },
       { name: '블루베리 퓨레', ratio: 18 },
       { name: '유산균', ratio: 2 }
-    ]
+    ],
+    defaultSterilizationTemp: 85,
+    defaultSterilizationTime: 30,
+    defaultCoolingTemp: 40,
+    defaultInoculationTemp: 42,
+    defaultHeatingTemp: 43,
+    defaultHeaterTemp: 44
   },
   {
     id: 'prod-3',
@@ -50,7 +63,13 @@ const DEFAULT_PRODUCTS = [
       { name: '원유', ratio: 80 },
       { name: '딸기 잼', ratio: 18 },
       { name: '유산균', ratio: 2 }
-    ]
+    ],
+    defaultSterilizationTemp: 85,
+    defaultSterilizationTime: 30,
+    defaultCoolingTemp: 40,
+    defaultInoculationTemp: 42,
+    defaultHeatingTemp: 43,
+    defaultHeaterTemp: 44
   }
 ];
 
@@ -108,6 +127,7 @@ export const WyshProvider = ({ children }) => {
   const [plans, setPlans] = useState([]);
   const [inventory, setInventory] = useState([]);
   const [calendarNotes, setCalendarNotes] = useState([]);
+  const [reports, setReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isDbConnected, setIsDbConnected] = useState(false);
   const [dbError, setDbError] = useState(null);
@@ -118,6 +138,7 @@ export const WyshProvider = ({ children }) => {
     let localPlans = JSON.parse(localStorage.getItem(STORAGE_KEYS.PLANS));
     let localInventory = JSON.parse(localStorage.getItem(STORAGE_KEYS.INVENTORY));
     let localCalendarNotes = JSON.parse(localStorage.getItem(STORAGE_KEYS.CALENDAR_NOTES));
+    let localReports = JSON.parse(localStorage.getItem(STORAGE_KEYS.REPORTS));
 
     if (!localProducts) {
       localProducts = DEFAULT_PRODUCTS;
@@ -142,6 +163,12 @@ export const WyshProvider = ({ children }) => {
       if (p.expiryDays === undefined) {
         p.expiryDays = 22;
       }
+      if (p.defaultSterilizationTemp === undefined) p.defaultSterilizationTemp = 85;
+      if (p.defaultSterilizationTime === undefined) p.defaultSterilizationTime = 30;
+      if (p.defaultCoolingTemp === undefined) p.defaultCoolingTemp = 40;
+      if (p.defaultInoculationTemp === undefined) p.defaultInoculationTemp = 42;
+      if (p.defaultHeatingTemp === undefined) p.defaultHeatingTemp = 43;
+      if (p.defaultHeaterTemp === undefined) p.defaultHeaterTemp = 44;
     });
 
     if (!localPlans) {
@@ -156,11 +183,16 @@ export const WyshProvider = ({ children }) => {
       localCalendarNotes = [];
       localStorage.setItem(STORAGE_KEYS.CALENDAR_NOTES, JSON.stringify([]));
     }
+    if (!localReports) {
+      localReports = [];
+      localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify([]));
+    }
 
     setProducts(localProducts);
     setPlans(localPlans);
     setInventory(localInventory);
     setCalendarNotes(localCalendarNotes);
+    setReports(localReports);
     setLoading(false);
 
     // Sync from Supabase if connected
@@ -210,6 +242,29 @@ export const WyshProvider = ({ children }) => {
         console.warn("Supabase Fetch Warning (calendar_notes):", errNotesFetch);
       }
 
+      // Safe pull for reports
+      let mappedReports = [];
+      try {
+        const { data: remoteReports, error: errReports } = await supabase
+          .from('reports')
+          .select('*');
+        if (errReports) {
+          console.warn("Supabase Fetch Warn: reports query failed, maybe table is not created yet.", errReports);
+        } else if (remoteReports) {
+          mappedReports = remoteReports.map(r => ({
+            id: r.id,
+            planId: r.plan_id,
+            type: r.type,
+            workerName: r.worker_name,
+            checkedItems: r.checked_items,
+            details: r.details,
+            createdAt: r.created_at
+          }));
+        }
+      } catch (errReportsFetch) {
+        console.warn("Supabase Fetch Warning (reports):", errReportsFetch);
+      }
+
       console.log("Supabase Fetch: Successfully pulled data from Cloud DB.");
 
       const mappedProducts = remoteProducts.map(p => ({
@@ -220,7 +275,13 @@ export const WyshProvider = ({ children }) => {
         color: p.color,
         ingredients: p.ingredients,
         shippingLimitDays: p.shipping_limit_days !== undefined && p.shipping_limit_days !== null ? p.shipping_limit_days : 7,
-        expiryDays: p.expiry_days !== undefined && p.expiry_days !== null ? p.expiry_days : 22
+        expiryDays: p.expiry_days !== undefined && p.expiry_days !== null ? p.expiry_days : 22,
+        defaultSterilizationTemp: p.default_sterilization_temp !== undefined && p.default_sterilization_temp !== null ? p.default_sterilization_temp : 85,
+        defaultSterilizationTime: p.default_sterilization_time !== undefined && p.default_sterilization_time !== null ? p.default_sterilization_time : 30,
+        defaultCoolingTemp: p.default_cooling_temp !== undefined && p.default_cooling_temp !== null ? p.default_cooling_temp : 40,
+        defaultInoculationTemp: p.default_inoculation_temp !== undefined && p.default_inoculation_temp !== null ? p.default_inoculation_temp : 42,
+        defaultHeatingTemp: p.default_heating_temp !== undefined && p.default_heating_temp !== null ? p.default_heating_temp : 43,
+        defaultHeaterTemp: p.default_heater_temp !== undefined && p.default_heater_temp !== null ? p.default_heater_temp : 44
       }));
 
       const mappedPlans = remotePlans.map(p => ({
@@ -251,11 +312,13 @@ export const WyshProvider = ({ children }) => {
       localStorage.setItem(STORAGE_KEYS.PLANS, JSON.stringify(mappedPlans));
       localStorage.setItem(STORAGE_KEYS.INVENTORY, JSON.stringify(mappedInventory));
       localStorage.setItem(STORAGE_KEYS.CALENDAR_NOTES, JSON.stringify(mappedCalendarNotes));
+      localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(mappedReports));
 
       setProducts(mappedProducts);
       setPlans(mappedPlans);
       setInventory(mappedInventory);
       setCalendarNotes(mappedCalendarNotes);
+      setReports(mappedReports);
       setIsDbConnected(true);
       setDbError(null);
     } catch (e) {
@@ -276,7 +339,13 @@ export const WyshProvider = ({ children }) => {
         color: product.color,
         ingredients: product.ingredients,
         shipping_limit_days: product.shippingLimitDays,
-        expiry_days: product.expiryDays
+        expiry_days: product.expiryDays,
+        default_sterilization_temp: product.defaultSterilizationTemp,
+        default_sterilization_time: product.defaultSterilizationTime,
+        default_cooling_temp: product.defaultCoolingTemp,
+        default_inoculation_temp: product.defaultInoculationTemp,
+        default_heating_temp: product.defaultHeatingTemp,
+        default_heater_temp: product.defaultHeaterTemp
       };
       const { error } = await supabase.from('products').upsert(dbProduct);
       if (error) throw error;
@@ -657,6 +726,62 @@ export const WyshProvider = ({ children }) => {
     deleteCalendarNoteFromSupabase(dateStr);
   }, [calendarNotes, deleteCalendarNoteFromSupabase]);
 
+  const pushReportToSupabase = useCallback(async (report) => {
+    if (!supabase) return;
+    try {
+      const dbReport = {
+        id: report.id,
+        plan_id: report.planId,
+        type: report.type,
+        worker_name: report.workerName,
+        checked_items: report.checkedItems,
+        details: report.details,
+        created_at: report.createdAt
+      };
+      const { error } = await supabase.from('reports').upsert(dbReport);
+      if (error) throw error;
+    } catch (e) {
+      console.error("Supabase Push Error (Report):", e);
+    }
+  }, []);
+
+  const deleteReportFromSupabase = useCallback(async (id) => {
+    if (!supabase) return;
+    try {
+      const { error } = await supabase.from('reports').delete().eq('id', id);
+      if (error) throw error;
+    } catch (e) {
+      console.error("Supabase Push Error (Delete Report):", e);
+    }
+  }, []);
+
+  const addReport = useCallback((reportData) => {
+    const newReport = {
+      ...reportData,
+      id: 'rep-' + Date.now(),
+      createdAt: new Date().toISOString()
+    };
+    const updatedReports = [newReport, ...reports];
+    setReports(updatedReports);
+    localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(updatedReports));
+    pushReportToSupabase(newReport);
+    return newReport;
+  }, [reports, pushReportToSupabase]);
+
+  const updateReport = useCallback((updatedRep) => {
+    const updatedReports = reports.map(r => r.id === updatedRep.id ? updatedRep : r);
+    setReports(updatedReports);
+    localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(updatedReports));
+    pushReportToSupabase(updatedRep);
+  }, [reports, pushReportToSupabase]);
+
+  const deleteReport = useCallback((id) => {
+    const updatedReports = reports.filter(r => r.id !== id);
+    setReports(updatedReports);
+    localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify(updatedReports));
+    deleteReportFromSupabase(id);
+  }, [reports, deleteReportFromSupabase]);
+
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(() => {
     return sessionStorage.getItem('wysh_admin_logged_in') === 'true';
   });
@@ -692,6 +817,7 @@ export const WyshProvider = ({ children }) => {
     plans,
     inventory,
     calendarNotes,
+    reports,
     loading,
     addProduct,
     updateProduct,
@@ -709,6 +835,9 @@ export const WyshProvider = ({ children }) => {
     saveCalendarNote,
     deleteCalendarNote,
     syncFromSupabase,
+    addReport,
+    updateReport,
+    deleteReport,
     isAdminLoggedIn,
     loginAdmin,
     logoutAdmin,
@@ -719,6 +848,7 @@ export const WyshProvider = ({ children }) => {
     plans,
     inventory,
     calendarNotes,
+    reports,
     loading,
     addProduct,
     updateProduct,
@@ -736,6 +866,9 @@ export const WyshProvider = ({ children }) => {
     saveCalendarNote,
     deleteCalendarNote,
     syncFromSupabase,
+    addReport,
+    updateReport,
+    deleteReport,
     isAdminLoggedIn,
     loginAdmin,
     logoutAdmin,

@@ -18,6 +18,12 @@ const RecipesView = ({
   const [productShippingLimitDays, setProductShippingLimitDays] = useState(7);
   const [productExpiryDays, setProductExpiryDays] = useState(22);
   const [ingredients, setIngredients] = useState([]);
+  const [defaultSterilizationTemp, setDefaultSterilizationTemp] = useState(85);
+  const [defaultSterilizationTime, setDefaultSterilizationTime] = useState(30);
+  const [defaultCoolingTemp, setDefaultCoolingTemp] = useState(40);
+  const [defaultInoculationTemp, setDefaultInoculationTemp] = useState(42);
+  const [defaultHeatingTemp, setDefaultHeatingTemp] = useState(43);
+  const [defaultHeaterTemp, setDefaultHeaterTemp] = useState(44);
 
   // Initialize editor form when selectedProduct changes
   useEffect(() => {
@@ -30,6 +36,12 @@ const RecipesView = ({
       setProductExpiryDays(selectedProduct.expiryDays || 22);
       // Clone ingredients to avoid direct mutation
       setIngredients(selectedProduct.ingredients ? JSON.parse(JSON.stringify(selectedProduct.ingredients)) : []);
+      setDefaultSterilizationTemp(selectedProduct.defaultSterilizationTemp !== undefined ? selectedProduct.defaultSterilizationTemp : 85);
+      setDefaultSterilizationTime(selectedProduct.defaultSterilizationTime !== undefined ? selectedProduct.defaultSterilizationTime : 30);
+      setDefaultCoolingTemp(selectedProduct.defaultCoolingTemp !== undefined ? selectedProduct.defaultCoolingTemp : 40);
+      setDefaultInoculationTemp(selectedProduct.defaultInoculationTemp !== undefined ? selectedProduct.defaultInoculationTemp : 42);
+      setDefaultHeatingTemp(selectedProduct.defaultHeatingTemp !== undefined ? selectedProduct.defaultHeatingTemp : 43);
+      setDefaultHeaterTemp(selectedProduct.defaultHeaterTemp !== undefined ? selectedProduct.defaultHeaterTemp : 44);
     } else {
       setProductName('');
       setProductWeight('');
@@ -38,6 +50,12 @@ const RecipesView = ({
       setProductShippingLimitDays(7);
       setProductExpiryDays(22);
       setIngredients([]);
+      setDefaultSterilizationTemp(85);
+      setDefaultSterilizationTime(30);
+      setDefaultCoolingTemp(40);
+      setDefaultInoculationTemp(42);
+      setDefaultHeatingTemp(43);
+      setDefaultHeaterTemp(44);
     }
   }, [selectedProduct]);
 
@@ -104,6 +122,12 @@ const RecipesView = ({
       setProductYield(selectedProduct.yield || 28);
       setProductColor(selectedProduct.color || 'blue');
       setIngredients(selectedProduct.ingredients ? JSON.parse(JSON.stringify(selectedProduct.ingredients)) : []);
+      setDefaultSterilizationTemp(selectedProduct.defaultSterilizationTemp !== undefined ? selectedProduct.defaultSterilizationTemp : 85);
+      setDefaultSterilizationTime(selectedProduct.defaultSterilizationTime !== undefined ? selectedProduct.defaultSterilizationTime : 30);
+      setDefaultCoolingTemp(selectedProduct.defaultCoolingTemp !== undefined ? selectedProduct.defaultCoolingTemp : 40);
+      setDefaultInoculationTemp(selectedProduct.defaultInoculationTemp !== undefined ? selectedProduct.defaultInoculationTemp : 42);
+      setDefaultHeatingTemp(selectedProduct.defaultHeatingTemp !== undefined ? selectedProduct.defaultHeatingTemp : 43);
+      setDefaultHeaterTemp(selectedProduct.defaultHeaterTemp !== undefined ? selectedProduct.defaultHeaterTemp : 44);
     }
   };
 
@@ -127,7 +151,13 @@ const RecipesView = ({
       ingredients: ingredients.map(ing => ({
         name: ing.name.trim(),
         ratio: ing.ratio
-      }))
+      })),
+      defaultSterilizationTemp: parseFloat(defaultSterilizationTemp) || 85,
+      defaultSterilizationTime: parseInt(defaultSterilizationTime) || 30,
+      defaultCoolingTemp: parseFloat(defaultCoolingTemp) || 40,
+      defaultInoculationTemp: parseFloat(defaultInoculationTemp) || 42,
+      defaultHeatingTemp: parseFloat(defaultHeatingTemp) || 43,
+      defaultHeaterTemp: parseFloat(defaultHeaterTemp) || 44
     };
 
     updateProduct(updated);
@@ -310,6 +340,85 @@ const RecipesView = ({
                       onClick={() => setProductColor(color)}
                     ></div>
                   ))}
+                </div>
+              </div>
+
+              <div style={{ marginTop: '20px', marginBottom: '24px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
+                <h4 style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '12px' }}>발효 공정 기본 설정값</h4>
+                
+                <div className="form-group-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
+                  <div className="form-group">
+                    <label htmlFor="edit-product-sterilization-temp">기본 살균 온도 (°C)</label>
+                    <input 
+                      type="number" 
+                      className="form-control" 
+                      id="edit-product-sterilization-temp" 
+                      value={defaultSterilizationTemp}
+                      onChange={(e) => setDefaultSterilizationTemp(e.target.value)}
+                      required 
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="edit-product-sterilization-time">기본 살균 시간 (분)</label>
+                    <input 
+                      type="number" 
+                      className="form-control" 
+                      id="edit-product-sterilization-time" 
+                      value={defaultSterilizationTime}
+                      onChange={(e) => setDefaultSterilizationTime(e.target.value)}
+                      required 
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group-grid" style={{ gridTemplateColumns: '1fr 1fr', marginTop: '12px' }}>
+                  <div className="form-group">
+                    <label htmlFor="edit-product-cooling-temp">기본 냉각 설정 온도 (°C)</label>
+                    <input 
+                      type="number" 
+                      className="form-control" 
+                      id="edit-product-cooling-temp" 
+                      value={defaultCoolingTemp}
+                      onChange={(e) => setDefaultCoolingTemp(e.target.value)}
+                      required 
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="edit-product-inoculation-temp">기본 접종 온도 (°C)</label>
+                    <input 
+                      type="number" 
+                      className="form-control" 
+                      id="edit-product-inoculation-temp" 
+                      value={defaultInoculationTemp}
+                      onChange={(e) => setDefaultInoculationTemp(e.target.value)}
+                      required 
+                    />
+                  </div>
+                </div>
+
+                <div className="form-group-grid" style={{ gridTemplateColumns: '1fr 1fr', marginTop: '12px' }}>
+                  <div className="form-group">
+                    <label htmlFor="edit-product-heating-temp">기본 가열 설정 온도 (°C)</label>
+                    <input 
+                      type="number" 
+                      className="form-control" 
+                      id="edit-product-heating-temp" 
+                      value={defaultHeatingTemp}
+                      onChange={(e) => setDefaultHeatingTemp(e.target.value)}
+                      required 
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="edit-product-heater-temp">기본 히터 설정 온도 (°C)</label>
+                    <input 
+                      type="number" 
+                      className="form-control" 
+                      id="edit-product-heater-temp" 
+                      value={defaultHeaterTemp}
+                      onChange={(e) => setDefaultHeaterTemp(e.target.value)}
+                      required 
+                    />
+                  </div>
                 </div>
               </div>
 
