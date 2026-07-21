@@ -866,6 +866,11 @@ button, input, select, textarea {
     margin-bottom: 16px;
 }
 
+.outflow-form-grid {
+    grid-template-columns: 1.2fr 1fr 1.5fr;
+}
+
+
 .form-group {
     display: flex;
     flex-direction: column;
@@ -1484,7 +1489,7 @@ button svg * {
     }
     
     /* Form grids */
-    .form-group-grid {
+    .form-group-grid, .outflow-form-grid {
         grid-template-columns: 1fr !important;
         gap: 12px;
     }

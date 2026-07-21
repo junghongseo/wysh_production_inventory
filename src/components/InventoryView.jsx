@@ -447,7 +447,7 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal,
                 })}
               </select>
             </div>
-            <div className="form-group-grid" style={{ gridTemplateColumns: '1.2fr 1fr 1.5fr' }}>
+            <div className="form-group-grid outflow-form-grid">
               <div className="form-group">
                 <label htmlFor="outflow-date">출고 일자</label>
                 <input 
