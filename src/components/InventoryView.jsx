@@ -451,7 +451,7 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal,
               <div className="form-group">
                 <label htmlFor="outflow-date">출고 일자</label>
                 <input 
-                  type="date" 
+                  type={isAdminLoggedIn ? "date" : "text"} 
                   className="form-control" 
                   id="outflow-date" 
                   value={outflowDate}

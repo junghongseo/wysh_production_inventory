@@ -911,6 +911,11 @@ input[type="date"] {
     box-sizing: border-box;
 }
 
+input[type="date"]::-webkit-date-and-time-value {
+    min-height: 1.5em;
+    text-align: inherit;
+}
+
 .form-control:focus {
     border-color: var(--color-primary);
     outline: none;
