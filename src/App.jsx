@@ -173,7 +173,7 @@ const App = () => {
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginLeft: 'auto' }}>
+        <div className="header-controls-group">
           {/* Admin Authority Indicator */}
           <div className="glass-card" style={{
             display: 'flex',

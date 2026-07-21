@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useWysh } from '../WyshContext';
+import AgitatorConfirmModal from './modals/AgitatorConfirmModal';
 
 const ReportsView = () => {
   const { plans, products, reports, addReport, updateReport, deleteReport } = useWysh();
@@ -23,6 +24,7 @@ const ReportsView = () => {
   const [checkedHeater, setCheckedHeater] = useState(false);
   const [checkedHeaterLow, setCheckedHeaterLow] = useState(false);
   const [checkedAgitator, setCheckedAgitator] = useState(false);
+  const [isAgitatorModalOpen, setIsAgitatorModalOpen] = useState(false);
 
   // Detail input states
   const [sterilizationTemp, setSterilizationTemp] = useState('');
@@ -145,6 +147,17 @@ const ReportsView = () => {
     setInoculationTemp(d.inoculationTemp || 42);
     setHeatingTemp(d.heatingTemp || 43);
     setHeaterTemp(d.heaterTemp || 44);
+  };
+
+  const handleToggleAgitator = (e) => {
+    const nextValIsOn = e.target.checked;
+    if (!nextValIsOn) {
+      // Switching from ON to OFF: open modal
+      setIsAgitatorModalOpen(true);
+    } else {
+      // Switching from OFF to ON: turn ON immediately
+      setCheckedAgitator(false);
+    }
   };
 
   // Reset form
@@ -318,12 +331,55 @@ const ReportsView = () => {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }} className="report-grid-container">
         
-        {/* CSS grid replacement in layout */}
+        {/* CSS grid replacement in layout and toggle switch styles */}
         <style dangerouslySetInnerHTML={{__html: `
           @media (min-width: 1024px) {
             .report-grid-container {
               grid-template-columns: 1fr 1.3fr !important;
             }
+          }
+          
+          /* Custom Toggle Switch Styles */
+          .wysh-switch {
+            position: relative;
+            display: inline-block;
+            width: 52px;
+            height: 28px;
+            flex-shrink: 0;
+          }
+          .wysh-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+          }
+          .wysh-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #cbd5e1;
+            transition: .3s;
+            border-radius: 28px;
+          }
+          .wysh-slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.15);
+          }
+          .wysh-switch input:checked + .wysh-slider {
+            background-color: var(--color-warning, #f59e0b);
+          }
+          .wysh-switch input:checked + .wysh-slider:before {
+            transform: translateX(24px);
           }
         `}} />
 
@@ -617,16 +673,29 @@ const ReportsView = () => {
                 <label htmlFor="chk-heater-low" style={{ fontSize: '0.88rem', fontWeight: 600, cursor: 'pointer', color: 'var(--text-primary)' }}>히터 약 ON 완료</label>
               </div>
 
-              {/* Agitator OFF */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                <input 
-                  type="checkbox" 
-                  id="chk-agitator" 
-                  checked={checkedAgitator} 
-                  onChange={(e) => setCheckedAgitator(e.target.checked)}
-                  style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                />
-                <label htmlFor="chk-agitator" style={{ fontSize: '0.88rem', fontWeight: 600, cursor: 'pointer', color: 'var(--text-primary)' }}>교반 OFF 확인</label>
+              {/* Agitator OFF Toggle Switch */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                <span style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-primary)' }}>교반 OFF 확인</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span style={{ 
+                    fontSize: '0.8rem', 
+                    fontWeight: 700, 
+                    color: checkedAgitator ? 'var(--text-muted, #94a3b8)' : 'var(--color-warning, #f59e0b)',
+                    background: checkedAgitator ? 'var(--bg-tertiary, #e2e8f0)' : 'rgba(245, 158, 11, 0.1)',
+                    padding: '2px 8px',
+                    borderRadius: '4px'
+                  }}>
+                    {checkedAgitator ? 'OFF (정지)' : 'ON (작동 중)'}
+                  </span>
+                  <label className="wysh-switch" style={{ margin: 0 }}>
+                    <input 
+                      type="checkbox" 
+                      checked={!checkedAgitator} 
+                      onChange={handleToggleAgitator}
+                    />
+                    <span className="wysh-slider"></span>
+                  </label>
+                </div>
               </div>
             </div>
 
@@ -679,6 +748,18 @@ const ReportsView = () => {
         </div>
 
       </div>
+
+      {/* Agitator OFF Confirmation Modal */}
+      <AgitatorConfirmModal 
+        isOpen={isAgitatorModalOpen}
+        onConfirm={() => {
+          setCheckedAgitator(true);
+          setIsAgitatorModalOpen(false);
+        }}
+        onClose={() => {
+          setIsAgitatorModalOpen(false);
+        }}
+      />
     </div>
   );
 };
