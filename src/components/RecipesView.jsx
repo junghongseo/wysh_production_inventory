@@ -92,6 +92,24 @@ const RecipesView = ({
     indigo: '#6366f1'
   };
 
+  // Handle synchronization of first ingredient when base product changes or category changes
+  useEffect(() => {
+    if (productIsFlavor && productBaseProductId) {
+      const baseProduct = products.find(p => p.id === productBaseProductId);
+      if (baseProduct) {
+        setIngredients(prev => {
+          const next = [...prev];
+          if (next.length === 0) {
+            next.push({ name: baseProduct.name, ratio: 70 });
+          } else {
+            next[0] = { ...next[0], name: baseProduct.name };
+          }
+          return next;
+        });
+      }
+    }
+  }, [productIsFlavor, productBaseProductId, products]);
+
   // Add ingredient row
   const handleAddIngredient = () => {
     setIngredients([...ingredients, { name: '', ratio: 0 }]);
@@ -99,6 +117,10 @@ const RecipesView = ({
 
   // Remove ingredient row with Confirmation
   const handleRemoveIngredient = (index) => {
+    if (productIsFlavor && index === 0) {
+      alert('플레이버 요거트의 베이스 제품 원재료 항목은 삭제할 수 없습니다.');
+      return;
+    }
     onConfirmModal(
       '원재료 삭제',
       '정말로 이 원재료 항목을 레시피에서 삭제하시겠습니까?',
@@ -110,6 +132,9 @@ const RecipesView = ({
 
   // Ingredient change handler
   const handleIngredientChange = (index, field, value) => {
+    if (productIsFlavor && index === 0 && field === 'name') {
+      return; // Prevent name edit for base ingredient
+    }
     const nextIngredients = ingredients.map((ing, idx) => {
       if (idx === index) {
         return {
@@ -509,44 +534,71 @@ const RecipesView = ({
               </h4>
 
               <div id="recipe-ingredients-grid">
-                {ingredients.map((ing, idx) => (
-                  <div key={idx} className="recipe-ingredient-row" id={`recipe-ing-row-${idx}`}>
-                    <input 
-                      type="text" 
-                      className="form-control ing-name-input" 
-                      value={ing.name} 
-                      onChange={(e) => handleIngredientChange(idx, 'name', e.target.value)}
-                      placeholder="원재료명 (예: 원유, 과일 퓨레 등)" 
-                      required 
-                    />
-                    <div style={{ position: 'relative' }}>
-                      <input 
-                        type="number" 
-                        className="form-control ing-ratio-input" 
-                        value={ing.ratio} 
-                        onChange={(e) => handleIngredientChange(idx, 'ratio', e.target.value)}
-                        min="0.000001" 
-                        max="100" 
-                        step="any" 
-                        placeholder="비율" 
-                        required 
-                        style={{ paddingRight: '28px' }}
-                      />
-                      <span style={{ position: 'absolute', right: '10px', top: '10px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>%</span>
+                {ingredients.map((ing, idx) => {
+                  const isBaseIngredient = productIsFlavor && idx === 0;
+                  return (
+                    <div key={idx} className="recipe-ingredient-row" id={`recipe-ing-row-${idx}`}>
+                      <div style={{ position: 'relative', flex: 1 }}>
+                        <input 
+                          type="text" 
+                          className="form-control ing-name-input" 
+                          value={ing.name} 
+                          onChange={(e) => handleIngredientChange(idx, 'name', e.target.value)}
+                          placeholder={isBaseIngredient ? "연동된 베이스 제품명" : "원재료명 (예: 원유, 과일 퓨레 등)"} 
+                          required 
+                          readOnly={isBaseIngredient}
+                          style={{
+                            backgroundColor: isBaseIngredient ? 'var(--bg-tertiary)' : 'transparent',
+                            color: isBaseIngredient ? 'var(--text-primary)' : 'inherit',
+                            fontWeight: isBaseIngredient ? 600 : 'normal',
+                            paddingLeft: isBaseIngredient ? '32px' : '12px',
+                            cursor: isBaseIngredient ? 'not-allowed' : 'text'
+                          }}
+                        />
+                        {isBaseIngredient && (
+                          <span style={{ position: 'absolute', left: '10px', top: '10px', color: 'var(--color-primary)' }} title="연동된 베이스 제품 (편집 불가)">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                            </svg>
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ position: 'relative' }}>
+                        <input 
+                          type="number" 
+                          className="form-control ing-ratio-input" 
+                          value={ing.ratio} 
+                          onChange={(e) => handleIngredientChange(idx, 'ratio', e.target.value)}
+                          min="0.000001" 
+                          max="100" 
+                          step="any" 
+                          placeholder="비율" 
+                          required 
+                          style={{ paddingRight: '28px' }}
+                        />
+                        <span style={{ position: 'absolute', right: '10px', top: '10px', fontSize: '0.85rem', color: 'var(--text-muted)' }}>%</span>
+                      </div>
+                      <button 
+                        type="button" 
+                        className="btn-icon" 
+                        onClick={() => handleRemoveIngredient(idx)}
+                        disabled={isBaseIngredient}
+                        style={{ 
+                          borderColor: isBaseIngredient ? 'rgba(0,0,0,0.06)' : 'rgba(248,113,113,0.2)',
+                          opacity: isBaseIngredient ? 0.3 : 1,
+                          cursor: isBaseIngredient ? 'not-allowed' : 'pointer'
+                        }}
+                        title={isBaseIngredient ? "베이스 제품은 삭제할 수 없습니다" : "원재료 삭제"}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <line x1="18" y1="6" x2="6" y2="18"></line>
+                          <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                      </button>
                     </div>
-                    <button 
-                      type="button" 
-                      className="btn-icon" 
-                      onClick={() => handleRemoveIngredient(idx)}
-                      style={{ borderColor: 'rgba(248,113,113,0.2)' }}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                      </svg>
-                    </button>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Linked Base Product Recipe Preview */}
