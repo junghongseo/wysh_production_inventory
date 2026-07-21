@@ -1463,6 +1463,14 @@ button svg * {
         font-size: 16px !important; /* Prevent iOS safari zoom-in on focus */
         min-width: 0 !important;
         max-width: 100% !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    .form-group {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
     }
     
     button {
