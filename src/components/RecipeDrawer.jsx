@@ -37,6 +37,59 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
       };
     });
 
+    // Secondary base product computation if flavor product
+    let baseProductDetails = null;
+    if (product.isFlavor || product.baseProductId) {
+      const baseProduct = products.find(p => p.id === product.baseProductId) || products.find(p => !p.isFlavor);
+      if (baseProduct) {
+        // Find base ingredient in flavor product recipe
+        const baseIng = product.ingredients.find(ing => ing.name.includes(baseProduct.name) || ing.name.includes('위시그릭') || ing.name.includes('플레인')) || product.ingredients[0];
+        const baseRatio = baseIng ? baseIng.ratio : 70;
+        
+        // Needed finished base yogurt weight for this batch
+        const neededBaseFinishedG = totalInputWeightG * (baseRatio / 100);
+        const neededBaseFinishedKg = neededBaseFinishedG / 1000;
+        
+        // Input weight required for producing this amount of base product (incorporating base product's yield)
+        const baseYield = baseProduct.yield || 28;
+        const totalBaseInputWeightG = neededBaseFinishedG / (baseYield / 100);
+        
+        let baseRatioSum = 0;
+        let baseWeightSum = 0;
+
+        const computedBaseIngredients = (baseProduct.ingredients || []).map(bIng => {
+          const bNeededQtyG = totalBaseInputWeightG * (bIng.ratio / 100);
+          const bNeededQtyKg = bNeededQtyG / 1000;
+
+          baseRatioSum += bIng.ratio;
+          baseWeightSum += bNeededQtyG;
+
+          const isLacticBacteria = bIng.name.includes('유산균');
+          const displayG = isLacticBacteria
+            ? Number(bNeededQtyG.toFixed(1)).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+            : Math.round(bNeededQtyG).toLocaleString();
+
+          return {
+            name: bIng.name,
+            ratio: bIng.ratio,
+            displayG,
+            neededQtyKg: bNeededQtyKg
+          };
+        });
+
+        baseProductDetails = {
+          product: baseProduct,
+          neededBaseFinishedG,
+          neededBaseFinishedKg,
+          baseYield,
+          totalBaseInputWeightG,
+          computedBaseIngredients,
+          baseRatioSum,
+          baseWeightSum
+        };
+      }
+    }
+
     return {
       plan,
       product,
@@ -44,7 +97,8 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
       totalInputWeightG,
       computedIngredients,
       totalRatioSum,
-      totalWeightSum
+      totalWeightSum,
+      baseProductDetails
     };
   }, [isOpen, planId, plans, products]);
 
@@ -156,6 +210,63 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
                 </tbody>
               </table>
             </div>
+
+            {/* Base Product Secondary Recipe Table */}
+            {details.baseProductDetails && (
+              <div style={{ marginTop: '28px', borderTop: '2px dashed var(--border-color)', paddingTop: '20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                  <h4 style={{ fontSize: '0.98rem', fontWeight: 700, color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                    </svg>
+                    [베이스 제품 필요 배합표] {details.baseProductDetails.product.name}
+                  </h4>
+                  <span style={{ fontSize: '0.78rem', background: 'rgba(2, 132, 199, 0.1)', color: 'var(--color-primary)', padding: '3px 8px', borderRadius: '6px', fontWeight: 600 }}>
+                    베이스 필요량: {details.baseProductDetails.neededBaseFinishedKg.toFixed(2)} kg
+                  </span>
+                </div>
+
+                <div className="info-row" style={{ marginBottom: '8px', fontSize: '0.85rem' }}>
+                  <span className="label">베이스 제품 수율</span>
+                  <span className="value" style={{ fontWeight: 600 }}>{details.baseProductDetails.baseYield}%</span>
+                </div>
+                <div className="info-row" style={{ marginBottom: '14px', fontSize: '0.85rem' }}>
+                  <span className="label">베이스 투입 필요 총 중량</span>
+                  <span className="value" style={{ fontWeight: 600 }}>
+                    {Math.round(details.baseProductDetails.totalBaseInputWeightG).toLocaleString()} g ({(details.baseProductDetails.totalBaseInputWeightG / 1000).toFixed(2)} kg)
+                  </span>
+                </div>
+
+                <div className="wysh-table-wrapper">
+                  <table className="wysh-table" id="recipe-drawer-base-table">
+                    <thead>
+                      <tr>
+                        <th>베이스 원재료명</th>
+                        <th style={{ textAlign: 'right' }}>함량(%)</th>
+                        <th style={{ textAlign: 'right' }}>필요량(g)</th>
+                        <th style={{ textAlign: 'right' }}>참고량(kg)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {details.baseProductDetails.computedBaseIngredients.map((ing, idx) => (
+                        <tr key={idx}>
+                          <td style={{ fontWeight: 500 }}>{ing.name}</td>
+                          <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)' }}>{ing.ratio}%</td>
+                          <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', fontWeight: 600 }}>{ing.displayG} g</td>
+                          <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', color: 'var(--text-secondary)', fontStyle: 'italic' }}>({ing.neededQtyKg.toFixed(2)} kg)</td>
+                        </tr>
+                      ))}
+                      <tr className="total-row">
+                        <td>합계</td>
+                        <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)' }}>{details.baseProductDetails.baseRatioSum.toFixed(2)}%</td>
+                        <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)' }}>{Math.round(details.baseProductDetails.baseWeightSum).toLocaleString()} g</td>
+                        <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', fontStyle: 'italic' }}>({(details.baseProductDetails.baseWeightSum / 1000).toFixed(2)} kg)</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
 
             {details.plan.memo && (
               <div className="note-card" style={{ marginTop: '20px', flexDirection: 'column', alignItems: 'stretch', gap: '6px', width: '100%', boxSizing: 'border-box' }}>

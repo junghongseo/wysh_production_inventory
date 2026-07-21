@@ -12,6 +12,8 @@ const RecipesView = ({
 
   // Local form states for the Recipe Editor
   const [productName, setProductName] = useState('');
+  const [productIsFlavor, setProductIsFlavor] = useState(false);
+  const [productBaseProductId, setProductBaseProductId] = useState('');
   const [productWeight, setProductWeight] = useState('');
   const [productYield, setProductYield] = useState('');
   const [productColor, setProductColor] = useState('blue');
@@ -25,12 +27,16 @@ const RecipesView = ({
   const [defaultHeatingTemp, setDefaultHeatingTemp] = useState(43);
   const [defaultHeaterTemp, setDefaultHeaterTemp] = useState(44);
 
+  const plainProducts = useMemo(() => products.filter(p => !p.isFlavor && p.id !== selectedProduct?.id), [products, selectedProduct]);
+
   // Initialize editor form when selectedProduct changes
   useEffect(() => {
     if (selectedProduct) {
       setProductName(selectedProduct.name);
+      setProductIsFlavor(!!selectedProduct.isFlavor);
+      setProductBaseProductId(selectedProduct.baseProductId || (plainProducts.length > 0 ? plainProducts[0].id : ''));
       setProductWeight(selectedProduct.weight);
-      setProductYield(selectedProduct.yield || 28);
+      setProductYield(selectedProduct.yield !== undefined ? selectedProduct.yield : (selectedProduct.isFlavor ? 100 : 28));
       setProductColor(selectedProduct.color || 'blue');
       setProductShippingLimitDays(selectedProduct.shippingLimitDays || 7);
       setProductExpiryDays(selectedProduct.expiryDays || 22);
@@ -44,6 +50,8 @@ const RecipesView = ({
       setDefaultHeaterTemp(selectedProduct.defaultHeaterTemp !== undefined ? selectedProduct.defaultHeaterTemp : 44);
     } else {
       setProductName('');
+      setProductIsFlavor(false);
+      setProductBaseProductId('');
       setProductWeight('');
       setProductYield('');
       setProductColor('blue');
@@ -57,7 +65,7 @@ const RecipesView = ({
       setDefaultHeatingTemp(43);
       setDefaultHeaterTemp(44);
     }
-  }, [selectedProduct]);
+  }, [selectedProduct, plainProducts]);
 
   // Compute ingredients ratio sum
   const ratioSum = useMemo(() => {
@@ -143,8 +151,11 @@ const RecipesView = ({
     const updated = {
       ...selectedProduct,
       name: productName.trim(),
+      category: productIsFlavor ? 'flavor' : 'plain',
+      isFlavor: productIsFlavor,
+      baseProductId: productIsFlavor ? productBaseProductId : null,
       weight: parseInt(productWeight) || 0,
-      yield: parseFloat(productYield) || 28,
+      yield: parseFloat(productYield) || (productIsFlavor ? 100 : 28),
       color: productColor,
       shippingLimitDays: parseInt(productShippingLimitDays) || 7,
       expiryDays: parseInt(productExpiryDays) || 22,
@@ -164,6 +175,11 @@ const RecipesView = ({
     setSelectedProduct(updated);
     alert('제품 설정 및 레시피 정보가 안전하게 저장되었습니다.');
   };
+
+  const selectedBaseProduct = useMemo(() => {
+    if (!productIsFlavor || !productBaseProductId) return null;
+    return products.find(p => p.id === productBaseProductId);
+  }, [productIsFlavor, productBaseProductId, products]);
 
   return (
     <div className="recipe-split">
@@ -193,7 +209,14 @@ const RecipesView = ({
                 onClick={() => setSelectedProduct(p)}
               >
                 <div>
-                  <span className="name">{p.name}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span className="name">{p.name}</span>
+                    {p.isFlavor && (
+                      <span style={{ fontSize: '0.65rem', background: 'rgba(168, 85, 247, 0.12)', color: 'var(--color-accent, #a855f7)', padding: '1px 5px', borderRadius: '4px', fontWeight: 600 }}>
+                        플레이버
+                      </span>
+                    )}
+                  </div>
                   <div className="weight">{p.weight} g</div>
                 </div>
                 <button 
@@ -257,6 +280,57 @@ const RecipesView = ({
                   ? '✓ 배합 비율 합계가 100%입니다. 저장이 가능합니다.' 
                   : `⚠️ 성분 함량의 합계는 반드시 정확히 100%여야 합니다. (현재 합계: ${ratioSum}%)`
                 }
+              </div>
+
+              {/* Category & Base Product Link Section */}
+              <div className="form-group-grid" style={{ gridTemplateColumns: '1fr 1fr', background: 'rgba(2, 132, 199, 0.04)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(2, 132, 199, 0.12)', marginBottom: '16px' }}>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label style={{ fontWeight: 600 }}>제품 카테고리 설정</label>
+                  <div style={{ display: 'flex', gap: '12px', marginTop: '6px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', cursor: 'pointer' }}>
+                      <input 
+                        type="radio" 
+                        name="edit-product-category" 
+                        checked={!productIsFlavor} 
+                        onChange={() => {
+                          setProductIsFlavor(false);
+                          setProductBaseProductId('');
+                        }} 
+                      />
+                      플레인 요거트
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', cursor: 'pointer' }}>
+                      <input 
+                        type="radio" 
+                        name="edit-product-category" 
+                        checked={productIsFlavor} 
+                        onChange={() => {
+                          setProductIsFlavor(true);
+                          if (!productBaseProductId && plainProducts.length > 0) {
+                            setProductBaseProductId(plainProducts[0].id);
+                          }
+                        }} 
+                      />
+                      플레이버 요거트
+                    </label>
+                  </div>
+                </div>
+                {productIsFlavor && (
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label htmlFor="edit-base-product-select" style={{ fontWeight: 600 }}>연동 베이스 제품 (플레인)</label>
+                    <select
+                      id="edit-base-product-select"
+                      className="form-control"
+                      value={productBaseProductId}
+                      onChange={(e) => setProductBaseProductId(e.target.value)}
+                      style={{ marginTop: '2px' }}
+                    >
+                      {plainProducts.map(p => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
 
               <div className="form-group-grid" style={{ gridTemplateColumns: '2fr 1fr 1fr' }}>
@@ -474,6 +548,42 @@ const RecipesView = ({
                   </div>
                 ))}
               </div>
+
+              {/* Linked Base Product Recipe Preview */}
+              {selectedBaseProduct && (
+                <div style={{ marginTop: '24px', background: 'rgba(14, 165, 233, 0.04)', border: '1px solid rgba(14, 165, 233, 0.2)', borderRadius: '8px', padding: '16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+                    <h5 style={{ margin: 0, fontSize: '0.9rem', color: 'var(--color-primary)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                      </svg>
+                      [연동 베이스 제품] {selectedBaseProduct.name} 레시피 정보
+                    </h5>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>기본 수율: {selectedBaseProduct.yield}%</span>
+                  </div>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '10px' }}>
+                    플레이버 제품 생산 시 베이스로 사용되는 '{selectedBaseProduct.name}' 자체를 만들기 위한 기본 원재료 비율입니다.
+                  </p>
+                  <div className="wysh-table-wrapper">
+                    <table className="wysh-table" style={{ fontSize: '0.82rem' }}>
+                      <thead>
+                        <tr>
+                          <th>베이스 원재료명</th>
+                          <th style={{ textAlign: 'right' }}>함량 비율(%)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {selectedBaseProduct.ingredients && selectedBaseProduct.ingredients.map((bIng, bIdx) => (
+                          <tr key={bIdx}>
+                            <td style={{ fontWeight: 500 }}>{bIng.name}</td>
+                            <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)' }}>{bIng.ratio}%</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
 
               <div style={{ marginTop: '24px', borderTop: '1px solid var(--border-color)', paddingTop: '16px', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
                 <button type="button" className="btn-secondary btn-reset-recipe" onClick={handleResetRecipe}>원래대로</button>

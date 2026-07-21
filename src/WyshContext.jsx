@@ -14,7 +14,10 @@ const STORAGE_KEYS = {
 const DEFAULT_PRODUCTS = [
   {
     id: 'prod-1',
-    name: '그릭 요거트 플레인',
+    name: '위시그릭 019',
+    category: 'plain',
+    isFlavor: false,
+    baseProductId: null,
     weight: 150,
     yield: 28,
     color: 'blue',
@@ -33,16 +36,19 @@ const DEFAULT_PRODUCTS = [
   },
   {
     id: 'prod-2',
-    name: '블루베리 그릭 요거트',
+    name: '위시크림 블랙카카오밀키웨이',
+    category: 'flavor',
+    isFlavor: true,
+    baseProductId: 'prod-1',
     weight: 130,
-    yield: 30,
+    yield: 100,
     color: 'purple',
     shippingLimitDays: 7,
     expiryDays: 22,
     ingredients: [
-      { name: '원유', ratio: 80 },
-      { name: '블루베리 퓨레', ratio: 18 },
-      { name: '유산균', ratio: 2 }
+      { name: '위시그릭 019', ratio: 70 },
+      { name: '블랙카카오 퓨레', ratio: 28 },
+      { name: '초코칩', ratio: 2 }
     ],
     defaultSterilizationTemp: 85,
     defaultSterilizationTime: 30,
@@ -53,16 +59,19 @@ const DEFAULT_PRODUCTS = [
   },
   {
     id: 'prod-3',
-    name: '딸기 그릭 요거트',
+    name: '위시크림 피스타치오 초코칩',
+    category: 'flavor',
+    isFlavor: true,
+    baseProductId: 'prod-1',
     weight: 130,
-    yield: 30,
-    color: 'pink',
+    yield: 100,
+    color: 'green',
     shippingLimitDays: 7,
     expiryDays: 22,
     ingredients: [
-      { name: '원유', ratio: 80 },
-      { name: '딸기 잼', ratio: 18 },
-      { name: '유산균', ratio: 2 }
+      { name: '위시그릭 019', ratio: 70 },
+      { name: '피스타치오 페이스트', ratio: 25 },
+      { name: '초코칩', ratio: 5 }
     ],
     defaultSterilizationTemp: 85,
     defaultSterilizationTime: 30,
@@ -91,7 +100,7 @@ const DEFAULT_PLANS = [
   },
   {
     id: 'P-20260713-01',
-    name: '7월 2주차 블루베리 생산',
+    name: '7월 2주차 블랙카카오 생산',
     productId: 'prod-2',
     startDate: '2026-07-13',
     bottlingDate: '2026-07-15',
@@ -144,17 +153,26 @@ export const WyshProvider = ({ children }) => {
       localProducts = DEFAULT_PRODUCTS;
       localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(DEFAULT_PRODUCTS));
     }
-    // Backward compatibility check for colors and yield
+    // Backward compatibility check for colors, yield, and flavor base product fields
     localProducts.forEach(p => {
+      if (p.isFlavor === undefined) {
+        p.isFlavor = (p.id === 'prod-2' || p.id === 'prod-3' || (p.name && (p.name.includes('블랙카카오') || p.name.includes('피스타치오') || p.name.includes('블루베리') || p.name.includes('딸기'))));
+      }
+      if (p.category === undefined) {
+        p.category = p.isFlavor ? 'flavor' : 'plain';
+      }
+      if (p.baseProductId === undefined) {
+        p.baseProductId = p.isFlavor ? 'prod-1' : null;
+      }
       if (p.yield === undefined) {
         if (p.id === 'prod-1') p.yield = 28;
-        else if (p.id === 'prod-2' || p.id === 'prod-3') p.yield = 30;
-        else p.yield = 100;
+        else if (p.isFlavor) p.yield = 100;
+        else p.yield = 28;
       }
       if (p.color === undefined) {
         if (p.id === 'prod-1') p.color = 'blue';
         else if (p.id === 'prod-2') p.color = 'purple';
-        else if (p.id === 'prod-3') p.color = 'pink';
+        else if (p.id === 'prod-3') p.color = 'green';
         else p.color = 'blue';
       }
       if (p.shippingLimitDays === undefined) {

@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useWysh } from '../../WyshContext';
 
 const ProductRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
-  const { addProduct } = useWysh();
+  const { products, addProduct } = useWysh();
 
   const [name, setName] = useState('');
+  const [isFlavor, setIsFlavor] = useState(false);
+  const [baseProductId, setBaseProductId] = useState('');
   const [weight, setWeight] = useState('');
   const [yieldRate, setYieldRate] = useState(28);
   const [color, setColor] = useState('blue');
@@ -17,26 +19,16 @@ const ProductRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
   const [defaultHeatingTemp, setDefaultHeatingTemp] = useState(43);
   const [defaultHeaterTemp, setDefaultHeaterTemp] = useState(44);
 
-  const colors = ['blue', 'purple', 'green', 'orange', 'pink', 'red', 'brown', 'black', 'gray', 'teal', 'yellow', 'indigo'];
-  const colorMap = {
-    blue: '#0ea5e9',
-    purple: '#a855f7',
-    green: '#10b981',
-    orange: '#f97316',
-    pink: '#ec4899',
-    red: '#ef4444',
-    brown: '#78350f',
-    black: '#0f172a',
-    gray: '#64748b',
-    teal: '#14b8a6',
-    yellow: '#eab308',
-    indigo: '#6366f1'
-  };
+  // Available plain base products
+  const plainProducts = products.filter(p => !p.isFlavor);
 
   // Reset form fields when opened
   useEffect(() => {
     if (isOpen) {
       setName('');
+      setIsFlavor(false);
+      const defaultBase = plainProducts.length > 0 ? plainProducts[0].id : '';
+      setBaseProductId(defaultBase);
       setWeight('');
       setYieldRate(28);
       setColor('blue');
@@ -51,19 +43,48 @@ const ProductRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
     }
   }, [isOpen]);
 
+  // Handle category change
+  const handleCategoryChange = (flavorStatus) => {
+    setIsFlavor(flavorStatus);
+    if (flavorStatus) {
+      setYieldRate(100);
+      if (!baseProductId && plainProducts.length > 0) {
+        setBaseProductId(plainProducts[0].id);
+      }
+    } else {
+      setYieldRate(28);
+      setBaseProductId('');
+    }
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     
+    let initialIngredients = [
+      { name: '원유', ratio: 95 },
+      { name: '유산균', ratio: 5 }
+    ];
+
+    if (isFlavor && baseProductId) {
+      const baseProd = products.find(p => p.id === baseProductId);
+      const baseName = baseProd ? baseProd.name : '위시그릭 019';
+      initialIngredients = [
+        { name: baseName, ratio: 70 },
+        { name: '추가 재료', ratio: 30 }
+      ];
+    }
+
     const newProduct = {
       name: name.trim(),
+      category: isFlavor ? 'flavor' : 'plain',
+      isFlavor,
+      baseProductId: isFlavor ? baseProductId : null,
       weight: parseInt(weight) || 0,
-      yield: parseFloat(yieldRate) || 28,
+      yield: parseFloat(yieldRate) || (isFlavor ? 100 : 28),
       color,
       shippingLimitDays: parseInt(shippingLimitDays) || 7,
       expiryDays: parseInt(expiryDays) || 22,
-      ingredients: [
-        { name: '원유', ratio: 100 }
-      ],
+      ingredients: initialIngredients,
       defaultSterilizationTemp: parseFloat(defaultSterilizationTemp) || 85,
       defaultSterilizationTime: parseInt(defaultSterilizationTime) || 30,
       defaultCoolingTemp: parseFloat(defaultCoolingTemp) || 40,
@@ -95,13 +116,56 @@ const ProductRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
         </div>
         <form id="product-registration-form" onSubmit={handleSubmit}>
           <div className="modal-body">
+            <div className="form-group-grid" style={{ gridTemplateColumns: '1fr 1fr', marginBottom: '12px' }}>
+              <div className="form-group">
+                <label>제품 카테고리</label>
+                <div style={{ display: 'flex', gap: '12px', marginTop: '6px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', cursor: 'pointer', fontWeight: 500 }}>
+                    <input 
+                      type="radio" 
+                      name="product-category" 
+                      checked={!isFlavor} 
+                      onChange={() => handleCategoryChange(false)} 
+                    />
+                    플레인 요거트
+                  </label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', cursor: 'pointer', fontWeight: 500 }}>
+                    <input 
+                      type="radio" 
+                      name="product-category" 
+                      checked={isFlavor} 
+                      onChange={() => handleCategoryChange(true)} 
+                    />
+                    플레이버 요거트
+                  </label>
+                </div>
+              </div>
+              {isFlavor && (
+                <div className="form-group">
+                  <label htmlFor="base-product-select">대표 베이스 제품 선택</label>
+                  <select
+                    id="base-product-select"
+                    className="form-control"
+                    value={baseProductId}
+                    onChange={(e) => setBaseProductId(e.target.value)}
+                    required={isFlavor}
+                    style={{ marginTop: '2px' }}
+                  >
+                    {plainProducts.map(p => (
+                      <option key={p.id} value={p.id}>{p.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+            </div>
+
             <div className="form-group">
               <label htmlFor="new-product-name">제품명</label>
               <input 
                 type="text" 
                 className="form-control" 
                 id="new-product-name" 
-                placeholder="예: 무가당 플레인 요거트" 
+                placeholder={isFlavor ? "예: 위시크림 피스타치오 초코칩" : "예: 위시그릭 019"} 
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required 

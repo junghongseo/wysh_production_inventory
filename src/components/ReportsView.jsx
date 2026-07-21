@@ -91,12 +91,51 @@ const ReportsView = () => {
       };
     });
 
+    // Secondary base product computation if flavor product
+    let baseProductDetails = null;
+    if (product.isFlavor || product.baseProductId) {
+      const baseProduct = products.find(p => p.id === product.baseProductId) || products.find(p => !p.isFlavor);
+      if (baseProduct) {
+        const baseIng = product.ingredients.find(ing => ing.name.includes(baseProduct.name) || ing.name.includes('위시그릭') || ing.name.includes('플레인')) || product.ingredients[0];
+        const baseRatio = baseIng ? baseIng.ratio : 70;
+        
+        const neededBaseFinishedG = totalInputWeightG * (baseRatio / 100);
+        const neededBaseFinishedKg = neededBaseFinishedG / 1000;
+        
+        const baseYield = baseProduct.yield || 28;
+        const totalBaseInputWeightG = neededBaseFinishedG / (baseYield / 100);
+        
+        const computedBaseIngredients = (baseProduct.ingredients || []).map(bIng => {
+          const bNeededQtyG = totalBaseInputWeightG * (bIng.ratio / 100);
+          const isLacticBacteria = bIng.name.includes('유산균');
+          const displayG = isLacticBacteria
+            ? Number(bNeededQtyG.toFixed(1)).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+            : Math.round(bNeededQtyG).toLocaleString();
+
+          return {
+            name: bIng.name,
+            ratio: bIng.ratio,
+            displayG
+          };
+        });
+
+        baseProductDetails = {
+          product: baseProduct,
+          neededBaseFinishedKg,
+          baseYield,
+          totalBaseInputWeightG,
+          computedBaseIngredients
+        };
+      }
+    }
+
     return {
       plan,
       product,
       totalWeightG,
       totalInputWeightG,
-      computedIngredients
+      computedIngredients,
+      baseProductDetails
     };
   }, [selectedPlanId, plans, products]);
 
@@ -528,6 +567,40 @@ const ReportsView = () => {
                     </tbody>
                   </table>
                 </div>
+
+                {/* Secondary Base Product Recipe Table */}
+                {selectedPlanDetails.baseProductDetails && (
+                  <div style={{ marginTop: '14px', borderTop: '1px dashed var(--border-color)', paddingTop: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-primary)' }}>
+                        [베이스 제품 필요 배합표] {selectedPlanDetails.baseProductDetails.product.name}
+                      </span>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                        베이스 필요량: {selectedPlanDetails.baseProductDetails.neededBaseFinishedKg.toFixed(2)} kg (수율: {selectedPlanDetails.baseProductDetails.baseYield}%)
+                      </span>
+                    </div>
+                    <div className="wysh-table-wrapper" style={{ overflowX: 'auto', background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                      <table className="wysh-table" style={{ width: '100%', fontSize: '0.8rem' }}>
+                        <thead>
+                          <tr>
+                            <th style={{ padding: '8px', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)' }}>베이스 원재료명</th>
+                            <th style={{ padding: '8px', textAlign: 'right', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)' }}>비율</th>
+                            <th style={{ padding: '8px', textAlign: 'right', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)' }}>필요량(g)</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedPlanDetails.baseProductDetails.computedBaseIngredients.map((bIng, bIdx) => (
+                            <tr key={bIdx} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                              <td style={{ padding: '8px', fontWeight: 500, color: 'var(--text-primary)' }}>{bIng.name}</td>
+                              <td style={{ padding: '8px', textAlign: 'right', fontFamily: 'var(--font-outfit)', color: 'var(--text-secondary)' }}>{bIng.ratio}%</td>
+                              <td style={{ padding: '8px', textAlign: 'right', fontWeight: 600, fontFamily: 'var(--font-outfit)', color: 'var(--text-primary)' }}>{bIng.displayG} g</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
