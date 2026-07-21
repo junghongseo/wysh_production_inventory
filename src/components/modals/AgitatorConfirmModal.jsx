@@ -12,7 +12,7 @@ const AgitatorConfirmModal = ({ isOpen, onConfirm, onClose }) => {
 
   if (!isOpen) return null;
 
-  const targetText = '네 꺼져 있습니다.';
+  const targetText = '네 꺼져 있습니다';
   const isMatch = inputValue.trim() === targetText;
 
   const handleConfirm = () => {

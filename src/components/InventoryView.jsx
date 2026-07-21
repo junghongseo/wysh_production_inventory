@@ -408,7 +408,9 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal,
                 <line x1="12" y1="16" x2="12" y2="12"></line>
                 <line x1="12" y1="8" x2="12.01" y2="8"></line>
               </svg>
-              읽기 전용 상태입니다. 출고 정보 등록 및 수정은 관리자 로그인 후 사용하실 수 있습니다.
+              <span style={{ flex: 1 }}>
+                읽기 전용 상태입니다. 출고 정보 등록 및 수정은 관리자 로그인 후 사용하실 수 있습니다.
+              </span>
             </div>
           )}
           <form id="outflow-form" onSubmit={handleOutflowSubmit}>
