@@ -884,8 +884,10 @@ button, input, select, textarea {
 }
 
 .form-control {
+    display: block;
     width: 100%;
     max-width: 100%;
+    min-width: 0;
     box-sizing: border-box;
     background: var(--bg-secondary);
     border: 1px solid var(--border-color);
@@ -894,6 +896,14 @@ button, input, select, textarea {
     color: var(--text-primary);
     font-size: 0.9rem;
     transition: var(--transition-smooth);
+}
+
+input[type="date"] {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
 }
 
 .form-control:focus {
@@ -1446,6 +1456,8 @@ button svg * {
     .form-control, input, select, textarea {
         min-height: 44px; /* Touch target minimum height */
         font-size: 16px !important; /* Prevent iOS safari zoom-in on focus */
+        min-width: 0 !important;
+        max-width: 100% !important;
     }
     
     button {
