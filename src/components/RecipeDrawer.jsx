@@ -116,7 +116,7 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
   if (!isOpen) return null;
 
   return (
-    <div className="drawer-overlay open" onClick={onClose}>
+    <div className="drawer-overlay open" onClick={onClose} id="recipe-drawer-overlay">
       <div className="drawer-content" onClick={(e) => e.stopPropagation()}>
         <div className="drawer-header">
           <h3>원재료 배합표</h3>
@@ -213,7 +213,7 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
 
             {/* Base Product Secondary Recipe Table */}
             {details.baseProductDetails && (
-              <div style={{ marginTop: '28px', borderTop: '2px dashed var(--border-color)', paddingTop: '20px' }}>
+              <div className="base-recipe-section" style={{ marginTop: '28px', borderTop: '2px dashed var(--border-color)', paddingTop: '20px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
                   <h4 style={{ fontSize: '0.98rem', fontWeight: 700, color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

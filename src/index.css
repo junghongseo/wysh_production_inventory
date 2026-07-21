@@ -1138,6 +1138,14 @@ input[type="date"]::-webkit-date-and-time-value {
 
 /* Print Media Styles - Raw Material Recipe Printer */
 @media print {
+    html, body {
+        height: auto !important;
+        overflow: visible !important;
+    }
+    body.printing-recipe {
+        height: auto !important;
+        overflow: visible !important;
+    }
     body.printing-recipe .app-header,
     body.printing-recipe .app-nav,
     body.printing-recipe .tab-content {
@@ -1155,6 +1163,13 @@ input[type="date"]::-webkit-date-and-time-value {
         visibility: visible !important;
         display: block !important;
         backdrop-filter: none !important;
+    }
+    body.printing-recipe .base-recipe-section {
+        page-break-before: always !important;
+        break-before: page !important;
+        margin-top: 0 !important;
+        padding-top: 10px !important;
+        border-top: none !important;
     }
     body.printing-recipe .drawer-content {
         position: static !important;
