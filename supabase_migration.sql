@@ -5,10 +5,12 @@
 -- 1. Table Definitions
 -- =========================================================================
 
--- A. Products Table
 CREATE TABLE IF NOT EXISTS products (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
+    category TEXT,
+    is_flavor BOOLEAN DEFAULT false,
+    base_product_id TEXT,
     weight INTEGER NOT NULL,
     yield NUMERIC NOT NULL,
     color TEXT NOT NULL,

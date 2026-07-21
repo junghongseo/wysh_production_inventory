@@ -285,22 +285,33 @@ export const WyshProvider = ({ children }) => {
 
       console.log("Supabase Fetch: Successfully pulled data from Cloud DB.");
 
-      const mappedProducts = remoteProducts.map(p => ({
-        id: p.id,
-        name: p.name,
-        weight: p.weight,
-        yield: p.yield,
-        color: p.color,
-        ingredients: p.ingredients,
-        shippingLimitDays: p.shipping_limit_days !== undefined && p.shipping_limit_days !== null ? p.shipping_limit_days : 7,
-        expiryDays: p.expiry_days !== undefined && p.expiry_days !== null ? p.expiry_days : 22,
-        defaultSterilizationTemp: p.default_sterilization_temp !== undefined && p.default_sterilization_temp !== null ? p.default_sterilization_temp : 85,
-        defaultSterilizationTime: p.default_sterilization_time !== undefined && p.default_sterilization_time !== null ? p.default_sterilization_time : 30,
-        defaultCoolingTemp: p.default_cooling_temp !== undefined && p.default_cooling_temp !== null ? p.default_cooling_temp : 40,
-        defaultInoculationTemp: p.default_inoculation_temp !== undefined && p.default_inoculation_temp !== null ? p.default_inoculation_temp : 42,
-        defaultHeatingTemp: p.default_heating_temp !== undefined && p.default_heating_temp !== null ? p.default_heating_temp : 43,
-        defaultHeaterTemp: p.default_heater_temp !== undefined && p.default_heater_temp !== null ? p.default_heater_temp : 44
-      }));
+      const mappedProducts = remoteProducts.map(p => {
+        const isFlavorVal = p.is_flavor !== undefined && p.is_flavor !== null 
+          ? p.is_flavor 
+          : (p.id === 'prod-2' || p.id === 'prod-3' || (p.name && (p.name.includes('블랙카카오') || p.name.includes('피스타치오') || p.name.includes('블루베리') || p.name.includes('딸기'))));
+        const categoryVal = p.category || (isFlavorVal ? 'flavor' : 'plain');
+        const baseProdIdVal = p.base_product_id !== undefined ? p.base_product_id : (isFlavorVal ? 'prod-1' : null);
+
+        return {
+          id: p.id,
+          name: p.name,
+          weight: p.weight,
+          yield: p.yield,
+          color: p.color,
+          ingredients: p.ingredients,
+          category: categoryVal,
+          isFlavor: isFlavorVal,
+          baseProductId: baseProdIdVal,
+          shippingLimitDays: p.shipping_limit_days !== undefined && p.shipping_limit_days !== null ? p.shipping_limit_days : 7,
+          expiryDays: p.expiry_days !== undefined && p.expiry_days !== null ? p.expiry_days : 22,
+          defaultSterilizationTemp: p.default_sterilization_temp !== undefined && p.default_sterilization_temp !== null ? p.default_sterilization_temp : 85,
+          defaultSterilizationTime: p.default_sterilization_time !== undefined && p.default_sterilization_time !== null ? p.default_sterilization_time : 30,
+          defaultCoolingTemp: p.default_cooling_temp !== undefined && p.default_cooling_temp !== null ? p.default_cooling_temp : 40,
+          defaultInoculationTemp: p.default_inoculation_temp !== undefined && p.default_inoculation_temp !== null ? p.default_inoculation_temp : 42,
+          defaultHeatingTemp: p.default_heating_temp !== undefined && p.default_heating_temp !== null ? p.default_heating_temp : 43,
+          defaultHeaterTemp: p.default_heater_temp !== undefined && p.default_heater_temp !== null ? p.default_heater_temp : 44
+        };
+      });
 
       const mappedPlans = remotePlans.map(p => ({
         id: p.id,
@@ -356,6 +367,9 @@ export const WyshProvider = ({ children }) => {
         yield: product.yield,
         color: product.color,
         ingredients: product.ingredients,
+        category: product.category,
+        is_flavor: product.isFlavor,
+        base_product_id: product.baseProductId,
         shipping_limit_days: product.shippingLimitDays,
         expiry_days: product.expiryDays,
         default_sterilization_temp: product.defaultSterilizationTemp,
