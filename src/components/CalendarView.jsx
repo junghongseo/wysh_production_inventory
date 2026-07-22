@@ -30,6 +30,7 @@ const CalendarView = ({
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDateNote, setSelectedDateNote] = useState(null);
   const [selectedDate, setSelectedDate] = useState(null);
+  const [selectedSubProductId, setSelectedSubProductId] = useState('ALL');
 
   // Find inventory record for the selected plan
   const selectedInvRecord = useMemo(() => {
@@ -132,19 +133,22 @@ const CalendarView = ({
     };
   }, [plans]);
 
-  // Find product by plan (useCallback optimized)
-  const getProductForPlan = useCallback((productId) => {
-    return products.find(p => p.id === productId);
-  }, [products]);
-
   // Pre-calculate active plan events on all days to prevent nested loops in rendering
   const cellEventsMap = useMemo(() => {
     const map = {};
     calendarCells.forEach(cell => {
       const cellEvents = Array(planSlots.maxSlotCount).fill(null);
       plans.forEach((plan, planIdx) => {
+        const planItems = plan.items && Array.isArray(plan.items) && plan.items.length > 0 ? plan.items : [{ productId: plan.productId }];
+        const isMulti = planItems.length > 1;
+
+        const prodNames = planItems.map(it => {
+          const p = products.find(prod => prod.id === it.productId);
+          return p ? p.name : '';
+        }).filter(Boolean).join(' + ');
+
         const prod = products.find(p => p.id === plan.productId);
-        const prodName = prod ? prod.name : '알수없음';
+        const prodName = isMulti ? prodNames : (prod ? prod.name : '알수없음');
         
         const d1 = plan.startDate;
         const d3 = plan.bottlingDate;
@@ -155,15 +159,15 @@ const CalendarView = ({
 
         if (cell.dateStr === d1) {
           isPlanDay = true;
-          dayLabel = `🧪 발효 | ${prodName}`;
+          dayLabel = isMulti ? `✨ 2종 동시 | 🧪 발효 | ${prodName}` : `🧪 발효 | ${prodName}`;
           dayClass = 'event-day-1';
         } else if (cell.dateStr === d3) {
           isPlanDay = true;
-          dayLabel = `🍼 병입 | 완료`;
+          dayLabel = isMulti ? `✨ 2종 동시 | 🍼 병입` : `🍼 병입 | 완료`;
           dayClass = 'event-day-3';
         } else if (cell.dateStr > d1 && cell.dateStr < d3) {
           isPlanDay = true;
-          dayLabel = `🌀 유청분리`;
+          dayLabel = isMulti ? `✨ 2종 동시 | 🌀 유청분리` : `🌀 유청분리`;
           dayClass = 'event-day-2';
         }
 
@@ -176,14 +180,14 @@ const CalendarView = ({
               prodName,
               dayLabel,
               dayClass,
-              planIdx
+              planIdx,
+              isMulti
             };
           }
         }
       });
       map[cell.dateStr] = cellEvents;
     });
-    return map;
   }, [calendarCells, plans, products, planSlots]);
 
   // Right sidebar details calculations for all items
@@ -257,16 +261,41 @@ const CalendarView = ({
     };
   }, [selectedPlan, plans, products, inventory]);
 
-  // Compute remaining stock for the selected plan
-  const selectedPlanStock = useMemo(() => {
-    if (!selectedPlan) return 0;
-    const record = selectedInvRecord || { actualQty: selectedPlan.totalQty, history: [] };
-    const outflowSum = record.history ? record.history.reduce((sum, h) => sum + h.qty, 0) : 0;
-    return record.actualQty - outflowSum;
-  }, [selectedPlan, selectedInvRecord]);
+  // Active highlights per cell based on selected sub-product filter
+  const activeHighlights = useMemo(() => {
+    if (!selectedPlanDetails) return { shipping: [], expiry: [] };
+    
+    const shipping = [];
+    const expiry = [];
+
+    selectedPlanDetails.items.forEach((it, idx) => {
+      if (selectedSubProductId !== 'ALL' && selectedSubProductId !== it.productId) return;
+
+      if (it.shippingLimit) {
+        shipping.push({
+          productId: it.productId,
+          prodName: it.prodName,
+          dateStr: it.shippingLimit,
+          currentStock: it.currentStock,
+          itemIndex: idx + 1
+        });
+      }
+      if (it.expiryDate) {
+        expiry.push({
+          productId: it.productId,
+          prodName: it.prodName,
+          dateStr: it.expiryDate,
+          itemIndex: idx + 1
+        });
+      }
+    });
+
+    return { shipping, expiry };
+  }, [selectedPlanDetails, selectedSubProductId]);
 
   const handleDayClick = useCallback((dateStr) => {
     setSelectedPlan(null);
+    setSelectedSubProductId('ALL');
     setSelectedDate(dateStr);
     const note = calendarNotes.find(n => n.dateStr === dateStr) || null;
     setSelectedDateNote(note);
@@ -293,9 +322,32 @@ const CalendarView = ({
               {year}년 {month + 1}월 생산 일정
             </div>
             {selectedPlan && (
-              <div className="calendar-info-banner" style={{ margin: '0 0 0 12px' }}>
+              <div className="calendar-info-banner" style={{ margin: '0 0 0 12px', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
                 <span style={{ fontSize: '0.95rem' }}>💡</span>
-                <span>선택된 계획 <strong>{selectedPlan.id}</strong>의 출고 이력 및 잔여 재고가 표시 중입니다.</span>
+                <span>선택 차수: <strong>{selectedPlan.id}</strong></span>
+                {selectedPlanDetails && selectedPlanDetails.items.length > 1 && (
+                  <div style={{ display: 'flex', gap: '4px', marginLeft: '6px' }}>
+                    <button
+                      type="button"
+                      className={`btn-secondary ${selectedSubProductId === 'ALL' ? 'active' : ''}`}
+                      onClick={() => setSelectedSubProductId('ALL')}
+                      style={{ padding: '2px 7px', fontSize: '0.72rem', borderRadius: '10px' }}
+                    >
+                      🌐 전체 보기
+                    </button>
+                    {selectedPlanDetails.items.map((it, idx) => (
+                      <button
+                        key={it.productId}
+                        type="button"
+                        className={`btn-secondary ${selectedSubProductId === it.productId ? 'active' : ''}`}
+                        onClick={() => setSelectedSubProductId(it.productId)}
+                        style={{ padding: '2px 7px', fontSize: '0.72rem', borderRadius: '10px' }}
+                      >
+                        품목 {idx + 1}: {it.prodName}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -325,15 +377,23 @@ const CalendarView = ({
           {/* Calendar day cells */}
           {calendarCells.map((cell, idx) => {
             const isToday = cell.dateStr === todayStr;
-            const isShippingHighlight = selectedPlan && cell.dateStr === selectedPlan.shippingLimit;
-            const isExpiryHighlight = selectedPlan && cell.dateStr === selectedPlan.expiryDate;
+
+            const dayShippingList = activeHighlights.shipping.filter(h => h.dateStr === cell.dateStr);
+            const dayExpiryList = activeHighlights.expiry.filter(h => h.dateStr === cell.dateStr);
+
+            const isShippingHighlight = dayShippingList.length > 0;
+            const isExpiryHighlight = dayExpiryList.length > 0;
 
             // Retrieve pre-calculated cell events slots in O(1) time
             const cellEvents = cellEventsMap[cell.dateStr] || Array(planSlots.maxSlotCount).fill(null);
 
-            // Filter outflows related to the selected plan on this day
+            // Filter outflows related to the selected plan and sub-product on this day
             const dayOutflows = selectedInvRecord?.history
-              ? selectedInvRecord.history.filter(h => h.date.split(' ')[0] === cell.dateStr)
+              ? selectedInvRecord.history.filter(h => {
+                  if (h.date.split(' ')[0] !== cell.dateStr) return false;
+                  if (selectedSubProductId !== 'ALL' && h.productId && h.productId !== selectedSubProductId) return false;
+                  return true;
+                })
               : [];
 
             return (
@@ -404,10 +464,11 @@ const CalendarView = ({
                       <div
                         key={plan.id}
                         className={`calendar-event ${dayClass} event-color-${eventColor} ${isSelected ? 'selected' : ''} ${isDimmed ? 'dimmed' : ''}`}
-                        title={`${plan.name} (${prodName} ${plan.totalQty}개)\n1일차: 발효 | 2일차: 유청분리 | 3일차: 병입`}
+                        title={`${plan.name} (${prodName})\n1일차: 발효 | 2일차: 유청분리 | 3일차: 병입`}
                         onClick={(e) => {
                           e.stopPropagation();
                           setSelectedPlan(plan);
+                          setSelectedSubProductId('ALL');
                           setSelectedDate(null);
                           setSelectedDateNote(null);
                         }}
@@ -417,17 +478,17 @@ const CalendarView = ({
                     );
                   })}
 
-                  {/* Selected Plan Highlights (Moved below events to prevent snapping layout heights) */}
-                  {isShippingHighlight && (
-                    <div className="day-highlight-tag shipping" title={`남은 출고 가능 수량: ${selectedPlanStock}개`}>
-                      🚚 최종출고 (남은재고: {selectedPlanStock.toLocaleString()}개)
+                  {/* Selected Plan Highlights per item */}
+                  {dayShippingList.map((h, i) => (
+                    <div key={`ship-${i}`} className="day-highlight-tag shipping" title={`${h.prodName} 남은 출고 가능 수량: ${h.currentStock}개`}>
+                      🚚 {selectedPlanDetails.items.length > 1 ? `[품목${h.itemIndex}] ` : ''}최종출고 ({h.currentStock.toLocaleString()}개)
                     </div>
-                  )}
-                  {isExpiryHighlight && (
-                    <div className="day-highlight-tag expiry">
-                      ⚠️ 소비기한
+                  ))}
+                  {dayExpiryList.map((h, i) => (
+                    <div key={`exp-${i}`} className="day-highlight-tag expiry">
+                      ⚠️ {selectedPlanDetails.items.length > 1 ? `[품목${h.itemIndex}] ` : ''}소비기한
                     </div>
-                  )}
+                  ))}
 
                   {/* Render Outflow Histories for Selected Plan on this day */}
                   {dayOutflows.map(outflow => (
@@ -486,6 +547,35 @@ const CalendarView = ({
                     <span className="value">{selectedPlanDetails.plan.startDate}</span>
                   </div>
                   
+                  {selectedPlanDetails.items.length > 1 && (
+                    <div style={{ margin: '10px 0 6px 0', background: 'rgba(255,255,255,0.02)', padding: '8px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600 }}>
+                        🎯 캘린더 달력 기한/재고 하이라이트 선택:
+                      </div>
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                        <button
+                          type="button"
+                          className={`btn-secondary ${selectedSubProductId === 'ALL' ? 'active' : ''}`}
+                          onClick={() => setSelectedSubProductId('ALL')}
+                          style={{ padding: '3px 9px', fontSize: '0.75rem', borderRadius: '12px', background: selectedSubProductId === 'ALL' ? 'var(--color-primary)' : '', color: selectedSubProductId === 'ALL' ? '#fff' : '' }}
+                        >
+                          🌐 전체 품목 보기
+                        </button>
+                        {selectedPlanDetails.items.map((it, idx) => (
+                          <button
+                            key={it.productId}
+                            type="button"
+                            className={`btn-secondary ${selectedSubProductId === it.productId ? 'active' : ''}`}
+                            onClick={() => setSelectedSubProductId(it.productId)}
+                            style={{ padding: '3px 9px', fontSize: '0.75rem', borderRadius: '12px', background: selectedSubProductId === it.productId ? (idx === 0 ? 'var(--color-primary)' : '#a855f7') : '', color: selectedSubProductId === it.productId ? '#fff' : '' }}
+                          >
+                            품목 {idx + 1}: {it.prodName}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Detailed Card for Each Item */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '10px' }}>
                     {selectedPlanDetails.items.map((it, idx) => (
