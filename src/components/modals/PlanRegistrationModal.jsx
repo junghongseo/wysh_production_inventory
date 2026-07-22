@@ -389,19 +389,48 @@ const PlanRegistrationModal = ({ isOpen, onClose, editPlanId }) => {
                     marginBottom: '16px' 
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
                     <h4 style={{ margin: 0, fontSize: '0.92rem', fontWeight: 700, color: idx === 0 ? 'var(--color-primary)' : 'var(--color-accent, #a855f7)', display: 'flex', alignItems: 'center', gap: '6px' }}>
                       <span style={{ background: idx === 0 ? 'var(--color-primary)' : '#a855f7', color: '#fff', fontSize: '0.72rem', padding: '2px 7px', borderRadius: '12px' }}>
                         품목 {idx + 1}
                       </span>
                       {idx === 0 ? '생산 품목 1 (기본)' : '생산 품목 2 (동시 생산)'}
                     </h4>
+
+                    {idx === 0 && prod && (() => {
+                      const colorMap = {
+                        purple: { text: '🟣 보라색 테마', bg: '#f3e8ff', color: '#7e22ce' },
+                        green: { text: '🟢 초록색 테마', bg: '#dcfce7', color: '#15803d' },
+                        orange: { text: '🟠 주황색 테마', bg: '#ffedd5', color: '#c2410c' },
+                        pink: { text: '🩷 핑크색 테마', bg: '#fce7f3', color: '#be185d' },
+                        blue: { text: '🔵 파란색 테마', bg: '#e0f2fe', color: '#0369a1' }
+                      };
+                      const badge = colorMap[prod.color] || colorMap.blue;
+                      return (
+                        <span 
+                          style={{ 
+                            fontSize: '0.75rem', 
+                            fontWeight: 600, 
+                            padding: '3px 9px', 
+                            borderRadius: '6px', 
+                            background: badge.bg, 
+                            color: badge.color,
+                            border: `1px solid ${badge.color}33`,
+                            marginLeft: 'auto'
+                          }}
+                          title="캘린더 일지 블록 대표 표시 색상"
+                        >
+                          🎨 캘린더 표시 색상: {badge.text}
+                        </span>
+                      );
+                    })()}
+
                     {idx > 0 && (
                       <button 
                         type="button" 
                         className="btn-delete-tiny" 
                         onClick={() => handleRemoveItem(idx)}
-                        style={{ color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                        style={{ color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px', marginLeft: 'auto' }}
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                           <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -428,6 +457,11 @@ const PlanRegistrationModal = ({ isOpen, onClose, editPlanId }) => {
                         </option>
                       ))}
                     </select>
+                    {idx === 0 && (
+                      <div style={{ fontSize: '0.73rem', color: 'var(--text-muted)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <span>💡 캘린더 일지 블록에는 품목 1({prod ? prod.name : '선택 품목'})의 색상이 대표로 반영됩니다.</span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Quantities Row */}

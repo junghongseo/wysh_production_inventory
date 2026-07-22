@@ -186,20 +186,76 @@ const CalendarView = ({
     return map;
   }, [calendarCells, plans, products, planSlots]);
 
-  // Right sidebar details calculations
+  // Right sidebar details calculations for all items
   const selectedPlanDetails = useMemo(() => {
     if (!selectedPlan) return null;
     const plan = plans.find(p => p.id === selectedPlan.id);
     if (!plan) return null;
-    const product = getProductForPlan(plan.productId);
+
+    const planItems = plan.items && Array.isArray(plan.items) && plan.items.length > 0
+      ? plan.items
+      : [{
+          productId: plan.productId,
+          expectedOrderQty: plan.expectedOrderQty,
+          marketingQty: plan.marketingQty,
+          bufferQty: plan.bufferQty,
+          totalQty: plan.totalQty,
+          bottlingDate: plan.bottlingDate,
+          shippingLimit: plan.shippingLimit,
+          expiryDate: plan.expiryDate
+        }];
+
+    const invRecord = inventory.find(i => i.planId === plan.id) || { actualQty: plan.totalQty, history: [] };
+    const isMulti = planItems.length > 1;
+
+    const itemDetails = planItems.map(it => {
+      const prod = products.find(p => p.id === it.productId);
+      const prodName = prod ? prod.name : '알 수 없음';
+      const weight = prod ? prod.weight : 0;
+      const yieldRate = prod ? (prod.yield || 28) : 0;
+
+      const plannedQty = it.totalQty || ((it.expectedOrderQty || 0) + (it.marketingQty || 0) + (it.bufferQty || 0));
+
+      let itemActualQty = plannedQty;
+      if (invRecord.itemActualQtys && invRecord.itemActualQtys[it.productId] !== undefined) {
+        itemActualQty = invRecord.itemActualQtys[it.productId];
+      } else if (!isMulti && invRecord.actualQty !== undefined) {
+        itemActualQty = invRecord.actualQty;
+      }
+
+      const itemOutflows = (invRecord.history || []).reduce((sum, h) => {
+        if (!isMulti || !h.productId || h.productId === it.productId) {
+          return sum + (h.qty || 0);
+        }
+        return sum;
+      }, 0);
+
+      const currentStock = itemActualQty - itemOutflows;
+
+      const botDate = it.bottlingDate || plan.bottlingDate;
+      const shipLimit = it.shippingLimit || (botDate ? addDays(botDate, prod ? (prod.shippingLimitDays ?? 7) : 7) : plan.shippingLimit);
+      const expDate = it.expiryDate || (botDate ? addDays(botDate, prod ? (prod.expiryDays ?? 22) : 22) : plan.expiryDate);
+
+      return {
+        ...it,
+        prod,
+        prodName,
+        weight,
+        yieldRate,
+        plannedQty,
+        itemActualQty,
+        currentStock,
+        bottlingDate: botDate,
+        shippingLimit: shipLimit,
+        expiryDate: expDate
+      };
+    });
+
     return {
       plan,
-      product,
-      prodName: product ? product.name : '알 수 없음',
-      singleWeight: product ? product.weight : 0,
-      yieldRate: product ? (product.yield || 28) : 0
+      items: itemDetails
     };
-  }, [selectedPlan, plans, getProductForPlan]);
+  }, [selectedPlan, plans, products, inventory]);
 
   // Compute remaining stock for the selected plan
   const selectedPlanStock = useMemo(() => {
@@ -418,10 +474,6 @@ const CalendarView = ({
                     <span className="value" style={{ fontWeight: 600 }}>{selectedPlanDetails.plan.name}</span>
                   </div>
                   <div className="info-row">
-                    <span className="label">생산 품목</span>
-                    <span className="value">{selectedPlanDetails.prodName} ({selectedPlanDetails.singleWeight}g, 수율 {selectedPlanDetails.yieldRate}%)</span>
-                  </div>
-                  <div className="info-row">
                     <span className="label">가동 발효기</span>
                     <span className="value fermenter">{selectedPlanDetails.plan.fermenterType === 'small' ? '소형 발효기' : '대형 발효기'}</span>
                   </div>
@@ -430,43 +482,77 @@ const CalendarView = ({
                     <span className="value highlight" style={{ color: 'var(--color-success)' }}>{selectedPlanDetails.plan.totalVolumeL.toFixed(2)} L</span>
                   </div>
                   <div className="info-row">
-                    <span className="label">1일차 [발효]</span>
+                    <span className="label">1일차 [발효 시작]</span>
                     <span className="value">{selectedPlanDetails.plan.startDate}</span>
                   </div>
-                  <div className="info-row">
-                    <span className="label">3일차 [병입]</span>
-                    <span className="value">{selectedPlanDetails.plan.bottlingDate}</span>
-                  </div>
                   
-                  <div className="info-row" style={{ border: '1px dashed var(--color-warning)' }}>
-                    <span className="label" style={{ color: 'var(--color-warning)' }}>🚚 최종 출고기한</span>
-                    <span className="value" style={{ color: 'var(--color-warning)', fontWeight: 600 }}>{selectedPlanDetails.plan.shippingLimit}</span>
+                  {/* Detailed Card for Each Item */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '10px' }}>
+                    {selectedPlanDetails.items.map((it, idx) => (
+                      <div 
+                        key={idx}
+                        style={{
+                          background: idx === 0 ? 'rgba(2, 132, 199, 0.04)' : 'rgba(168, 85, 247, 0.04)',
+                          border: `1px solid ${idx === 0 ? 'rgba(2, 132, 199, 0.2)' : 'rgba(168, 85, 247, 0.2)'}`,
+                          borderRadius: '10px',
+                          padding: '12px'
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                          <span style={{ 
+                            fontSize: '0.72rem', 
+                            fontWeight: 700, 
+                            background: idx === 0 ? 'var(--color-primary)' : '#a855f7', 
+                            color: '#fff', 
+                            padding: '2px 8px', 
+                            borderRadius: '10px' 
+                          }}>
+                            품목 {idx + 1}
+                          </span>
+                          <strong style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>{it.prodName}</strong>
+                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>({it.weight}g, 수율 {it.yieldRate}%)</span>
+                        </div>
+
+                        <div className="info-grid" style={{ gap: '6px' }}>
+                          <div className="info-row" style={{ padding: '2px 0' }}>
+                            <span className="label" style={{ fontSize: '0.78rem' }}>병입 일자</span>
+                            <span className="value" style={{ fontSize: '0.82rem', fontWeight: 600 }}>{it.bottlingDate}</span>
+                          </div>
+                          <div className="info-row" style={{ padding: '4px 6px', border: '1px dashed var(--color-warning)', borderRadius: '6px' }}>
+                            <span className="label" style={{ color: 'var(--color-warning)', fontSize: '0.75rem' }}>🚚 최종 출고기한</span>
+                            <span className="value" style={{ color: 'var(--color-warning)', fontWeight: 600, fontSize: '0.82rem' }}>{it.shippingLimit}</span>
+                          </div>
+                          <div className="info-row" style={{ padding: '4px 6px', border: '1px dashed var(--color-danger)', borderRadius: '6px' }}>
+                            <span className="label" style={{ color: 'var(--color-danger)', fontSize: '0.75rem' }}>⚠️ 최종 소비기한</span>
+                            <span className="value" style={{ color: 'var(--color-danger)', fontWeight: 600, fontSize: '0.82rem' }}>{it.expiryDate}</span>
+                          </div>
+                        </div>
+
+                        <div style={{ marginTop: '8px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px', background: 'rgba(255,255,255,0.03)', padding: '6px', borderRadius: '6px' }}>
+                          <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>주문예상</div>
+                            <div style={{ fontSize: '0.8rem', fontWeight: 600 }}>{it.expectedOrderQty || 0}</div>
+                          </div>
+                          <div style={{ textAlign: 'center', borderLeft: '1px solid var(--border-color)', borderRight: '1px solid var(--border-color)' }}>
+                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>마케팅</div>
+                            <div style={{ fontSize: '0.8rem', fontWeight: 600 }}>{it.marketingQty || 0}</div>
+                          </div>
+                          <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>여유분</div>
+                            <div style={{ fontSize: '0.8rem', fontWeight: 600 }}>{it.bufferQty || 0}</div>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px', paddingTop: '6px', borderTop: '1px dashed var(--border-color)' }}>
+                          <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>목표 수량: <strong>{it.plannedQty.toLocaleString()}개</strong></span>
+                          <span style={{ fontSize: '0.82rem', fontWeight: 700, color: it.currentStock < 100 ? 'var(--color-danger)' : 'var(--color-primary)' }}>
+                            현재 재고: {it.currentStock.toLocaleString()}개
+                          </span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  <div className="info-row" style={{ border: '1px dashed var(--color-danger)' }}>
-                    <span className="label" style={{ color: 'var(--color-danger)' }}>⚠️ 최종 소비기한</span>
-                    <span className="value" style={{ color: 'var(--color-danger)', fontWeight: 600 }}>{selectedPlanDetails.plan.expiryDate}</span>
-                  </div>
-                  
-                  <div style={{ marginTop: '10px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px', background: 'rgba(255,255,255,0.02)', padding: '8px', borderRadius: '8px' }}>
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>주문 예상</div>
-                      <div style={{ fontSize: '0.85rem', fontWeight: 600, fontFamily: 'var(--font-outfit)' }}>{selectedPlanDetails.plan.expectedOrderQty}</div>
-                    </div>
-                    <div style={{ textAlign: 'center', borderLeft: '1px solid var(--border-color)', borderRight: '1px solid var(--border-color)' }}>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>마케팅</div>
-                      <div style={{ fontSize: '0.85rem', fontWeight: 600, fontFamily: 'var(--font-outfit)' }}>{selectedPlanDetails.plan.marketingQty}</div>
-                    </div>
-                    <div style={{ textAlign: 'center' }}>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>여유분</div>
-                      <div style={{ fontSize: '0.85rem', fontWeight: 600, fontFamily: 'var(--font-outfit)' }}>{selectedPlanDetails.plan.bufferQty}</div>
-                    </div>
-                  </div>
-                  
-                  <div className="info-row" style={{ background: 'rgba(56,189,248,0.05)', borderColor: 'rgba(56,189,248,0.2)' }}>
-                    <span className="label" style={{ color: 'var(--color-primary)' }}>총 생산 목표량</span>
-                    <span className="value" style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--color-primary)' }}>{selectedPlanDetails.plan.totalQty.toLocaleString()} 개</span>
-                  </div>
-                  
+
                   {selectedPlanDetails.plan.memo && (
                     <div style={{ marginTop: '10px', padding: '10px', background: 'rgba(255,255,255,0.02)', border: '1px dashed var(--border-color)', borderRadius: '6px', fontSize: '0.8rem', color: 'var(--text-secondary)', textAlign: 'left', whiteSpace: 'pre-wrap' }}>
                       <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-primary)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
