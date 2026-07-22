@@ -123,9 +123,15 @@ const ReportsView = () => {
     const baseYield = product.yield || 28;
     const totalInputWeightG = totalBaseYogurtG / (baseYield / 100);
 
+    let totalRatioSum = 0;
+    let totalWeightSumG = 0;
+
     const computedIngredients = (product.ingredients || []).map(ing => {
       const neededQtyG = totalInputWeightG * (ing.ratio / 100);
       const neededQtyKg = neededQtyG / 1000;
+      totalRatioSum += ing.ratio;
+      totalWeightSumG += neededQtyG;
+
       const isLacticBacteria = ing.name.includes('유산균');
       const displayG = isLacticBacteria
         ? Number(neededQtyG.toFixed(1)).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
@@ -135,7 +141,8 @@ const ReportsView = () => {
         name: ing.name,
         ratio: ing.ratio,
         displayG,
-        neededQtyKg
+        neededQtyKg,
+        neededQtyG
       };
     });
 
@@ -145,6 +152,8 @@ const ReportsView = () => {
       baseProduct,
       totalWeightG: totalBaseYogurtG,
       totalInputWeightG,
+      totalRatioSum,
+      totalWeightSumG,
       computedIngredients,
       planItems
     };
@@ -580,6 +589,13 @@ const ReportsView = () => {
                           <td style={{ padding: '8px', textAlign: 'right', fontWeight: 600, fontFamily: 'var(--font-outfit)', color: 'var(--text-primary)' }}>{ing.displayG} g</td>
                         </tr>
                       ))}
+                      <tr style={{ borderTop: '2px solid var(--border-color)', background: 'rgba(2, 132, 199, 0.05)', fontWeight: 700 }}>
+                        <td style={{ padding: '9px 8px', color: 'var(--color-primary)' }}>합계 (전체 원재료 총량)</td>
+                        <td style={{ padding: '9px 8px', textAlign: 'right', fontFamily: 'var(--font-outfit)', color: 'var(--color-primary)' }}>{(selectedPlanDetails.totalRatioSum || 0).toFixed(2)}%</td>
+                        <td style={{ padding: '9px 8px', textAlign: 'right', fontFamily: 'var(--font-outfit)', color: 'var(--color-primary)', fontSize: '0.86rem' }}>
+                          {Math.round(selectedPlanDetails.totalWeightSumG || 0).toLocaleString()} g <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500 }}>({((selectedPlanDetails.totalWeightSumG || 0) / 1000).toFixed(2)} kg)</span>
+                        </td>
+                      </tr>
                     </tbody>
                   </table>
                 </div>
