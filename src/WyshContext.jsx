@@ -349,7 +349,7 @@ export const WyshProvider = ({ children }) => {
           bufferQty: p.buffer_qty,
           totalQty: p.total_qty,
           fermenterType: p.fermenter_type,
-          totalVolumeL: parseFloat(p.total_volume_l),
+          totalVolumeL: parseFloat(p.total_volume_l) || 0,
           memo: p.memo || '',
           items
         };

@@ -92,7 +92,7 @@ const CalendarView = ({
   // Calculate layout slot indices to prevent overlapping plan blocks from snapping vertical positions
   const planSlots = useMemo(() => {
     // 1. Sort plans by start date so slots are assigned chronologically
-    const sortedPlans = [...plans].sort((a, b) => a.startDate.localeCompare(b.startDate));
+    const sortedPlans = [...plans].sort((a, b) => (a.startDate || '').localeCompare(b.startDate || ''));
     
     // 2. Distribute plans to slots where they do not overlap
     const slots = []; // Array of arrays: [ [plan1, plan2], [plan3], ... ]
@@ -103,10 +103,11 @@ const CalendarView = ({
       
       for (let i = 0; i < slots.length; i++) {
         const isOverlap = slots[i].some(existingPlan => {
-          const startA = existingPlan.startDate;
-          const endA = existingPlan.bottlingDate;
-          const startB = plan.startDate;
-          const endB = plan.bottlingDate;
+          const startA = existingPlan.startDate || '';
+          const endA = existingPlan.bottlingDate || startA;
+          const startB = plan.startDate || '';
+          const endB = plan.bottlingDate || startB;
+          if (!startA || !startB) return false;
           // Overlaps if startA <= endB and startB <= endA
           return startA <= endB && startB <= endA;
         });
@@ -390,7 +391,8 @@ const CalendarView = ({
             // Filter outflows related to the selected plan and sub-product on this day
             const dayOutflows = selectedInvRecord?.history
               ? selectedInvRecord.history.filter(h => {
-                  if (h.date.split(' ')[0] !== cell.dateStr) return false;
+                  const hDate = (h.date || '').split(' ')[0];
+                  if (hDate !== cell.dateStr) return false;
                   if (selectedSubProductId !== 'ALL' && h.productId && h.productId !== selectedSubProductId) return false;
                   return true;
                 })

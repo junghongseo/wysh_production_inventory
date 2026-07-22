@@ -6,27 +6,29 @@ const HeaderStats = () => {
 
   const stats = useMemo(() => {
     // A. Product count
-    const productCount = products.length;
+    const productCount = (products || []).length;
 
     // B. Pending Plans count
     const todayStr = new Date().toISOString().split('T')[0];
-    const pendingCount = plans.filter(p => p.startDate >= todayStr).length;
+    const pendingCount = (plans || []).filter(p => p && p.startDate && p.startDate >= todayStr).length;
 
     // C. Total Stock count
     let totalStock = 0;
-    inventory.forEach(inv => {
-      const plan = plans.find(p => p.id === inv.planId);
+    (inventory || []).forEach(inv => {
+      if (!inv) return;
+      const plan = (plans || []).find(p => p && p.id === inv.planId);
       // 생산계획이 세워졌더라도 병입일이 되지 않으면 총 재고 수량에 반영하지 않음
-      if (plan && todayStr >= plan.bottlingDate) {
-        const outflowSum = inv.history ? inv.history.reduce((sum, item) => sum + item.qty, 0) : 0;
-        totalStock += (inv.actualQty - outflowSum);
+      if (plan && plan.bottlingDate && todayStr >= plan.bottlingDate) {
+        const outflowSum = Array.isArray(inv.history) ? inv.history.reduce((sum, item) => sum + (item?.qty || 0), 0) : 0;
+        const actual = inv.actualQty || (plan.totalQty || 0);
+        totalStock += (actual - outflowSum);
       }
     });
 
     return {
       productCount,
       pendingCount,
-      totalStock
+      totalStock: isNaN(totalStock) ? 0 : totalStock
     };
   }, [products, plans, inventory]);
 

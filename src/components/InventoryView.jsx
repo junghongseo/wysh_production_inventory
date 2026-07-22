@@ -33,8 +33,8 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal,
 
   // Extract list of months dynamically for dropdown filtering
   const uniqueMonths = useMemo(() => {
-    const months = plans.map(p => p.startDate.substring(0, 7));
-    return [...new Set(months)].sort((a, b) => b.localeCompare(a));
+    const months = plans.map(p => (p.startDate ? p.startDate.substring(0, 7) : '')).filter(Boolean);
+    return [...new Set(months)].sort((a, b) => (b || '').localeCompare(a || ''));
   }, [plans]);
 
   // Reset page number back to 1 on filter query changes
@@ -199,7 +199,7 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal,
     setEditingHistoryId(item.id);
     const targetSubKey = item.productId ? `${item.planId}::${item.productId}` : item.planId;
     setOutflowPlanId(targetSubKey);
-    setOutflowDate(item.date.split(' ')[0]);
+    setOutflowDate((item.date || '').split(' ')[0]);
     setOutflowQty(item.qty.toString());
     setOutflowPurpose(item.purpose);
     setOutflowMemo(item.memo || '');
@@ -601,7 +601,7 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal,
                   onClick={isAdminLoggedIn ? () => handleStartEdit(item) : undefined}
                 >
                   <div className="timeline-item-meta">
-                    <span className="date">{item.date.split(' ')[0]}</span>
+                    <span className="date">{(item.date || '').split(' ')[0]}</span>
                     <span className="purpose">
                       <strong style={{ color: 'var(--color-primary)' }}>{item.planId}</strong>{' '}
                       ({item.purpose}) - {item.planName}

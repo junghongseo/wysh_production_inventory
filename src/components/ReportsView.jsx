@@ -297,7 +297,7 @@ const ReportsView = () => {
   const filteredReports = useMemo(() => {
     return reports
       .filter(r => r.type === activeReportType)
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
   }, [reports, activeReportType]);
 
   // Find plan name for display
