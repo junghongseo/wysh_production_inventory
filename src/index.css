@@ -1441,14 +1441,27 @@ button svg * {
     }
     
     /* Splits and Grid systems */
-    .dashboard-grid, .recipe-split {
+    .dashboard-grid, .recipe-split, .report-grid-container {
         display: flex !important;
         flex-direction: column !important;
         gap: 16px;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        width: 100% !important;
+        box-sizing: border-box !important;
     }
     
-    .dashboard-grid > div, .recipe-split > div {
+    .dashboard-grid > div, .recipe-split > div, .report-grid-container > div {
         width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
+    }
+
+    .glass-card {
+        min-width: 0 !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
     }
     
     /* Calendar Area Scroll for React & Vanilla */
@@ -1602,6 +1615,12 @@ button svg * {
         padding-left: 30px !important; /* Indent under checkbox */
         width: 100% !important;
         flex-wrap: wrap !important;
+    }
+
+    /* Recipe Summary Header 1-Column Layout on Mobile */
+    .recipe-summary-grid {
+        grid-template-columns: 1fr !important;
+        gap: 6px !important;
     }
 
     /* Dashboard Header Stats Mobile Layout */

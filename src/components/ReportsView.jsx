@@ -1154,7 +1154,7 @@ const ReportsView = () => {
                       </svg>
                       <span>선택된 생산 계획의 배합표 (레시피 정보)</span>
                     </h4>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px', fontSize: '0.82rem', marginBottom: '12px', color: 'var(--text-secondary)', borderBottom: '1px dashed var(--border-color)', paddingBottom: '10px' }}>
+                    <div className="recipe-summary-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px', fontSize: '0.82rem', marginBottom: '12px', color: 'var(--text-secondary)', borderBottom: '1px dashed var(--border-color)', paddingBottom: '10px' }}>
                       <div>
                         기준 베이스 제품: <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{selectedPlanDetails.product?.name || '베이스 제품'}</strong>
                         <span style={{ fontSize: '0.72rem', background: 'rgba(2, 132, 199, 0.1)', color: 'var(--color-primary)', padding: '1px 6px', borderRadius: '4px', marginLeft: '6px', fontWeight: 600 }}>
