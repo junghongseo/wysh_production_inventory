@@ -49,7 +49,16 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
       // Calculate base yogurt requirement for this item
       let baseYogurtNeededG = 0;
       if (product.isFlavor) {
-        const baseIng = product.ingredients?.find(ing => ing.name.includes('위시그릭') || ing.name.includes('플레인')) || product.ingredients?.[0];
+        let baseIng = null;
+        if (product.baseProductId) {
+          const linkedBase = products.find(p => p.id === product.baseProductId);
+          if (linkedBase) {
+            baseIng = product.ingredients?.find(ing => ing.name === linkedBase.name || ing.name.includes(linkedBase.name));
+          }
+        }
+        if (!baseIng) {
+          baseIng = product.ingredients?.find(ing => ing.name.includes('위시그릭') || ing.name.includes('플레인')) || product.ingredients?.[0];
+        }
         const baseRatio = baseIng ? baseIng.ratio : 70;
         baseYogurtNeededG = itemInputWeightG * (baseRatio / 100);
       } else {
@@ -72,8 +81,30 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
       };
     }).filter(Boolean);
 
-    // Compute combined base product (Plain) recipe
-    const baseProduct = products.find(p => !p.isFlavor) || products[0];
+    // Compute combined base product (Plain) recipe dynamically
+    let baseProduct = itemDetailsList.map(d => d.product).find(p => !p.isFlavor);
+
+    if (!baseProduct) {
+      const flavorItem = itemDetailsList.find(d => d.product.isFlavor && d.product.baseProductId);
+      if (flavorItem) {
+        baseProduct = products.find(p => p.id === flavorItem.product.baseProductId);
+      }
+    }
+
+    if (!baseProduct) {
+      const flavorItem = itemDetailsList.find(d => d.product.isFlavor);
+      if (flavorItem) {
+        const firstIngName = flavorItem.product.ingredients?.[0]?.name;
+        if (firstIngName) {
+          baseProduct = products.find(p => p.name.includes(firstIngName) || firstIngName.includes(p.name));
+        }
+      }
+    }
+
+    if (!baseProduct) {
+      baseProduct = products.find(p => !p.isFlavor) || products[0];
+    }
+
     const totalCombinedBaseYogurtKg = totalCombinedBaseYogurtG / 1000;
     const baseYield = baseProduct ? (baseProduct.yield || 28) : 28;
     const totalBaseInputWeightG = totalCombinedBaseYogurtG / (baseYield / 100);
