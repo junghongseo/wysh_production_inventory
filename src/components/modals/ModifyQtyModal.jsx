@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useWysh } from '../../WyshContext';
 
-const ModifyQtyModal = ({ isOpen, onClose, planId }) => {
-  const { plans, getInventoryRecord, updateActualQty } = useWysh();
+const ModifyQtyModal = ({ isOpen, onClose, planId, productId }) => {
+  const { plans, products, getInventoryRecord, updateActualQty } = useWysh();
 
   const [actualQty, setActualQty] = useState('');
 
@@ -10,18 +10,33 @@ const ModifyQtyModal = ({ isOpen, onClose, planId }) => {
     if (!isOpen || !planId) return null;
     const plan = plans.find(p => p.id === planId);
     const record = getInventoryRecord(planId);
+    const prod = productId ? products.find(p => p.id === productId) : (plan ? products.find(p => p.id === plan.productId) : null);
+    
+    let currentActual = plan ? plan.totalQty : 0;
+    if (record) {
+      if (productId && record.itemActualQtys && record.itemActualQtys[productId] !== undefined) {
+        currentActual = record.itemActualQtys[productId];
+      } else if (record.actualQty !== undefined) {
+        currentActual = record.actualQty;
+      }
+    }
+
+    const isMulti = plan && plan.items && plan.items.length > 1;
+    const displayName = isMulti && prod ? `${plan.name}_${prod.name}` : (plan ? plan.name : '');
+
     return {
       plan,
-      record
+      prod,
+      record,
+      currentActual,
+      displayName
     };
-  }, [isOpen, planId, plans]);
+  }, [isOpen, planId, productId, plans, products, getInventoryRecord]);
 
   // Set initial actual quantity
   useEffect(() => {
-    if (details && details.record) {
-      setActualQty(details.record.actualQty);
-    } else if (details && details.plan) {
-      setActualQty(details.plan.totalQty);
+    if (details) {
+      setActualQty(details.currentActual);
     } else {
       setActualQty('');
     }
@@ -32,7 +47,7 @@ const ModifyQtyModal = ({ isOpen, onClose, planId }) => {
     if (!planId) return;
 
     const qty = parseInt(actualQty) || 0;
-    updateActualQty(planId, qty);
+    updateActualQty(planId, qty, productId);
     onClose();
   };
 
@@ -55,11 +70,17 @@ const ModifyQtyModal = ({ isOpen, onClose, planId }) => {
             <div className="modal-body">
               <div className="info-row" style={{ marginBottom: '16px' }}>
                 <span className="label">생산 계획명</span>
-                <span className="value">{details.plan.name}</span>
+                <span className="value" style={{ fontWeight: 600 }}>{details.displayName}</span>
               </div>
+              {details.prod && (
+                <div className="info-row" style={{ marginBottom: '16px' }}>
+                  <span className="label">대상 품목</span>
+                  <span className="value">{details.prod.name} ({details.prod.weight}g)</span>
+                </div>
+              )}
               <div className="info-row" style={{ marginBottom: '20px' }}>
-                <span className="label">최초 계획 수량</span>
-                <span className="value highlight">{details.plan.totalQty.toLocaleString()} 개</span>
+                <span className="label">현재 등록 입고량</span>
+                <span className="value highlight">{details.currentActual.toLocaleString()} 개</span>
               </div>
               <div className="form-group">
                 <label htmlFor="modify-actual-qty">실제 입고 수량 (개)</label>
@@ -76,7 +97,7 @@ const ModifyQtyModal = ({ isOpen, onClose, planId }) => {
               </div>
               <div className="note-card" style={{ marginTop: '16px', borderColor: 'rgba(251, 146, 60, 0.2)', background: 'rgba(251, 146, 60, 0.05)' }}>
                 <p style={{ fontSize: '0.8rem', color: 'var(--color-warning)', lineHeight: '1.4' }}>
-                  ⚠️ 실제 입고량을 수정하여 반영하면, 현재 재고(최종 재고) 역시 새로운 입고량을 기준으로 자동 재계산됩니다.
+                  ⚠️ 실제 입고량을 수정하여 반영하면, 해당 품목의 현재 재고(최종 재고) 역시 새로운 입고량을 기준으로 자동 재계산됩니다.
                 </p>
               </div>
             </div>

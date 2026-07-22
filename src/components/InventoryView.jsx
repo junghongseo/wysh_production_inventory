@@ -49,40 +49,89 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal,
     }
   }, [todayStr]);
 
-  // Compute stats for all plans in the system
+  const dateAddDays = (dateStr, days) => {
+    if (!dateStr) return '';
+    const d = new Date(dateStr + 'T00:00:00');
+    d.setDate(d.getDate() + days);
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+
+  // Compute stats for all sub-plans/items in the system
   const allInventoryData = useMemo(() => {
-    return plans.map(plan => {
+    const rows = [];
+    plans.forEach(plan => {
       const planItems = plan.items && Array.isArray(plan.items) && plan.items.length > 0 
         ? plan.items 
-        : [{ productId: plan.productId }];
+        : [{ productId: plan.productId, totalQty: plan.totalQty }];
 
-      const prodNamesList = planItems.map(it => {
-        const p = products.find(prod => prod.id === it.productId);
-        return p ? p.name : '알수없음';
-      });
-      const prodName = prodNamesList.join(' + ');
-      
+      const isMultiItem = planItems.length > 1;
       const invRecord = inventory.find(i => i.planId === plan.id) || { actualQty: plan.totalQty, history: [] };
-      const totalOutflows = invRecord.history ? invRecord.history.reduce((sum, item) => sum + item.qty, 0) : 0;
-      const currentStock = invRecord.actualQty - totalOutflows;
 
-      return {
-        plan,
-        prodName,
-        actualQty: invRecord.actualQty,
-        currentStock
-      };
+      planItems.forEach((it) => {
+        const prod = products.find(p => p.id === it.productId);
+        const prodName = prod ? prod.name : '알수없음';
+        const subName = isMultiItem ? `${plan.name}_${prodName}` : plan.name;
+        const subKey = `${plan.id}::${it.productId}`;
+
+        const shippingLimit = dateAddDays(plan.bottlingDate, prod ? (prod.shippingLimitDays ?? 7) : 7);
+        const expiryDate = dateAddDays(plan.bottlingDate, prod ? (prod.expiryDays ?? 22) : 22);
+
+        const plannedQty = it.totalQty || ( (it.expectedOrderQty || 0) + (it.marketingQty || 0) + (it.bufferQty || 0) );
+        
+        let itemActualQty = plannedQty;
+        if (invRecord.itemActualQtys && invRecord.itemActualQtys[it.productId] !== undefined) {
+          itemActualQty = invRecord.itemActualQtys[it.productId];
+        } else if (!isMultiItem && invRecord.actualQty !== undefined) {
+          itemActualQty = invRecord.actualQty;
+        }
+
+        // Outflows for this specific product item
+        const itemOutflows = (invRecord.history || []).reduce((sum, h) => {
+          if (!isMultiItem || !h.productId || h.productId === it.productId) {
+            return sum + (h.qty || 0);
+          }
+          return sum;
+        }, 0);
+
+        const currentStock = itemActualQty - itemOutflows;
+
+        rows.push({
+          subKey,
+          planId: plan.id,
+          productId: it.productId,
+          plan,
+          subName,
+          prodName,
+          shippingLimit,
+          expiryDate,
+          plannedQty,
+          actualQty: itemActualQty,
+          currentStock,
+          isMultiItem
+        });
+      });
     });
+    return rows;
   }, [plans, products, inventory]);
+
+  // Active sub-plans for outflow dropdown
+  const activeSubPlans = useMemo(() => {
+    return allInventoryData.filter(item => {
+      return item.shippingLimit >= todayStr && todayStr >= item.plan.bottlingDate;
+    });
+  }, [allInventoryData, todayStr]);
 
   // Apply filters on allInventoryData
   const filteredInventoryData = useMemo(() => {
     return allInventoryData.filter(item => {
-      const { plan, prodName } = item;
+      const { plan, subName, prodName, shippingLimit } = item;
 
       // Status filter
       if (statusFilter === 'active') {
-        const isActive = plan.shippingLimit >= todayStr && todayStr >= plan.bottlingDate;
+        const isActive = shippingLimit >= todayStr && todayStr >= plan.bottlingDate;
         if (!isActive) return false;
       }
 
@@ -94,7 +143,7 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal,
       // Search term text search
       if (searchTerm.trim()) {
         const query = searchTerm.toLowerCase();
-        const matchName = plan.name.toLowerCase().includes(query);
+        const matchName = subName.toLowerCase().includes(query);
         const matchId = plan.id.toLowerCase().includes(query);
         const matchProdName = prodName.toLowerCase().includes(query);
         if (!matchName && !matchId && !matchProdName) return false;
@@ -117,30 +166,38 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal,
   const outflowHistory = useMemo(() => {
     const historyList = [];
     inventory.forEach(inv => {
-      // Filter logs by selected plan if set
-      if (selectedInventoryPlanId && inv.planId !== selectedInventoryPlanId) return;
-
       const plan = plans.find(p => p.id === inv.planId);
-      const planName = plan ? plan.name : '삭제된 계획';
-      
+      if (!plan) return;
+
       if (inv.history) {
         inv.history.forEach(hist => {
+          const histProd = products.find(p => p.id === (hist.productId || plan.productId));
+          const prodName = histProd ? histProd.name : '';
+          const isMulti = plan.items && plan.items.length > 1;
+          const displayPlanName = isMulti && prodName ? `${plan.name}_${prodName}` : plan.name;
+          const subKey = `${inv.planId}::${hist.productId || plan.productId}`;
+
+          // Filter logs by selected subKey or planId if set
+          if (selectedInventoryPlanId && selectedInventoryPlanId !== subKey && selectedInventoryPlanId !== inv.planId) return;
+
           historyList.push({
             planId: inv.planId,
-            planName: planName,
+            productId: hist.productId || plan.productId,
+            subKey,
+            planName: displayPlanName,
             ...hist
           });
         });
       }
     });
-    // Sort strictly by date timestamp descending
     return historyList.sort((a, b) => new Date(b.date.replace(/-/g, '/')) - new Date(a.date.replace(/-/g, '/')));
-  }, [inventory, plans, selectedInventoryPlanId]);
+  }, [inventory, plans, products, selectedInventoryPlanId]);
 
   // Handle start/cancel edit outflow
   const handleStartEdit = useCallback((item) => {
     setEditingHistoryId(item.id);
-    setOutflowPlanId(item.planId);
+    const targetSubKey = item.productId ? `${item.planId}::${item.productId}` : item.planId;
+    setOutflowPlanId(targetSubKey);
     setOutflowDate(item.date.split(' ')[0]);
     setOutflowQty(item.qty.toString());
     setOutflowPurpose(item.purpose);
@@ -179,6 +236,8 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal,
       return;
     }
 
+    const [targetPlanId, targetProdId] = outflowPlanId.includes('::') ? outflowPlanId.split('::') : [outflowPlanId, null];
+
     // Alert if future date is selected
     if (outflowDate > todayStr) {
       const confirmFuture = window.confirm(
@@ -188,13 +247,11 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal,
     }
 
     // Check inventory limit
-    const record = getInventoryRecord(outflowPlanId);
-    if (record) {
-      const totalOutflows = record.history ? record.history.reduce((sum, item) => sum + item.qty, 0) : 0;
-      const currentStock = record.actualQty - totalOutflows;
-
-      let maxAvailable = currentStock;
-      if (editingHistoryId) {
+    const record = getInventoryRecord(targetPlanId);
+    const subItem = allInventoryData.find(d => d.subKey === outflowPlanId || d.planId === targetPlanId);
+    if (subItem) {
+      let maxAvailable = subItem.currentStock;
+      if (editingHistoryId && record && record.history) {
         const oldItem = record.history.find(h => h.id === editingHistoryId);
         if (oldItem) {
           maxAvailable += oldItem.qty;
@@ -213,28 +270,17 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal,
     const finalDateStr = `${outflowDate} ${timeStr}`;
 
     if (editingHistoryId) {
-      updateOutflow(outflowPlanId, editingHistoryId, qty, outflowPurpose.trim(), finalDateStr, outflowMemo.trim());
+      updateOutflow(targetPlanId, editingHistoryId, qty, outflowPurpose.trim(), finalDateStr, outflowMemo.trim());
       handleCancelEdit();
     } else {
-      addOutflow(outflowPlanId, qty, outflowPurpose.trim(), finalDateStr, outflowMemo.trim());
+      addOutflow(targetPlanId, qty, outflowPurpose.trim(), finalDateStr, outflowMemo.trim(), targetProdId);
       // Reset inputs
       setOutflowQty('');
       setOutflowPurpose('');
       setOutflowMemo('');
       setOutflowDate(todayStr);
     }
-  }, [
-    outflowQty,
-    outflowPlanId,
-    outflowPurpose,
-    outflowDate,
-    todayStr,
-    getInventoryRecord,
-    editingHistoryId,
-    updateOutflow,
-    handleCancelEdit,
-    addOutflow
-  ]);
+  }, [outflowPlanId, outflowQty, outflowPurpose, outflowDate, outflowMemo, todayStr, editingHistoryId, getInventoryRecord, updateOutflow, addOutflow, handleCancelEdit, allInventoryData]);
 
   return (
     <div className="inventory-layout">
@@ -302,20 +348,20 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal,
                   </td>
                 </tr>
               ) : (
-                paginatedInventoryData.map(({ plan, prodName, actualQty, currentStock }) => {
-                  const isSelected = selectedInventoryPlanId === plan.id;
+                paginatedInventoryData.map(({ subKey, planId, productId, plan, subName, prodName, shippingLimit, expiryDate, plannedQty, actualQty, currentStock }) => {
+                  const isSelected = selectedInventoryPlanId === subKey || selectedInventoryPlanId === planId;
                   return (
                     <tr 
-                      key={plan.id}
+                      key={subKey}
                       className={`clickable-row ${isSelected ? 'selected-row' : ''}`}
-                      onClick={() => setSelectedInventoryPlanId(isSelected ? null : plan.id)}
+                      onClick={() => setSelectedInventoryPlanId(isSelected ? null : subKey)}
                     >
-                      <td style={{ fontFamily: 'var(--font-outfit)', fontWeight: 600, color: 'var(--color-primary)' }}>{plan.id}</td>
-                      <td style={{ fontWeight: 500 }}>{plan.name}</td>
-                      <td style={{ fontFamily: 'var(--font-outfit)', color: 'var(--text-secondary)' }}>{plan.shippingLimit}</td>
-                      <td style={{ fontFamily: 'var(--font-outfit)', color: 'var(--text-secondary)' }}>{plan.expiryDate}</td>
+                      <td style={{ fontFamily: 'var(--font-outfit)', fontWeight: 600, color: 'var(--color-primary)' }}>{planId}</td>
+                      <td style={{ fontWeight: 600 }}>{subName}</td>
+                      <td style={{ fontFamily: 'var(--font-outfit)', color: 'var(--text-secondary)' }}>{shippingLimit}</td>
+                      <td style={{ fontFamily: 'var(--font-outfit)', color: 'var(--text-secondary)' }}>{expiryDate}</td>
                       <td>{prodName}</td>
-                      <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)' }}>{plan.totalQty.toLocaleString()}</td>
+                      <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)' }}>{plannedQty.toLocaleString()}</td>
                       <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', fontWeight: 600, color: 'var(--color-success)' }}>{actualQty.toLocaleString()}</td>
                       <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', fontWeight: 700, color: currentStock < 100 ? 'var(--color-danger)' : 'var(--color-primary)' }}>
                         {currentStock.toLocaleString()}
@@ -326,7 +372,7 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal,
                             className="btn-secondary modify-qty-btn" 
                             onClick={(e) => {
                               e.stopPropagation();
-                              onOpenModifyQtyModal(plan.id);
+                              onOpenModifyQtyModal(planId, productId);
                             }}
                             style={{ padding: '4px 8px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
                           >
@@ -334,7 +380,7 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal,
                               <path d="M12 20h9"></path>
                               <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
                             </svg>
-                            실제 생산량 수정
+                            실제 입고량 수정
                           </button>
                         ) : (
                           <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>-</span>
@@ -432,26 +478,20 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal,
                 required
               >
                 <option value="" disabled>출고할 생산 차수를 선택하세요</option>
-                {editingHistoryId && !activePlans.some(p => p.id === outflowPlanId) && (() => {
-                  const plan = plans.find(p => p.id === outflowPlanId);
-                  if (!plan) return null;
-                  const prod = products.find(p => p.id === plan.productId);
-                  const prodName = prod ? prod.name : '알수없음';
+                {editingHistoryId && !activeSubPlans.some(p => p.subKey === outflowPlanId || p.planId === outflowPlanId) && (() => {
+                  const targetSub = allInventoryData.find(d => d.subKey === outflowPlanId || d.planId === outflowPlanId);
+                  if (!targetSub) return null;
                   return (
-                    <option key={plan.id} value={plan.id}>
-                      [{plan.id}] {plan.name} ({prodName}) (출고 기한 경과)
+                    <option key={targetSub.subKey} value={targetSub.subKey}>
+                      [{targetSub.planId}] {targetSub.subName} (출고 기한 경과)
                     </option>
                   );
                 })()}
-                {activePlans.map(plan => {
-                  const prod = products.find(p => p.id === plan.productId);
-                  const prodName = prod ? prod.name : '알수없음';
-                  return (
-                    <option key={plan.id} value={plan.id}>
-                      [{plan.id}] {plan.name} ({prodName})
-                    </option>
-                  );
-                })}
+                {activeSubPlans.map(subItem => (
+                  <option key={subItem.subKey} value={subItem.subKey}>
+                    [{subItem.planId}] {subItem.subName} (재고: {subItem.currentStock}개)
+                  </option>
+                ))}
               </select>
             </div>
             <div className="form-group-grid outflow-form-grid">

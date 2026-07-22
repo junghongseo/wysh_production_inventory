@@ -345,6 +345,7 @@ export const WyshProvider = ({ children }) => {
       const mappedInventory = remoteInventory.map(i => ({
         planId: i.plan_id,
         actualQty: i.actual_qty,
+        itemActualQtys: i.item_actual_qtys || {},
         history: i.history
       }));
 
@@ -580,18 +581,31 @@ export const WyshProvider = ({ children }) => {
   }, [plans, inventory, deletePlanFromSupabase]);
 
   // 3. Inventory Actions
-  const updateActualQty = useCallback((planId, qty) => {
+  const updateActualQty = useCallback((planId, qty, productId = null) => {
     let updatedRecord = null;
     const updatedInventory = inventory.map(i => {
       if (i.planId === planId) {
-        updatedRecord = { ...i, actualQty: qty };
+        let itemActualQtys = { ...(i.itemActualQtys || {}) };
+        if (productId) {
+          itemActualQtys[productId] = qty;
+        }
+        const newTotalActualQty = Object.keys(itemActualQtys).length > 0 
+          ? Object.values(itemActualQtys).reduce((a, b) => a + b, 0)
+          : qty;
+
+        updatedRecord = {
+          ...i,
+          actualQty: newTotalActualQty,
+          itemActualQtys
+        };
         return updatedRecord;
       }
       return i;
     });
 
     if (!updatedRecord) {
-      updatedRecord = { planId, actualQty: qty, history: [] };
+      const itemActualQtys = productId ? { [productId]: qty } : {};
+      updatedRecord = { planId, actualQty: qty, itemActualQtys, history: [] };
       updatedInventory.push(updatedRecord);
     }
 
@@ -600,7 +614,7 @@ export const WyshProvider = ({ children }) => {
     pushInventoryToSupabase(updatedRecord);
   }, [inventory, pushInventoryToSupabase]);
 
-  const addOutflow = useCallback((planId, qty, purpose, customDateString, memo) => {
+  const addOutflow = useCallback((planId, qty, purpose, customDateString, memo, productId = null) => {
     let updatedRecord = null;
     let dateString = customDateString;
     
@@ -611,6 +625,7 @@ export const WyshProvider = ({ children }) => {
     
     const newHistory = {
       id: 'h-' + Date.now(),
+      productId: productId || null,
       date: dateString,
       qty: qty,
       purpose: purpose,

@@ -72,8 +72,8 @@ const App = () => {
     setRecipeDrawer({ isOpen: true, planId });
   };
 
-  const handleOpenModifyQty = (planId) => {
-    setModifyQtyModal({ isOpen: true, planId });
+  const handleOpenModifyQty = (planId, productId) => {
+    setModifyQtyModal({ isOpen: true, planId, productId });
   };
 
   const handleDeletePlan = (planId) => {
@@ -343,8 +343,9 @@ const App = () => {
       {/* Popup Modal: Modify Actual Quantity */}
       <ModifyQtyModal
         isOpen={modifyQtyModal.isOpen}
-        onClose={() => setModifyQtyModal({ isOpen: false, planId: null })}
+        onClose={() => setModifyQtyModal({ isOpen: false, planId: null, productId: null })}
         planId={modifyQtyModal.planId}
+        productId={modifyQtyModal.productId}
       />
 
       {/* Popup Modal: Outflow Memo View / Edit */}
