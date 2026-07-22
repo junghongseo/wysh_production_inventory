@@ -1,12 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, lazy, Suspense } from 'react';
 import { useWysh } from './WyshContext';
 import HeaderStats from './components/HeaderStats';
 import Navbar from './components/Navbar';
-import CalendarView from './components/CalendarView';
-import InventoryView from './components/InventoryView';
-import RecipesView from './components/RecipesView';
-import ReportsView from './components/ReportsView';
-import OrderView from './components/OrderView';
 import RecipeDrawer from './components/RecipeDrawer';
 import PlanRegistrationModal from './components/modals/PlanRegistrationModal';
 import ProductRegistrationModal from './components/modals/ProductRegistrationModal';
@@ -15,6 +10,22 @@ import ConfirmModal from './components/modals/ConfirmModal';
 import MemoModal from './components/modals/MemoModal';
 import CalendarNoteModal from './components/modals/CalendarNoteModal';
 import AdminLoginModal from './components/modals/AdminLoginModal';
+
+// Code-split tabs using React.lazy for lightweight bundle and faster initial load
+const CalendarView = lazy(() => import('./components/CalendarView'));
+const InventoryView = lazy(() => import('./components/InventoryView'));
+const RecipesView = lazy(() => import('./components/RecipesView'));
+const ReportsView = lazy(() => import('./components/ReportsView'));
+const OrderView = lazy(() => import('./components/OrderView'));
+
+const ViewFallback = () => (
+  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '300px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <div className="spinner" style={{ width: '18px', height: '18px', border: '2px solid rgba(0,0,0,0.1)', borderTopColor: 'var(--color-primary)', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }}></div>
+      화면을 불러오는 중...
+    </div>
+  </div>
+);
 
 const App = () => {
   const { deletePlan, deleteProduct, deleteHistoryItem, updateOutflowMemo, saveCalendarNote, deleteCalendarNote, loading, isDbConnected, dbError, isAdminLoggedIn, loginAdmin, logoutAdmin } = useWysh();
@@ -98,7 +109,6 @@ const App = () => {
         if (selectedProduct?.id === prodId) {
           setSelectedProduct(null);
         }
-        // If selected plan was using this product, deselect it
         if (selectedPlan && selectedPlan.productId === prodId) {
           setSelectedPlan(null);
         }
@@ -262,62 +272,63 @@ const App = () => {
       {/* Main Navigation */}
       <Navbar activeTab={activeTab} setActiveTab={(tab) => {
         setActiveTab(tab);
-        // Refresh styles on switch
         if (tab === 'recipes-view' && !selectedProduct) {
           setSelectedProduct(null);
         }
       }} isAdminLoggedIn={isAdminLoggedIn} />
 
       {/* Main Content Tabs */}
-      <main className={`tab-content ${activeTab === 'calendar-view' ? 'active' : ''}`} id="calendar-view">
-        {activeTab === 'calendar-view' && (
-          <CalendarView
-            selectedPlan={selectedPlan}
-            setSelectedPlan={setSelectedPlan}
-            onOpenRegisterModal={handleOpenPlanRegistration}
-            onOpenEditModal={handleOpenPlanEdit}
-            onOpenRecipeDrawer={handleOpenRecipeDrawer}
-            onDeletePlan={handleDeletePlan}
-            onOpenNoteModal={(dateStr, existing) => setNoteModal({ isOpen: true, dateStr, existingNote: existing })}
-            isAdminLoggedIn={isAdminLoggedIn}
-          />
-        )}
-      </main>
+      <Suspense fallback={<ViewFallback />}>
+        <main className={`tab-content ${activeTab === 'calendar-view' ? 'active' : ''}`} id="calendar-view">
+          {activeTab === 'calendar-view' && (
+            <CalendarView
+              selectedPlan={selectedPlan}
+              setSelectedPlan={setSelectedPlan}
+              onOpenRegisterModal={handleOpenPlanRegistration}
+              onOpenEditModal={handleOpenPlanEdit}
+              onOpenRecipeDrawer={handleOpenRecipeDrawer}
+              onDeletePlan={handleDeletePlan}
+              onOpenNoteModal={(dateStr, existing) => setNoteModal({ isOpen: true, dateStr, existingNote: existing })}
+              isAdminLoggedIn={isAdminLoggedIn}
+            />
+          )}
+        </main>
 
-      <section className={`tab-content ${activeTab === 'inventory-view' ? 'active' : ''}`} id="inventory-view">
-        {activeTab === 'inventory-view' && (
-          <InventoryView
-            onOpenModifyQtyModal={handleOpenModifyQty}
-            onDeleteHistory={handleDeleteHistory}
-            onOpenMemoModal={(planId, historyId, memo) => setMemoModal({ isOpen: true, planId, historyId, memo })}
-            isAdminLoggedIn={isAdminLoggedIn}
-          />
-        )}
-      </section>
+        <section className={`tab-content ${activeTab === 'inventory-view' ? 'active' : ''}`} id="inventory-view">
+          {activeTab === 'inventory-view' && (
+            <InventoryView
+              onOpenModifyQtyModal={handleOpenModifyQty}
+              onDeleteHistory={handleDeleteHistory}
+              onOpenMemoModal={(planId, historyId, memo) => setMemoModal({ isOpen: true, planId, historyId, memo })}
+              isAdminLoggedIn={isAdminLoggedIn}
+            />
+          )}
+        </section>
 
-      <section className={`tab-content ${activeTab === 'reports-view' ? 'active' : ''}`} id="reports-view">
-        {activeTab === 'reports-view' && (
-          <ReportsView />
-        )}
-      </section>
+        <section className={`tab-content ${activeTab === 'reports-view' ? 'active' : ''}`} id="reports-view">
+          {activeTab === 'reports-view' && (
+            <ReportsView />
+          )}
+        </section>
 
-      <section className={`tab-content ${activeTab === 'recipes-view' ? 'active' : ''}`} id="recipes-view">
-        {activeTab === 'recipes-view' && (
-          <RecipesView
-            selectedProduct={selectedProduct}
-            setSelectedProduct={setSelectedProduct}
-            onOpenProductModal={() => setProductModal({ isOpen: true })}
-            onDeleteProduct={handleDeleteProduct}
-            onConfirmModal={triggerConfirm}
-          />
-        )}
-      </section>
+        <section className={`tab-content ${activeTab === 'recipes-view' ? 'active' : ''}`} id="recipes-view">
+          {activeTab === 'recipes-view' && (
+            <RecipesView
+              selectedProduct={selectedProduct}
+              setSelectedProduct={setSelectedProduct}
+              onOpenProductModal={() => setProductModal({ isOpen: true })}
+              onDeleteProduct={handleDeleteProduct}
+              onConfirmModal={triggerConfirm}
+            />
+          )}
+        </section>
 
-      <section className={`tab-content ${activeTab === 'order-view' ? 'active' : ''}`} id="order-view">
-        {activeTab === 'order-view' && (
-          <OrderView />
-        )}
-      </section>
+        <section className={`tab-content ${activeTab === 'order-view' ? 'active' : ''}`} id="order-view">
+          {activeTab === 'order-view' && (
+            <OrderView />
+          )}
+        </section>
+      </Suspense>
 
       {/* Slide-out Drawer: Raw Material Recipe (원재료 배합표) */}
       <RecipeDrawer

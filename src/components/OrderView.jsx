@@ -1,6 +1,4 @@
 import React, { useState, useRef, useMemo, useCallback } from 'react';
-import * as XLSX from 'xlsx';
-import html2canvas from 'html2canvas';
 
 const cleanItemName = (name) => {
   let nameStr = String(name || '').trim();
@@ -63,7 +61,7 @@ const OrderView = () => {
     }
   }, []);
 
-  const processExcel = useCallback(() => {
+  const processExcel = useCallback(async () => {
     if (!file) {
       setError('정리할 엑셀 파일을 먼저 선택해 주세요.');
       return;
@@ -72,205 +70,172 @@ const OrderView = () => {
     setLoading(true);
     setError('');
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const data = new Uint8Array(e.target.result);
-        
-        // Detect if it is HTML disguised as Excel
-        const isZip = data[0] === 0x50 && data[1] === 0x4B && data[2] === 0x03 && data[3] === 0x04;
-        const isOles = data[0] === 0xD0 && data[1] === 0xCF && data[2] === 0x11 && data[3] === 0xE0;
-        
-        let workbook;
-        if (!isZip && !isOles) {
-          // Detect charset encoding from HTML header if present
-          let encoding = 'utf-8';
-          const prefixText = new TextDecoder('latin1').decode(data.slice(0, 2000));
-          const charsetMatch = prefixText.match(/charset\s*=\s*["']?([\w\-]+)/i);
-          if (charsetMatch && charsetMatch[1]) {
-            encoding = charsetMatch[1].toLowerCase();
+    try {
+      const XLSX = await import('xlsx');
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const data = new Uint8Array(e.target.result);
+          
+          // Detect if it is HTML disguised as Excel
+          const isZip = data[0] === 0x50 && data[1] === 0x4B && data[2] === 0x03 && data[3] === 0x04;
+          const isOles = data[0] === 0xD0 && data[1] === 0xCF && data[2] === 0x11 && data[3] === 0xE0;
+          
+          let workbook;
+          if (!isZip && !isOles) {
+            // Detect charset encoding from HTML header if present
+            let encoding = 'utf-8';
+            const prefixText = new TextDecoder('latin1').decode(data.slice(0, 2000));
+            const charsetMatch = prefixText.match(/charset\s*=\s*["']?([\w\-]+)/i);
+            if (charsetMatch && charsetMatch[1]) {
+              encoding = charsetMatch[1].toLowerCase();
+            }
+            
+            const text = new TextDecoder(encoding).decode(data);
+            
+            // Check if it's a multi-file web page frameset exported by Excel (missing data body)
+            if (text.includes('Excel Workbook Frameset') || text.includes('<frameset') || text.includes('fnBuildFrameset')) {
+              throw new Error("엑셀에서 '웹 페이지(*.htm; *.html)' 형식으로 저장되어 데이터 본문이 누락되었습니다. Excel에서 'Excel 통합 문서(*.xlsx)' 또는 'Excel 97-2003 통합 문서(*.xls)' 형식으로 다시 저장하여 업로드해 주세요.");
+            }
+            
+            const htmlIndex = text.indexOf('<html');
+            const tableIndex = text.indexOf('<table');
+            
+            let cleanedText = text;
+            if (htmlIndex !== -1) {
+              cleanedText = text.substring(htmlIndex);
+            } else if (tableIndex !== -1) {
+              cleanedText = text.substring(tableIndex);
+            }
+            
+            workbook = XLSX.read(cleanedText, { type: 'string' });
+          } else {
+            workbook = XLSX.read(data, { type: 'array' });
           }
           
-          const text = new TextDecoder(encoding).decode(data);
-          
-          // Check if it's a multi-file web page frameset exported by Excel (missing data body)
-          if (text.includes('Excel Workbook Frameset') || text.includes('<frameset') || text.includes('fnBuildFrameset')) {
-            throw new Error("엑셀에서 '웹 페이지(*.htm; *.html)' 형식으로 저장되어 데이터 본문이 누락되었습니다. Excel에서 'Excel 통합 문서(*.xlsx)' 또는 'Excel 97-2003 통합 문서(*.xls)' 형식으로 다시 저장하여 업로드해 주세요.");
+          if (workbook.SheetNames.length === 0) {
+            throw new Error('엑셀 파일에 시트가 존재하지 않습니다.');
           }
-          
-          const htmlIndex = text.indexOf('<html');
-          const tableIndex = text.indexOf('<table');
-          
-          let cleanedText = text;
-          if (htmlIndex !== -1) {
-            cleanedText = text.substring(htmlIndex);
-          } else if (tableIndex !== -1) {
-            cleanedText = text.substring(tableIndex);
+
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+
+          if (!jsonData || jsonData.length === 0) {
+            throw new Error('엑셀 파일에 읽을 데이터가 없습니다.');
           }
-          
-          workbook = XLSX.read(cleanedText, { type: 'string' });
-        } else {
-          workbook = XLSX.read(data, { type: 'array' });
-        }
-        
-        if (workbook.SheetNames.length === 0) {
-          throw new Error('엑셀 파일에 시트가 존재하지 않습니다.');
-        }
 
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        
-        // Read as raw 2D array to scan for header row index dynamically
-        const rawData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: "" });
+          // Header finding logic
+          let headerRowIndex = -1;
+          let groupCol = -1;
+          let nameCol = -1;
+          let qtyCol = -1;
 
-        if (rawData.length === 0) {
-          throw new Error('엑셀 파일에 데이터가 없습니다.');
-        }
-
-        // Schema patterns for dynamic header matching
-        const schemaA = {
-          required: ['송장번호', '상품명', '상품수량'],
-          group: '송장번호',
-          name: '상품명',
-          qty: '상품수량'
-        };
-        const schemaB = {
-          required: ['주문 번호', '상품 이름', '구매 수량'],
-          group: '주문 번호',
-          name: '상품 이름',
-          qty: '구매 수량'
-        };
-        const schemaC = {
-          required: ['주문 번호', '상품 이름', '배송 수량'],
-          group: '주문 번호',
-          name: '상품 이름',
-          qty: '배송 수량'
-        };
-
-        const schemas = [schemaA, schemaB, schemaC];
-        let selectedSchema = null;
-        let headerRowIndex = -1;
-        let headers = [];
-
-        // Scan rows to find headers
-        for (let i = 0; i < rawData.length; i++) {
-          const row = rawData[i].map(val => String(val || '').trim());
-          const rowSet = new Set(row);
-
-          for (const schema of schemas) {
-            if (schema.required.every(col => rowSet.has(col))) {
-              headerRowIndex = i;
-              selectedSchema = schema;
-              headers = row;
+          for (let r = 0; r < Math.min(jsonData.length, 15); r++) {
+            const row = jsonData[r];
+            if (!Array.isArray(row)) continue;
+            
+            for (let c = 0; c < row.length; c++) {
+              const cellVal = String(row[c] || '').trim();
+              if (cellVal === '주문번호' || cellVal === '송장번호') {
+                groupCol = c;
+              } else if (cellVal === '상품명' || cellVal === '판매처 상품명') {
+                nameCol = c;
+              } else if (cellVal === '수량' || cellVal === '주문수량') {
+                qtyCol = c;
+              }
+            }
+            
+            if (groupCol !== -1 && nameCol !== -1 && qtyCol !== -1) {
+              headerRowIndex = r;
               break;
             }
           }
-          if (selectedSchema) break;
-        }
 
-        if (!selectedSchema) {
-          // If no matching schema is found, throw an informative error
-          const allHeaders = rawData[0] ? rawData[0].join(', ') : '';
-          throw new Error(`지원하지 않는 엑셀 파일 형식이거나 필수 열(송장번호/주문 번호, 상품명/상품 이름, 상품수량/구매 수량)이 누락되었습니다. (첫 행 인식 항목: ${allHeaders})`);
-        }
+          if (headerRowIndex === -1) {
+            throw new Error('엑셀 파일에서 필수 항목(주문번호/송장번호, 상품명, 수량)의 헤더를 찾을 수 없습니다.');
+          }
 
-        const groupCol = selectedSchema.group;
-        const nameCol = selectedSchema.name;
-        const qtyCol = selectedSchema.qty;
+          const dfTarget = [];
+          const productTotalsMap = {};
 
-        // Map rows starting from headerRowIndex + 1
-        const rows = [];
-        for (let i = headerRowIndex + 1; i < rawData.length; i++) {
-          const row = rawData[i];
-          if (!row || row.length === 0) continue;
-          
-          const rowObj = {};
-          headers.forEach((header, index) => {
-            if (header) {
-              rowObj[header] = row[index];
+          for (let i = headerRowIndex + 1; i < jsonData.length; i++) {
+            const row = jsonData[i];
+            if (!row) continue;
+            
+            const groupVal = String(row[groupCol] || '').trim();
+            const nameVal = cleanItemName(row[nameCol]);
+            let qtyVal = parseInt(row[qtyCol], 10);
+            if (isNaN(qtyVal)) qtyVal = 1;
+
+            if (groupVal && nameVal) {
+              dfTarget.push({ groupVal, nameVal, qtyVal });
+              productTotalsMap[nameVal] = (productTotalsMap[nameVal] || 0) + qtyVal;
             }
+          }
+
+          if (dfTarget.length === 0) {
+            throw new Error('정리할 주문 데이터가 발견되지 않았습니다. 파일 내용을 확인하세요.');
+          }
+
+          const groupedMap = {};
+          dfTarget.forEach(item => {
+            const formatted = `${item.nameVal} [${item.qtyVal}개]`;
+            if (!groupedMap[item.groupVal]) {
+              groupedMap[item.groupVal] = [];
+            }
+            groupedMap[item.groupVal].push(formatted);
           });
-          rows.push(rowObj);
+
+          const orderTypeCounts = {};
+          Object.values(groupedMap).forEach(itemList => {
+            const sortedItems = [...itemList].sort();
+            const orderType = sortedItems.join(', ');
+            orderTypeCounts[orderType] = (orderTypeCounts[orderType] || 0) + 1;
+          });
+
+          const processedResults = Object.entries(orderTypeCounts).map(([orderType, count]) => ({
+            orderType,
+            count
+          }));
+          processedResults.sort((a, b) => b.count - a.count);
+
+          const processedProductTotals = Object.entries(productTotalsMap).map(([name, qty]) => ({
+            name,
+            qty
+          }));
+          processedProductTotals.sort((a, b) => b.qty - a.qty);
+
+          setResults(processedResults);
+          setProductTotals(processedProductTotals);
+          
+          const yy = todayStr.substring(2, 4);
+          const mm = todayStr.substring(5, 7);
+          const dd = todayStr.substring(8, 10);
+          setTableTitle(`${yy}-${mm}-${dd} 출고표`);
+          setRemarks('');
+        } catch (err) {
+          console.error(err);
+          setError(err.message || '엑셀 처리 중 오류가 발생했습니다.');
+        } finally {
+          setLoading(false);
         }
+      };
 
-        const dfTarget = [];
-        const productTotalsMap = {};
-
-        rows.forEach((row) => {
-          const groupVal = String(row[groupCol] || '').trim();
-          const nameVal = cleanItemName(row[nameCol]);
-          let qtyVal = parseInt(row[qtyCol], 10);
-          if (isNaN(qtyVal)) qtyVal = 1;
-
-          if (groupVal && nameVal) {
-            dfTarget.push({ groupVal, nameVal, qtyVal });
-            productTotalsMap[nameVal] = (productTotalsMap[nameVal] || 0) + qtyVal;
-          }
-        });
-
-        if (dfTarget.length === 0) {
-          throw new Error('정리할 주문 데이터가 발견되지 않았습니다. 파일 내용을 확인하세요.');
-        }
-
-        // Group by group column value (Invoice or Order Number)
-        const groupedMap = {};
-        dfTarget.forEach(item => {
-          const formatted = `${item.nameVal} [${item.qtyVal}개]`;
-          if (!groupedMap[item.groupVal]) {
-            groupedMap[item.groupVal] = [];
-          }
-          groupedMap[item.groupVal].push(formatted);
-        });
-
-        // Combine formatted item names and count identical order types
-        const orderTypeCounts = {};
-        Object.values(groupedMap).forEach(itemList => {
-          const sortedItems = [...itemList].sort();
-          const orderType = sortedItems.join(', ');
-          orderTypeCounts[orderType] = (orderTypeCounts[orderType] || 0) + 1;
-        });
-
-        // Convert counts to sorted list
-        const processedResults = Object.entries(orderTypeCounts).map(([orderType, count]) => ({
-          orderType,
-          count
-        }));
-        processedResults.sort((a, b) => b.count - a.count);
-
-        // Convert product totals to list
-        const processedProductTotals = Object.entries(productTotalsMap).map(([name, qty]) => ({
-          name,
-          qty
-        }));
-        processedProductTotals.sort((a, b) => b.qty - a.qty);
-
-        // Success state update
-        setResults(processedResults);
-        setProductTotals(processedProductTotals);
-        
-        // Format today's date into YY-MM-DD
-        const yy = todayStr.substring(2, 4);
-        const mm = todayStr.substring(5, 7);
-        const dd = todayStr.substring(8, 10);
-        setTableTitle(`${yy}-${mm}-${dd} 출고표`);
-        setRemarks('');
-      } catch (err) {
-        console.error(err);
-        setError(err.message || '엑셀 처리 중 오류가 발생했습니다.');
-      } finally {
+      reader.onerror = () => {
+        setError('파일을 읽는 도중 오류가 발생했습니다.');
         setLoading(false);
-      }
-    };
+      };
 
-    reader.onerror = () => {
-      setError('파일을 읽는 도중 오류가 발생했습니다.');
+      reader.readAsArrayBuffer(file);
+    } catch (importErr) {
+      console.error(importErr);
+      setError('엑셀 모듈 로드 중 오류가 발생했습니다.');
       setLoading(false);
-    };
-
-    reader.readAsArrayBuffer(file);
+    }
   }, [file, todayStr]);
 
-  const handleDownloadImage = useCallback(() => {
+  const handleDownloadImage = useCallback(async () => {
     if (!captureRef.current) return;
 
     const originalBtn = document.getElementById('download-btn');
@@ -279,23 +244,25 @@ const OrderView = () => {
       originalBtn.innerText = '이미지 저장 중...';
     }
 
-    html2canvas(captureRef.current, {
-      scale: 2,
-      backgroundColor: '#ffffff'
-    }).then(canvas => {
+    try {
+      const html2canvas = (await import('html2canvas')).default;
+      const canvas = await html2canvas(captureRef.current, {
+        scale: 2,
+        backgroundColor: '#ffffff'
+      });
       const dateStr = todayStr.replace(/-/g, '');
       const link = document.createElement('a');
       link.download = `출고표_${dateStr}.png`;
       link.href = canvas.toDataURL('image/png');
       link.click();
-    }).catch(err => {
+    } catch (err) {
       alert("이미지 저장 중 오류가 발생했습니다: " + err.message);
-    }).finally(() => {
+    } finally {
       if (originalBtn) {
         originalBtn.disabled = false;
         originalBtn.innerText = '이미지 저장하기';
       }
-    });
+    }
   }, [todayStr]);
 
   // Get total count
