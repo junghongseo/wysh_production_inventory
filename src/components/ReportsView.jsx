@@ -64,18 +64,65 @@ const ReportsView = () => {
     });
   }, [plans, isEditing, selectedPlanId]);
 
-  // Selected plan and product details
+  // Selected plan and product details (fermentation report targets the base plain product)
   const selectedPlanDetails = useMemo(() => {
     if (!selectedPlanId) return null;
     const plan = plans.find(p => p.id === selectedPlanId);
     if (!plan) return null;
-    const product = products.find(p => p.id === plan.productId);
-    if (!product) return null;
 
-    const totalWeightG = plan.totalQty * product.weight;
-    const totalInputWeightG = totalWeightG / (product.yield / 100);
+    const planItems = plan.items && Array.isArray(plan.items) && plan.items.length > 0 
+      ? plan.items 
+      : [{ productId: plan.productId, totalQty: plan.totalQty }];
 
-    const computedIngredients = product.ingredients.map(ing => {
+    // Resolve Base Product (Plain) for Fermentation Reports
+    let baseProduct = planItems.map(it => products.find(p => p.id === it.productId)).find(p => p && !p.isFlavor);
+
+    if (!baseProduct) {
+      const flavorItem = planItems.map(it => products.find(p => p.id === it.productId)).find(p => p && p.isFlavor && p.baseProductId);
+      if (flavorItem) {
+        baseProduct = products.find(p => p.id === flavorItem.baseProductId);
+      }
+    }
+
+    if (!baseProduct) {
+      const flavorItem = planItems.map(it => products.find(p => p.id === it.productId)).find(p => p && p.isFlavor);
+      if (flavorItem) {
+        const firstIngName = flavorItem.ingredients?.[0]?.name;
+        if (firstIngName) {
+          baseProduct = products.find(p => p.name.includes(firstIngName) || firstIngName.includes(p.name));
+        }
+      }
+    }
+
+    if (!baseProduct) {
+      baseProduct = products.find(p => !p.isFlavor) || products[0];
+    }
+
+    const product = baseProduct;
+
+    // Calculate total base yogurt weight needed for this fermentation batch
+    let totalBaseYogurtG = 0;
+    planItems.forEach(it => {
+      const itemProd = products.find(p => p.id === it.productId);
+      if (!itemProd) return;
+
+      const itemTotalQty = it.totalQty || ((it.expectedOrderQty || 0) + (it.marketingQty || 0) + (it.bufferQty || 0));
+      const itemTotalWeightG = itemTotalQty * itemProd.weight;
+      const itemInputWeightG = itemTotalWeightG / ((itemProd.yield || 100) / 100);
+
+      if (itemProd.isFlavor) {
+        const baseIng = itemProd.ingredients?.find(ing => ing.name.includes('위시그릭') || ing.name.includes('플레인')) || itemProd.ingredients?.[0];
+        const baseRatio = baseIng ? baseIng.ratio : 70;
+        totalBaseYogurtG += itemInputWeightG * (baseRatio / 100);
+      } else {
+        totalBaseYogurtG += itemTotalWeightG;
+      }
+    });
+
+    const baseYield = product.yield || 28;
+    const totalInputWeightG = totalBaseYogurtG / (baseYield / 100);
+
+    const computedIngredients = (product.ingredients || []).map(ing => {
       const neededQtyG = totalInputWeightG * (ing.ratio / 100);
       const neededQtyKg = neededQtyG / 1000;
       const isLacticBacteria = ing.name.includes('유산균');
@@ -91,51 +138,14 @@ const ReportsView = () => {
       };
     });
 
-    // Secondary base product computation if flavor product
-    let baseProductDetails = null;
-    if (product.isFlavor || product.baseProductId) {
-      const baseProduct = products.find(p => p.id === product.baseProductId) || products.find(p => !p.isFlavor);
-      if (baseProduct) {
-        const baseIng = product.ingredients.find(ing => ing.name.includes(baseProduct.name) || ing.name.includes('위시그릭') || ing.name.includes('플레인')) || product.ingredients[0];
-        const baseRatio = baseIng ? baseIng.ratio : 70;
-        
-        const neededBaseFinishedG = totalInputWeightG * (baseRatio / 100);
-        const neededBaseFinishedKg = neededBaseFinishedG / 1000;
-        
-        const baseYield = baseProduct.yield || 28;
-        const totalBaseInputWeightG = neededBaseFinishedG / (baseYield / 100);
-        
-        const computedBaseIngredients = (baseProduct.ingredients || []).map(bIng => {
-          const bNeededQtyG = totalBaseInputWeightG * (bIng.ratio / 100);
-          const isLacticBacteria = bIng.name.includes('유산균');
-          const displayG = isLacticBacteria
-            ? Number(bNeededQtyG.toFixed(1)).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
-            : Math.round(bNeededQtyG).toLocaleString();
-
-          return {
-            name: bIng.name,
-            ratio: bIng.ratio,
-            displayG
-          };
-        });
-
-        baseProductDetails = {
-          product: baseProduct,
-          neededBaseFinishedKg,
-          baseYield,
-          totalBaseInputWeightG,
-          computedBaseIngredients
-        };
-      }
-    }
-
     return {
       plan,
       product,
-      totalWeightG,
+      baseProduct,
+      totalWeightG: totalBaseYogurtG,
       totalInputWeightG,
       computedIngredients,
-      baseProductDetails
+      planItems
     };
   }, [selectedPlanId, plans, products]);
 
@@ -541,9 +551,14 @@ const ReportsView = () => {
                   <span>선택된 생산 계획의 배합표 (레시피 정보)</span>
                 </h4>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px', fontSize: '0.82rem', marginBottom: '12px', color: 'var(--text-secondary)', borderBottom: '1px dashed var(--border-color)', paddingBottom: '10px' }}>
-                  <div>제품명: <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{selectedPlanDetails.product.name}</strong></div>
+                  <div>
+                    기준 베이스 제품: <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{selectedPlanDetails.product.name}</strong>
+                    <span style={{ fontSize: '0.72rem', background: 'rgba(2, 132, 199, 0.1)', color: 'var(--color-primary)', padding: '1px 6px', borderRadius: '4px', marginLeft: '6px', fontWeight: 600 }}>
+                      발효 공정 기준
+                    </span>
+                  </div>
                   <div>수량: <strong style={{ color: 'var(--text-primary)', fontWeight: 600, fontFamily: 'var(--font-outfit)' }}>{selectedPlanDetails.plan.totalQty.toLocaleString()} 개</strong></div>
-                  <div>총 생산량: <strong style={{ color: 'var(--text-primary)', fontWeight: 600, fontFamily: 'var(--font-outfit)' }}>{(selectedPlanDetails.totalWeightG / 1000).toFixed(2)} kg</strong></div>
+                  <div>필요 베이스 총량: <strong style={{ color: 'var(--text-primary)', fontWeight: 600, fontFamily: 'var(--font-outfit)' }}>{(selectedPlanDetails.totalWeightG / 1000).toFixed(2)} kg</strong></div>
                   <div>가동 발효기: <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{selectedPlanDetails.plan.fermenterType === 'large' ? '대형 발효기' : '소형 발효기'}</strong></div>
                 </div>
 
