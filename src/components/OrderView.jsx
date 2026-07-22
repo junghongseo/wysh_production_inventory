@@ -126,6 +126,10 @@ const OrderView = () => {
           }
 
           // Header finding logic
+          const groupKeywords = ['주문번호', '주문 번호', '품목 주문 번호', '품목주문번호', '송장번호', '송장 번호', '운송장번호', '운송장 번호', '운송장 정보', '배송 번호', '배송번호'];
+          const nameKeywords = ['상품명', '상품 이름', '상품이름', '판매처 상품명', '판매처상품명', '상품명(옵션포함)', '품목명'];
+          const qtyKeywords = ['수량', '주문수량', '주문 수량', '구매 수량', '구매수량', '배송 수량', '배송수량', '상품수량', '상품 수량'];
+
           let headerRowIndex = -1;
           let groupCol = -1;
           let nameCol = -1;
@@ -135,19 +139,28 @@ const OrderView = () => {
             const row = jsonData[r];
             if (!Array.isArray(row)) continue;
             
+            let g = -1;
+            let n = -1;
+            let q = -1;
+
             for (let c = 0; c < row.length; c++) {
               const cellVal = String(row[c] || '').trim();
-              if (cellVal === '주문번호' || cellVal === '송장번호') {
-                groupCol = c;
-              } else if (cellVal === '상품명' || cellVal === '판매처 상품명') {
-                nameCol = c;
-              } else if (cellVal === '수량' || cellVal === '주문수량') {
-                qtyCol = c;
+              if (g === -1 && groupKeywords.includes(cellVal)) {
+                g = c;
+              }
+              if (n === -1 && nameKeywords.includes(cellVal)) {
+                n = c;
+              }
+              if (q === -1 && qtyKeywords.includes(cellVal)) {
+                q = c;
               }
             }
             
-            if (groupCol !== -1 && nameCol !== -1 && qtyCol !== -1) {
+            if (g !== -1 && n !== -1 && q !== -1) {
               headerRowIndex = r;
+              groupCol = g;
+              nameCol = n;
+              qtyCol = q;
               break;
             }
           }
@@ -165,8 +178,9 @@ const OrderView = () => {
             
             const groupVal = String(row[groupCol] || '').trim();
             const nameVal = cleanItemName(row[nameCol]);
-            let qtyVal = parseInt(row[qtyCol], 10);
-            if (isNaN(qtyVal)) qtyVal = 1;
+            const rawQtyStr = String(row[qtyCol] || '').replace(/,/g, '').trim();
+            let qtyVal = parseInt(rawQtyStr, 10);
+            if (isNaN(qtyVal) || qtyVal <= 0) qtyVal = 1;
 
             if (groupVal && nameVal) {
               dfTarget.push({ groupVal, nameVal, qtyVal });
