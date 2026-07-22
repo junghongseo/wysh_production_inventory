@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useWysh } from '../../WyshContext';
 
-const PlanRegistrationModal = ({ isOpen, onClose, editPlanId }) => {
+const PlanRegistrationModal = ({ isOpen, onClose, editPlanId, initialStartDate }) => {
   const { plans, products, addPlan, updatePlan } = useWysh();
 
   // Local-time safe YYYY-MM-DD helper
@@ -88,9 +88,9 @@ const PlanRegistrationModal = ({ isOpen, onClose, editPlanId }) => {
       } else {
         // Reset form
         setPlanName('');
-        const today = getTodayStr();
-        const defaultBot = dateAddDays(today, 2);
-        setStartDate(today);
+        const start = initialStartDate || getTodayStr();
+        const defaultBot = dateAddDays(start, 2);
+        setStartDate(start);
         setFermenterType('');
         setPlanMemo('');
         setItems([{
@@ -104,7 +104,7 @@ const PlanRegistrationModal = ({ isOpen, onClose, editPlanId }) => {
         }]);
       }
     }
-  }, [isOpen, editPlanId, plans, products]);
+  }, [isOpen, editPlanId, initialStartDate, plans, products]);
 
   // Date trigger: Start date change (updates default bottling dates)
   const handleStartDateChange = (val) => {

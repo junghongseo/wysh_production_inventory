@@ -37,7 +37,7 @@ const App = () => {
   const [selectedProduct, setSelectedProduct] = useState(null);
 
   // Modal open states
-  const [planModal, setPlanModal] = useState({ isOpen: false, editPlanId: null });
+  const [planModal, setPlanModal] = useState({ isOpen: false, editPlanId: null, initialStartDate: null });
   const [productModal, setProductModal] = useState({ isOpen: false });
   const [modifyQtyModal, setModifyQtyModal] = useState({ isOpen: false, planId: null });
   const [recipeDrawer, setRecipeDrawer] = useState({ isOpen: false, planId: null });
@@ -60,8 +60,8 @@ const App = () => {
     });
   };
 
-  const handleOpenPlanRegistration = () => {
-    setPlanModal({ isOpen: true, editPlanId: null });
+  const handleOpenPlanRegistration = (initialStartDate = null) => {
+    setPlanModal({ isOpen: true, editPlanId: null, initialStartDate });
   };
 
   const handleOpenPlanEdit = (planId) => {
@@ -329,8 +329,9 @@ const App = () => {
       {/* Popup Modal: Production Plan Registration */}
       <PlanRegistrationModal
         isOpen={planModal.isOpen}
-        onClose={() => setPlanModal({ isOpen: false, editPlanId: null })}
+        onClose={() => setPlanModal({ isOpen: false, editPlanId: null, initialStartDate: null })}
         editPlanId={planModal.editPlanId}
+        initialStartDate={planModal.initialStartDate}
       />
 
       {/* Popup Modal: Register New Product */}
