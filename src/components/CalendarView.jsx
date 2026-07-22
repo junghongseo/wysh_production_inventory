@@ -189,6 +189,7 @@ const CalendarView = ({
       });
       map[cell.dateStr] = cellEvents;
     });
+    return map;
   }, [calendarCells, plans, products, planSlots]);
 
   // Right sidebar details calculations for all items
@@ -386,7 +387,7 @@ const CalendarView = ({
             const isExpiryHighlight = dayExpiryList.length > 0;
 
             // Retrieve pre-calculated cell events slots in O(1) time
-            const cellEvents = cellEventsMap[cell.dateStr] || Array(planSlots.maxSlotCount).fill(null);
+            const cellEvents = (cellEventsMap && cellEventsMap[cell.dateStr]) || Array(planSlots.maxSlotCount).fill(null);
 
             // Filter outflows related to the selected plan and sub-product on this day
             const dayOutflows = selectedInvRecord?.history
