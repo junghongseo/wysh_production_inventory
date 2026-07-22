@@ -320,17 +320,30 @@ export const WyshProvider = ({ children }) => {
             expectedOrderQty: p.expected_order_qty,
             marketingQty: p.marketing_qty,
             bufferQty: p.buffer_qty,
-            totalQty: p.total_qty
+            totalQty: p.total_qty,
+            bottlingDate: p.bottling_date,
+            shippingLimit: p.shipping_limit,
+            expiryDate: p.expiry_date
           }
         ];
+        const rawItems = p.items && Array.isArray(p.items) && p.items.length > 0 ? p.items : defaultItems;
+        const items = rawItems.map(it => ({
+          ...it,
+          bottlingDate: it.bottlingDate || p.bottling_date,
+          shippingLimit: it.shippingLimit || p.shipping_limit,
+          expiryDate: it.expiryDate || p.expiry_date
+        }));
+
+        const primaryItem = items[0] || {};
+
         return {
           id: p.id,
           name: p.name,
           productId: p.product_id,
           startDate: p.start_date,
-          bottlingDate: p.bottling_date,
-          shippingLimit: p.shipping_limit,
-          expiryDate: p.expiry_date,
+          bottlingDate: primaryItem.bottlingDate || p.bottling_date,
+          shippingLimit: primaryItem.shippingLimit || p.shipping_limit,
+          expiryDate: primaryItem.expiryDate || p.expiry_date,
           expectedOrderQty: p.expected_order_qty,
           marketingQty: p.marketing_qty,
           bufferQty: p.buffer_qty,
@@ -338,7 +351,7 @@ export const WyshProvider = ({ children }) => {
           fermenterType: p.fermenter_type,
           totalVolumeL: parseFloat(p.total_volume_l),
           memo: p.memo || '',
-          items: p.items && Array.isArray(p.items) && p.items.length > 0 ? p.items : defaultItems
+          items
         };
       });
 

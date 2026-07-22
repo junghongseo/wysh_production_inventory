@@ -25,17 +25,25 @@ const PlanRegistrationModal = ({ isOpen, onClose, editPlanId }) => {
   // Form states
   const [planName, setPlanName] = useState('');
   const [items, setItems] = useState([
-    { productId: '', expectedOrderQty: 0, marketingQty: 0, bufferQty: 0 }
+    { productId: '', expectedOrderQty: 0, marketingQty: 0, bufferQty: 0, bottlingDate: '', shippingLimit: '', expiryDate: '' }
   ]);
   const [startDate, setStartDate] = useState('');
-  const [bottlingDate, setBottlingDate] = useState('');
-  const [shippingLimit, setShippingLimit] = useState('');
-  const [expiryDate, setExpiryDate] = useState('');
   const [fermenterType, setFermenterType] = useState('');
   const [planMemo, setPlanMemo] = useState('');
 
   // Mode check
   const isEditMode = !!editPlanId;
+
+  // Helper to calculate shipping limit and expiry dates dynamically for a product item
+  const calculateItemDerivedDates = (botDate, prod) => {
+    if (!botDate) return { shippingLimit: '', expiryDate: '' };
+    const sDays = prod ? (prod.shippingLimitDays ?? 7) : 7;
+    const eDays = prod ? (prod.expiryDays ?? 22) : 22;
+    return {
+      shippingLimit: dateAddDays(botDate, sDays),
+      expiryDate: dateAddDays(botDate, eDays)
+    };
+  };
 
   // Initialize form
   useEffect(() => {
@@ -45,96 +53,129 @@ const PlanRegistrationModal = ({ isOpen, onClose, editPlanId }) => {
         if (plan) {
           setPlanName(plan.name);
           setStartDate(plan.startDate);
-          setBottlingDate(plan.bottlingDate);
-          setShippingLimit(plan.shippingLimit);
-          setExpiryDate(plan.expiryDate);
           setFermenterType(plan.fermenterType);
           setPlanMemo(plan.memo || '');
 
           if (plan.items && Array.isArray(plan.items) && plan.items.length > 0) {
-            setItems(plan.items.map(it => ({
-              productId: it.productId || '',
-              expectedOrderQty: it.expectedOrderQty || 0,
-              marketingQty: it.marketingQty || 0,
-              bufferQty: it.bufferQty || 0
-            })));
+            setItems(plan.items.map(it => {
+              const prod = products.find(p => p.id === it.productId);
+              const botDate = it.bottlingDate || plan.bottlingDate;
+              const sLimit = it.shippingLimit || plan.shippingLimit || (prod ? dateAddDays(botDate, prod.shippingLimitDays ?? 7) : '');
+              const eDate = it.expiryDate || plan.expiryDate || (prod ? dateAddDays(botDate, prod.expiryDays ?? 22) : '');
+              return {
+                productId: it.productId || '',
+                expectedOrderQty: it.expectedOrderQty || 0,
+                marketingQty: it.marketingQty || 0,
+                bufferQty: it.bufferQty || 0,
+                bottlingDate: botDate,
+                shippingLimit: sLimit,
+                expiryDate: eDate
+              };
+            }));
           } else {
+            const prod = products.find(p => p.id === plan.productId);
             setItems([{
               productId: plan.productId || '',
               expectedOrderQty: plan.expectedOrderQty || 0,
               marketingQty: plan.marketingQty || 0,
-              bufferQty: plan.bufferQty || 0
+              bufferQty: plan.bufferQty || 0,
+              bottlingDate: plan.bottlingDate,
+              shippingLimit: plan.shippingLimit || (prod ? dateAddDays(plan.bottlingDate, prod.shippingLimitDays ?? 7) : ''),
+              expiryDate: plan.expiryDate || (prod ? dateAddDays(plan.bottlingDate, prod.expiryDays ?? 22) : '')
             }]);
           }
         }
       } else {
         // Reset form
         setPlanName('');
-        setItems([{ productId: '', expectedOrderQty: 0, marketingQty: 0, bufferQty: 0 }]);
         const today = getTodayStr();
+        const defaultBot = dateAddDays(today, 2);
         setStartDate(today);
         setFermenterType('');
         setPlanMemo('');
-
-        // Date calculations default
-        const botDate = dateAddDays(today, 2);
-        setBottlingDate(botDate);
-        setShippingLimit(dateAddDays(botDate, 7));
-        setExpiryDate(dateAddDays(botDate, 22));
+        setItems([{
+          productId: '',
+          expectedOrderQty: 0,
+          marketingQty: 0,
+          bufferQty: 0,
+          bottlingDate: defaultBot,
+          shippingLimit: '',
+          expiryDate: ''
+        }]);
       }
     }
-  }, [isOpen, editPlanId, plans]);
+  }, [isOpen, editPlanId, plans, products]);
 
-  // Primary product for date calculations
-  const primaryProduct = useMemo(() => {
-    const firstProdId = items[0]?.productId;
-    return products.find(p => p.id === firstProdId) || null;
-  }, [items, products]);
-
-  // Helper to calculate shipping limit and expiry dates dynamically
-  const calculateDerivedDates = (botDate, prod) => {
-    if (!botDate) return;
-    const sDays = prod ? (prod.shippingLimitDays ?? 7) : 7;
-    const eDays = prod ? (prod.expiryDays ?? 22) : 22;
-    setShippingLimit(dateAddDays(botDate, sDays));
-    setExpiryDate(dateAddDays(botDate, eDays));
-  };
-
-  // Date trigger: Start date change
+  // Date trigger: Start date change (updates default bottling dates)
   const handleStartDateChange = (val) => {
     setStartDate(val);
-    const botDate = dateAddDays(val, 2);
-    setBottlingDate(botDate);
-    calculateDerivedDates(botDate, primaryProduct);
-  };
-
-  // Date trigger: Bottling date change
-  const handleBottlingDateChange = (val) => {
-    setBottlingDate(val);
-    calculateDerivedDates(val, primaryProduct);
+    const defaultBot = dateAddDays(val, 2);
+    setItems(prevItems => prevItems.map(it => {
+      const prod = products.find(p => p.id === it.productId);
+      const botDate = defaultBot;
+      const derived = calculateItemDerivedDates(botDate, prod);
+      return {
+        ...it,
+        bottlingDate: botDate,
+        shippingLimit: derived.shippingLimit,
+        expiryDate: derived.expiryDate
+      };
+    }));
   };
 
   // Item change handlers
   const handleItemChange = (index, field, value) => {
     const next = items.map((item, idx) => {
       if (idx === index) {
-        return {
-          ...item,
-          [field]: field === 'productId' ? value : (parseInt(value) || 0)
-        };
+        const prod = field === 'productId' ? products.find(p => p.id === value) : products.find(p => p.id === item.productId);
+
+        if (field === 'productId') {
+          const itemBotDate = item.bottlingDate || dateAddDays(startDate || getTodayStr(), 2);
+          const derived = calculateItemDerivedDates(itemBotDate, prod);
+          return {
+            ...item,
+            productId: value,
+            bottlingDate: itemBotDate,
+            shippingLimit: derived.shippingLimit,
+            expiryDate: derived.expiryDate
+          };
+        } else if (field === 'bottlingDate') {
+          const derived = calculateItemDerivedDates(value, prod);
+          return {
+            ...item,
+            bottlingDate: value,
+            shippingLimit: derived.shippingLimit,
+            expiryDate: derived.expiryDate
+          };
+        } else if (field === 'shippingLimit' || field === 'expiryDate') {
+          return {
+            ...item,
+            [field]: value
+          };
+        } else {
+          return {
+            ...item,
+            [field]: parseInt(value) || 0
+          };
+        }
       }
       return item;
     });
     setItems(next);
-    if (field === 'productId' && index === 0) {
-      const prod = products.find(p => p.id === value);
-      calculateDerivedDates(bottlingDate, prod);
-    }
   };
 
   const handleAddItem = () => {
     if (items.length >= 2) return;
-    setItems([...items, { productId: '', expectedOrderQty: 0, marketingQty: 0, bufferQty: 0 }]);
+    const defaultBot = dateAddDays(startDate || getTodayStr(), 2);
+    setItems([...items, {
+      productId: '',
+      expectedOrderQty: 0,
+      marketingQty: 0,
+      bufferQty: 0,
+      bottlingDate: defaultBot,
+      shippingLimit: '',
+      expiryDate: ''
+    }]);
   };
 
   const handleRemoveItem = (index) => {
@@ -247,9 +288,9 @@ const PlanRegistrationModal = ({ isOpen, onClose, editPlanId }) => {
       name: planName.trim(),
       productId: primaryItem.productId || '',
       startDate,
-      bottlingDate,
-      shippingLimit,
-      expiryDate,
+      bottlingDate: primaryItem.bottlingDate || dateAddDays(startDate, 2),
+      shippingLimit: primaryItem.shippingLimit || '',
+      expiryDate: primaryItem.expiryDate || '',
       expectedOrderQty: overallExpectedOrderQty,
       marketingQty: overallMarketingQty,
       bufferQty: overallBufferQty,
@@ -262,7 +303,10 @@ const PlanRegistrationModal = ({ isOpen, onClose, editPlanId }) => {
         expectedOrderQty: item.expectedOrderQty,
         marketingQty: item.marketingQty,
         bufferQty: item.bufferQty,
-        totalQty: item.totalQty
+        totalQty: item.totalQty,
+        bottlingDate: item.bottlingDate,
+        shippingLimit: item.shippingLimit,
+        expiryDate: item.expiryDate
       }))
     };
 
@@ -303,23 +347,37 @@ const PlanRegistrationModal = ({ isOpen, onClose, editPlanId }) => {
           )}
           <div className="modal-body">
 
-            {/* Row 1: Plan Name */}
-            <div className="form-group">
-              <label htmlFor="plan-name">생산 계획명</label>
-              <input 
-                type="text" 
-                className="form-control" 
-                id="plan-name" 
-                placeholder="예: 7월 2주차 플레인 그릭 생산" 
-                value={planName}
-                onChange={(e) => setPlanName(e.target.value)}
-                required 
-              />
+            {/* Row 1: Plan Name & Start Date */}
+            <div className="form-group-grid">
+              <div className="form-group">
+                <label htmlFor="plan-name">생산 계획명</label>
+                <input 
+                  type="text" 
+                  className="form-control" 
+                  id="plan-name" 
+                  placeholder="예: 7월 2주차 플레인 그릭 생산" 
+                  value={planName}
+                  onChange={(e) => setPlanName(e.target.value)}
+                  required 
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="plan-start-date">생산 시작 일자 (발효 시작일)</label>
+                <input 
+                  type="date" 
+                  className="form-control" 
+                  id="plan-start-date" 
+                  value={startDate}
+                  onChange={(e) => handleStartDateChange(e.target.value)}
+                  required 
+                />
+              </div>
             </div>
 
             {/* Multi-item Production Items Section */}
             {items.map((item, idx) => {
               const compItem = computedItems[idx] || {};
+              const prod = compItem.product;
               return (
                 <div 
                   key={idx} 
@@ -372,7 +430,8 @@ const PlanRegistrationModal = ({ isOpen, onClose, editPlanId }) => {
                     </select>
                   </div>
 
-                  <div className="form-group-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr 1fr' }}>
+                  {/* Quantities Row */}
+                  <div className="form-group-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr 1fr', marginBottom: '12px' }}>
                     <div className="form-group">
                       <label htmlFor={`plan-expected-${idx}`}>주문 예상 (개)</label>
                       <input 
@@ -423,6 +482,43 @@ const PlanRegistrationModal = ({ isOpen, onClose, editPlanId }) => {
                       />
                     </div>
                   </div>
+
+                  {/* Dates Row for this specific item */}
+                  <div className="form-group-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
+                    <div className="form-group">
+                      <label htmlFor={`plan-bot-${idx}`}>품목 {idx + 1} 병입 일자</label>
+                      <input 
+                        type="date" 
+                        className="form-control" 
+                        id={`plan-bot-${idx}`}
+                        value={item.bottlingDate || ''}
+                        onChange={(e) => handleItemChange(idx, 'bottlingDate', e.target.value)}
+                        required 
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label htmlFor={`plan-ship-${idx}`}>최종 출고기한 {prod ? `(+${prod.shippingLimitDays ?? 7}일)` : ''}</label>
+                      <input 
+                        type="date" 
+                        className="form-control" 
+                        id={`plan-ship-${idx}`}
+                        value={item.shippingLimit || ''}
+                        onChange={(e) => handleItemChange(idx, 'shippingLimit', e.target.value)}
+                        required 
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label htmlFor={`plan-exp-${idx}`}>소비기한 {prod ? `(+${prod.expiryDays ?? 22}일)` : ''}</label>
+                      <input 
+                        type="date" 
+                        className="form-control" 
+                        id={`plan-exp-${idx}`}
+                        value={item.expiryDate || ''}
+                        onChange={(e) => handleItemChange(idx, 'expiryDate', e.target.value)}
+                        required 
+                      />
+                    </div>
+                  </div>
                 </div>
               );
             })}
@@ -441,56 +537,6 @@ const PlanRegistrationModal = ({ isOpen, onClose, editPlanId }) => {
                 + 생산 품목 2 추가 (동시 생산)
               </button>
             )}
-
-            {/* Row 3: Dates */}
-            <div className="form-group-grid">
-              <div className="form-group">
-                <label htmlFor="plan-start-date">생산 시작 일자</label>
-                <input 
-                  type="date" 
-                  className="form-control" 
-                  id="plan-start-date" 
-                  value={startDate}
-                  onChange={(e) => handleStartDateChange(e.target.value)}
-                  required 
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor="plan-bottling-date">병입 일자</label>
-                <input 
-                  type="date" 
-                  className="form-control" 
-                  id="plan-bottling-date" 
-                  value={bottlingDate}
-                  onChange={(e) => handleBottlingDateChange(e.target.value)}
-                  required 
-                />
-              </div>
-            </div>
-            <div className="form-group-grid">
-              <div className="form-group">
-                <label htmlFor="plan-shipping-limit">최종 출고기한 {primaryProduct ? `(병입일 + ${primaryProduct.shippingLimitDays}일)` : ''}</label>
-                <input 
-                  type="date" 
-                  className="form-control" 
-                  id="plan-shipping-limit" 
-                  value={shippingLimit}
-                  onChange={(e) => setShippingLimit(e.target.value)}
-                  required 
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor="plan-expiry-date">소비기한 {primaryProduct ? `(병입일 + ${primaryProduct.expiryDays}일)` : ''}</label>
-                <input 
-                  type="date" 
-                  className="form-control" 
-                  id="plan-expiry-date" 
-                  value={expiryDate}
-                  onChange={(e) => setExpiryDate(e.target.value)}
-                  required 
-                />
-              </div>
-            </div>
 
             <hr style={{ border: 'none', borderTop: '1px solid var(--border-color)', margin: '16px 0' }} />
 

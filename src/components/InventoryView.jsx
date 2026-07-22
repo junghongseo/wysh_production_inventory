@@ -76,8 +76,9 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal,
         const subName = isMultiItem ? `${plan.name}_${prodName}` : plan.name;
         const subKey = `${plan.id}::${it.productId}`;
 
-        const shippingLimit = dateAddDays(plan.bottlingDate, prod ? (prod.shippingLimitDays ?? 7) : 7);
-        const expiryDate = dateAddDays(plan.bottlingDate, prod ? (prod.expiryDays ?? 22) : 22);
+        const itemBotDate = it.bottlingDate || plan.bottlingDate;
+        const shippingLimit = it.shippingLimit || (itemBotDate ? dateAddDays(itemBotDate, prod ? (prod.shippingLimitDays ?? 7) : 7) : plan.shippingLimit);
+        const expiryDate = it.expiryDate || (itemBotDate ? dateAddDays(itemBotDate, prod ? (prod.expiryDays ?? 22) : 22) : plan.expiryDate);
 
         const plannedQty = it.totalQty || ( (it.expectedOrderQty || 0) + (it.marketingQty || 0) + (it.bufferQty || 0) );
         
