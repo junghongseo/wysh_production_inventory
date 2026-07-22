@@ -52,8 +52,15 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal,
   // Compute stats for all plans in the system
   const allInventoryData = useMemo(() => {
     return plans.map(plan => {
-      const prod = products.find(p => p.id === plan.productId);
-      const prodName = prod ? prod.name : '알수없음';
+      const planItems = plan.items && Array.isArray(plan.items) && plan.items.length > 0 
+        ? plan.items 
+        : [{ productId: plan.productId }];
+
+      const prodNamesList = planItems.map(it => {
+        const p = products.find(prod => prod.id === it.productId);
+        return p ? p.name : '알수없음';
+      });
+      const prodName = prodNamesList.join(' + ');
       
       const invRecord = inventory.find(i => i.planId === plan.id) || { actualQty: plan.totalQty, history: [] };
       const totalOutflows = invRecord.history ? invRecord.history.reduce((sum, item) => sum + item.qty, 0) : 0;

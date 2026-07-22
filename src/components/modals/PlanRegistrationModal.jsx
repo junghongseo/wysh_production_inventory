@@ -24,14 +24,13 @@ const PlanRegistrationModal = ({ isOpen, onClose, editPlanId }) => {
 
   // Form states
   const [planName, setPlanName] = useState('');
-  const [productId, setProductId] = useState('');
+  const [items, setItems] = useState([
+    { productId: '', expectedOrderQty: 0, marketingQty: 0, bufferQty: 0 }
+  ]);
   const [startDate, setStartDate] = useState('');
   const [bottlingDate, setBottlingDate] = useState('');
   const [shippingLimit, setShippingLimit] = useState('');
   const [expiryDate, setExpiryDate] = useState('');
-  const [expectedOrder, setExpectedOrder] = useState(0);
-  const [marketing, setMarketing] = useState(0);
-  const [buffer, setBuffer] = useState(0);
   const [fermenterType, setFermenterType] = useState('');
   const [planMemo, setPlanMemo] = useState('');
 
@@ -45,27 +44,36 @@ const PlanRegistrationModal = ({ isOpen, onClose, editPlanId }) => {
         const plan = plans.find(p => p.id === editPlanId);
         if (plan) {
           setPlanName(plan.name);
-          setProductId(plan.productId);
           setStartDate(plan.startDate);
           setBottlingDate(plan.bottlingDate);
           setShippingLimit(plan.shippingLimit);
           setExpiryDate(plan.expiryDate);
-          setExpectedOrder(plan.expectedOrderQty);
-          setMarketing(plan.marketingQty);
-          setBuffer(plan.bufferQty);
           setFermenterType(plan.fermenterType);
           setPlanMemo(plan.memo || '');
+
+          if (plan.items && Array.isArray(plan.items) && plan.items.length > 0) {
+            setItems(plan.items.map(it => ({
+              productId: it.productId || '',
+              expectedOrderQty: it.expectedOrderQty || 0,
+              marketingQty: it.marketingQty || 0,
+              bufferQty: it.bufferQty || 0
+            })));
+          } else {
+            setItems([{
+              productId: plan.productId || '',
+              expectedOrderQty: plan.expectedOrderQty || 0,
+              marketingQty: plan.marketingQty || 0,
+              bufferQty: plan.bufferQty || 0
+            }]);
+          }
         }
       } else {
         // Reset form
         setPlanName('');
-        setProductId('');
+        setItems([{ productId: '', expectedOrderQty: 0, marketingQty: 0, bufferQty: 0 }]);
         const today = getTodayStr();
         setStartDate(today);
         setFermenterType('');
-        setExpectedOrder(0);
-        setMarketing(0);
-        setBuffer(0);
         setPlanMemo('');
 
         // Date calculations default
@@ -77,10 +85,11 @@ const PlanRegistrationModal = ({ isOpen, onClose, editPlanId }) => {
     }
   }, [isOpen, editPlanId, plans]);
 
-  // Memoize selected product
-  const selectedProduct = useMemo(() => {
-    return products.find(p => p.id === productId) || null;
-  }, [productId, products]);
+  // Primary product for date calculations
+  const primaryProduct = useMemo(() => {
+    const firstProdId = items[0]?.productId;
+    return products.find(p => p.id === firstProdId) || null;
+  }, [items, products]);
 
   // Helper to calculate shipping limit and expiry dates dynamically
   const calculateDerivedDates = (botDate, prod) => {
@@ -96,37 +105,83 @@ const PlanRegistrationModal = ({ isOpen, onClose, editPlanId }) => {
     setStartDate(val);
     const botDate = dateAddDays(val, 2);
     setBottlingDate(botDate);
-    calculateDerivedDates(botDate, selectedProduct);
+    calculateDerivedDates(botDate, primaryProduct);
   };
 
   // Date trigger: Bottling date change
   const handleBottlingDateChange = (val) => {
     setBottlingDate(val);
-    calculateDerivedDates(val, selectedProduct);
+    calculateDerivedDates(val, primaryProduct);
   };
 
-  // Product selection handler
-  const handleProductChange = (id) => {
-    setProductId(id);
-    const prod = products.find(p => p.id === id);
-    calculateDerivedDates(bottlingDate, prod);
+  // Item change handlers
+  const handleItemChange = (index, field, value) => {
+    const next = items.map((item, idx) => {
+      if (idx === index) {
+        return {
+          ...item,
+          [field]: field === 'productId' ? value : (parseInt(value) || 0)
+        };
+      }
+      return item;
+    });
+    setItems(next);
+    if (field === 'productId' && index === 0) {
+      const prod = products.find(p => p.id === value);
+      calculateDerivedDates(bottlingDate, prod);
+    }
   };
 
-  // Calculations
-  const totalQty = useMemo(() => {
-    return expectedOrder + marketing + buffer;
-  }, [expectedOrder, marketing, buffer]);
+  const handleAddItem = () => {
+    if (items.length >= 2) return;
+    setItems([...items, { productId: '', expectedOrderQty: 0, marketingQty: 0, bufferQty: 0 }]);
+  };
+
+  const handleRemoveItem = (index) => {
+    if (index === 0) return;
+    setItems(items.filter((_, idx) => idx !== index));
+  };
+
+  // Calculations across items
+  const computedItems = useMemo(() => {
+    return items.map(item => {
+      const totalQty = (item.expectedOrderQty || 0) + (item.marketingQty || 0) + (item.bufferQty || 0);
+      const prod = products.find(p => p.id === item.productId);
+      
+      let baseYogurtG = 0;
+      if (prod) {
+        const itemTotalWeightG = totalQty * prod.weight;
+        if (prod.isFlavor) {
+          const flavorYield = prod.yield || 100;
+          const inputWeightG = itemTotalWeightG / (flavorYield / 100);
+          const baseIng = prod.ingredients?.find(i => i.name.includes('위시그릭') || i.name.includes('플레인')) || prod.ingredients?.[0];
+          const baseRatio = baseIng ? baseIng.ratio : 70;
+          baseYogurtG = inputWeightG * (baseRatio / 100);
+        } else {
+          baseYogurtG = itemTotalWeightG;
+        }
+      }
+
+      return {
+        ...item,
+        totalQty,
+        product: prod,
+        baseYogurtG
+      };
+    });
+  }, [items, products]);
 
   const totalVolumeL = useMemo(() => {
-    if (!productId) return 0;
-    const prod = products.find(p => p.id === productId);
-    if (!prod) return 0;
-    return (totalQty * prod.weight) / ((prod.yield || 28) * 10);
-  }, [totalQty, productId, products]);
+    const totalBaseYogurtG = computedItems.reduce((sum, item) => sum + item.baseYogurtG, 0);
+    if (totalBaseYogurtG === 0) return 0;
+    const totalRawMilkG = totalBaseYogurtG / 0.28;
+    return totalRawMilkG / 1000;
+  }, [computedItems]);
 
   // Fermenter verification
   const validation = useMemo(() => {
-    if (!productId || !fermenterType || !startDate) {
+    const hasValidProducts = items.every(it => !!it.productId);
+    if (!hasValidProducts || !fermenterType || !startDate) {
       return { valid: false, success: false, message: '' };
     }
 
@@ -175,27 +230,40 @@ const PlanRegistrationModal = ({ isOpen, onClose, editPlanId }) => {
       success: true,
       message: '✓ 발효기 가동 및 생산 일정이 정상 검증되었습니다.'
     };
-  }, [productId, fermenterType, startDate, totalVolumeL, plans, isEditMode, editPlanId]);
+  }, [items, fermenterType, startDate, totalVolumeL, plans, isEditMode, editPlanId]);
 
   // Form submit handler
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!validation.valid) return;
 
+    const primaryItem = computedItems[0] || {};
+    const overallExpectedOrderQty = computedItems.reduce((acc, item) => acc + item.expectedOrderQty, 0);
+    const overallMarketingQty = computedItems.reduce((acc, item) => acc + item.marketingQty, 0);
+    const overallBufferQty = computedItems.reduce((acc, item) => acc + item.bufferQty, 0);
+    const overallTotalQty = computedItems.reduce((acc, item) => acc + item.totalQty, 0);
+
     const planData = {
       name: planName.trim(),
-      productId,
+      productId: primaryItem.productId || '',
       startDate,
       bottlingDate,
       shippingLimit,
       expiryDate,
-      expectedOrderQty: expectedOrder,
-      marketingQty: marketing,
-      bufferQty: buffer,
-      totalQty,
+      expectedOrderQty: overallExpectedOrderQty,
+      marketingQty: overallMarketingQty,
+      bufferQty: overallBufferQty,
+      totalQty: overallTotalQty,
       fermenterType,
       totalVolumeL,
-      memo: planMemo.trim()
+      memo: planMemo.trim(),
+      items: computedItems.map(item => ({
+        productId: item.productId,
+        expectedOrderQty: item.expectedOrderQty,
+        marketingQty: item.marketingQty,
+        bufferQty: item.bufferQty,
+        totalQty: item.totalQty
+      }))
     };
 
     if (isEditMode) {
@@ -249,25 +317,133 @@ const PlanRegistrationModal = ({ isOpen, onClose, editPlanId }) => {
               />
             </div>
 
-            {/* Row 2: Product & Start Date */}
-            <div className="form-group-grid">
-              <div className="form-group">
-                <label htmlFor="plan-product">생산 품목 선택</label>
-                <select 
-                  className="form-control" 
-                  id="plan-product" 
-                  value={productId}
-                  onChange={(e) => handleProductChange(e.target.value)}
-                  required
+            {/* Multi-item Production Items Section */}
+            {items.map((item, idx) => {
+              const compItem = computedItems[idx] || {};
+              return (
+                <div 
+                  key={idx} 
+                  style={{ 
+                    background: idx === 0 ? 'rgba(2, 132, 199, 0.03)' : 'rgba(168, 85, 247, 0.03)', 
+                    border: `1px solid ${idx === 0 ? 'rgba(2, 132, 199, 0.15)' : 'rgba(168, 85, 247, 0.15)'}`, 
+                    borderRadius: '10px', 
+                    padding: '16px', 
+                    marginBottom: '16px' 
+                  }}
                 >
-                  <option value="" disabled>품목을 선택하세요</option>
-                  {products.map(p => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} ({p.weight}g, 수율 {p.yield || 28}%)
-                    </option>
-                  ))}
-                </select>
-              </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                    <h4 style={{ margin: 0, fontSize: '0.92rem', fontWeight: 700, color: idx === 0 ? 'var(--color-primary)' : 'var(--color-accent, #a855f7)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ background: idx === 0 ? 'var(--color-primary)' : '#a855f7', color: '#fff', fontSize: '0.72rem', padding: '2px 7px', borderRadius: '12px' }}>
+                        품목 {idx + 1}
+                      </span>
+                      {idx === 0 ? '생산 품목 1 (기본)' : '생산 품목 2 (동시 생산)'}
+                    </h4>
+                    {idx > 0 && (
+                      <button 
+                        type="button" 
+                        className="btn-delete-tiny" 
+                        onClick={() => handleRemoveItem(idx)}
+                        style={{ color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.2)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px' }}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <line x1="18" y1="6" x2="6" y2="18"></line>
+                          <line x1="6" y1="6" x2="18" y2="18"></line>
+                        </svg>
+                        품목 2 삭제
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="form-group" style={{ marginBottom: '12px' }}>
+                    <label htmlFor={`plan-product-${idx}`}>생산 품목 선택</label>
+                    <select 
+                      className="form-control" 
+                      id={`plan-product-${idx}`} 
+                      value={item.productId}
+                      onChange={(e) => handleItemChange(idx, 'productId', e.target.value)}
+                      required
+                    >
+                      <option value="" disabled>품목을 선택하세요</option>
+                      {products.map(p => (
+                        <option key={p.id} value={p.id}>
+                          {p.name} ({p.weight}g, 수율 {p.yield || 28}%{p.isFlavor ? ', 플레이버' : ', 플레인'})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="form-group-grid" style={{ gridTemplateColumns: '1fr 1fr 1fr 1fr' }}>
+                    <div className="form-group">
+                      <label htmlFor={`plan-expected-${idx}`}>주문 예상 (개)</label>
+                      <input 
+                        type="number" 
+                        className="form-control" 
+                        id={`plan-expected-${idx}`} 
+                        min="0" 
+                        value={item.expectedOrderQty}
+                        onChange={(e) => handleItemChange(idx, 'expectedOrderQty', e.target.value)}
+                        onFocus={(e) => e.target.select()}
+                        required 
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label htmlFor={`plan-marketing-${idx}`}>마케팅 (개)</label>
+                      <input 
+                        type="number" 
+                        className="form-control" 
+                        id={`plan-marketing-${idx}`} 
+                        min="0" 
+                        value={item.marketingQty}
+                        onChange={(e) => handleItemChange(idx, 'marketingQty', e.target.value)}
+                        onFocus={(e) => e.target.select()}
+                        required 
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label htmlFor={`plan-buffer-${idx}`}>여유분 (개)</label>
+                      <input 
+                        type="number" 
+                        className="form-control" 
+                        id={`plan-buffer-${idx}`} 
+                        min="0" 
+                        value={item.bufferQty}
+                        onChange={(e) => handleItemChange(idx, 'bufferQty', e.target.value)}
+                        onFocus={(e) => e.target.select()}
+                        required 
+                      />
+                    </div>
+                    <div className="form-group">
+                      <label>소계 수량 (개)</label>
+                      <input 
+                        type="text" 
+                        className="form-control" 
+                        value={`${compItem.totalQty || 0} 개`}
+                        readOnly 
+                        style={{ fontWeight: 600 }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+
+            {items.length < 2 && (
+              <button 
+                type="button" 
+                className="btn-secondary"
+                onClick={handleAddItem}
+                style={{ width: '100%', padding: '8px', marginBottom: '16px', borderStyle: 'dashed', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', fontSize: '0.85rem' }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                + 생산 품목 2 추가 (동시 생산)
+              </button>
+            )}
+
+            {/* Row 3: Dates */}
+            <div className="form-group-grid">
               <div className="form-group">
                 <label htmlFor="plan-start-date">생산 시작 일자</label>
                 <input 
@@ -279,10 +455,6 @@ const PlanRegistrationModal = ({ isOpen, onClose, editPlanId }) => {
                   required 
                 />
               </div>
-            </div>
-
-            {/* Row 3: Date Auto-calculations */}
-            <div className="form-group-grid">
               <div className="form-group">
                 <label htmlFor="plan-bottling-date">병입 일자</label>
                 <input 
@@ -294,8 +466,10 @@ const PlanRegistrationModal = ({ isOpen, onClose, editPlanId }) => {
                   required 
                 />
               </div>
+            </div>
+            <div className="form-group-grid">
               <div className="form-group">
-                <label htmlFor="plan-shipping-limit">최종 출고기한 {selectedProduct ? `(병입일 + ${selectedProduct.shippingLimitDays}일)` : ''}</label>
+                <label htmlFor="plan-shipping-limit">최종 출고기한 {primaryProduct ? `(병입일 + ${primaryProduct.shippingLimitDays}일)` : ''}</label>
                 <input 
                   type="date" 
                   className="form-control" 
@@ -305,72 +479,15 @@ const PlanRegistrationModal = ({ isOpen, onClose, editPlanId }) => {
                   required 
                 />
               </div>
-            </div>
-            <div className="form-group">
-              <label htmlFor="plan-expiry-date">소비기한 {selectedProduct ? `(병입일 + ${selectedProduct.expiryDays}일)` : ''}</label>
-              <input 
-                type="date" 
-                className="form-control" 
-                id="plan-expiry-date" 
-                value={expiryDate}
-                onChange={(e) => setExpiryDate(e.target.value)}
-                required 
-              />
-            </div>
-
-            <hr style={{ border: 'none', borderTop: '1px solid var(--border-color)', margin: '16px 0' }} />
-
-            {/* Row 4: Quantities Input */}
-            <div className="form-group-grid">
               <div className="form-group">
-                <label htmlFor="plan-expected-order">주문 예상 수량 (개)</label>
+                <label htmlFor="plan-expiry-date">소비기한 {primaryProduct ? `(병입일 + ${primaryProduct.expiryDays}일)` : ''}</label>
                 <input 
-                  type="number" 
+                  type="date" 
                   className="form-control" 
-                  id="plan-expected-order" 
-                  min="0" 
-                  value={expectedOrder}
-                  onChange={(e) => setExpectedOrder(parseInt(e.target.value) || 0)}
-                  onFocus={(e) => e.target.select()}
+                  id="plan-expiry-date" 
+                  value={expiryDate}
+                  onChange={(e) => setExpiryDate(e.target.value)}
                   required 
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor="plan-marketing">마케팅 활용 수량 (개)</label>
-                <input 
-                  type="number" 
-                  className="form-control" 
-                  id="plan-marketing" 
-                  min="0" 
-                  value={marketing}
-                  onChange={(e) => setMarketing(parseInt(e.target.value) || 0)}
-                  onFocus={(e) => e.target.select()}
-                  required 
-                />
-              </div>
-            </div>
-            <div className="form-group-grid">
-              <div className="form-group">
-                <label htmlFor="plan-buffer">여유분 수량 (개)</label>
-                <input 
-                  type="number" 
-                  className="form-control" 
-                  id="plan-buffer" 
-                  min="0" 
-                  value={buffer}
-                  onChange={(e) => setBuffer(parseInt(e.target.value) || 0)}
-                  onFocus={(e) => e.target.select()}
-                  required 
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor="plan-total-qty">합계수량 (자동 계산)</label>
-                <input 
-                  type="text" 
-                  className="form-control" 
-                  id="plan-total-qty" 
-                  value={totalQty}
-                  readOnly 
                 />
               </div>
             </div>

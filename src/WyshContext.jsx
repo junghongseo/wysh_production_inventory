@@ -313,22 +313,34 @@ export const WyshProvider = ({ children }) => {
         };
       });
 
-      const mappedPlans = remotePlans.map(p => ({
-        id: p.id,
-        name: p.name,
-        productId: p.product_id,
-        startDate: p.start_date,
-        bottlingDate: p.bottling_date,
-        shippingLimit: p.shipping_limit,
-        expiryDate: p.expiry_date,
-        expectedOrderQty: p.expected_order_qty,
-        marketingQty: p.marketing_qty,
-        bufferQty: p.buffer_qty,
-        totalQty: p.total_qty,
-        fermenterType: p.fermenter_type,
-        totalVolumeL: parseFloat(p.total_volume_l),
-        memo: p.memo || ''
-      }));
+      const mappedPlans = remotePlans.map(p => {
+        const defaultItems = [
+          {
+            productId: p.product_id,
+            expectedOrderQty: p.expected_order_qty,
+            marketingQty: p.marketing_qty,
+            bufferQty: p.buffer_qty,
+            totalQty: p.total_qty
+          }
+        ];
+        return {
+          id: p.id,
+          name: p.name,
+          productId: p.product_id,
+          startDate: p.start_date,
+          bottlingDate: p.bottling_date,
+          shippingLimit: p.shipping_limit,
+          expiryDate: p.expiry_date,
+          expectedOrderQty: p.expected_order_qty,
+          marketingQty: p.marketing_qty,
+          bufferQty: p.buffer_qty,
+          totalQty: p.total_qty,
+          fermenterType: p.fermenter_type,
+          totalVolumeL: parseFloat(p.total_volume_l),
+          memo: p.memo || '',
+          items: p.items && Array.isArray(p.items) && p.items.length > 0 ? p.items : defaultItems
+        };
+      });
 
       const mappedInventory = remoteInventory.map(i => ({
         planId: i.plan_id,
@@ -413,7 +425,8 @@ export const WyshProvider = ({ children }) => {
         total_qty: plan.totalQty,
         fermenter_type: plan.fermenterType,
         total_volume_l: plan.totalVolumeL,
-        memo: plan.memo
+        memo: plan.memo,
+        items: plan.items
       };
       const { error } = await supabase.from('plans').upsert(dbPlan);
       if (error) throw error;

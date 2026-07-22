@@ -8,97 +8,112 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
     if (!isOpen || !planId) return null;
     const plan = plans.find(p => p.id === planId);
     if (!plan) return null;
-    const product = products.find(p => p.id === plan.productId);
-    if (!product) return null;
 
-    const totalWeightG = plan.totalQty * product.weight;
-    const totalInputWeightG = totalWeightG / (product.yield / 100);
+    const planItems = plan.items && Array.isArray(plan.items) && plan.items.length > 0 
+      ? plan.items 
+      : [{ productId: plan.productId, totalQty: plan.totalQty }];
 
-    let totalRatioSum = 0;
-    let totalWeightSum = 0;
+    let totalCombinedBaseYogurtG = 0;
 
-    const computedIngredients = product.ingredients.map(ing => {
-      const neededQtyG = totalInputWeightG * (ing.ratio / 100);
-      const neededQtyKg = neededQtyG / 1000;
+    const itemDetailsList = planItems.map((it, idx) => {
+      const product = products.find(p => p.id === it.productId);
+      if (!product) return null;
 
-      totalRatioSum += ing.ratio;
-      totalWeightSum += neededQtyG;
+      const itemTotalQty = it.totalQty || ( (it.expectedOrderQty || 0) + (it.marketingQty || 0) + (it.bufferQty || 0) );
+      const itemTotalWeightG = itemTotalQty * product.weight;
+      const itemInputWeightG = itemTotalWeightG / (product.yield / 100);
 
-      const isLacticBacteria = ing.name.includes('유산균');
-      const displayG = isLacticBacteria
-        ? Number(neededQtyG.toFixed(1)).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
-        : Math.round(neededQtyG).toLocaleString();
+      let totalRatioSum = 0;
+      let totalWeightSum = 0;
+
+      const computedIngredients = (product.ingredients || []).map(ing => {
+        const neededQtyG = itemInputWeightG * (ing.ratio / 100);
+        const neededQtyKg = neededQtyG / 1000;
+
+        totalRatioSum += ing.ratio;
+        totalWeightSum += neededQtyG;
+
+        const isLacticBacteria = ing.name.includes('유산균');
+        const displayG = isLacticBacteria
+          ? Number(neededQtyG.toFixed(1)).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+          : Math.round(neededQtyG).toLocaleString();
+
+        return {
+          name: ing.name,
+          ratio: ing.ratio,
+          displayG,
+          neededQtyKg
+        };
+      });
+
+      // Calculate base yogurt requirement for this item
+      let baseYogurtNeededG = 0;
+      if (product.isFlavor) {
+        const baseIng = product.ingredients?.find(ing => ing.name.includes('위시그릭') || ing.name.includes('플레인')) || product.ingredients?.[0];
+        const baseRatio = baseIng ? baseIng.ratio : 70;
+        baseYogurtNeededG = itemInputWeightG * (baseRatio / 100);
+      } else {
+        baseYogurtNeededG = itemTotalWeightG;
+      }
+
+      totalCombinedBaseYogurtG += baseYogurtNeededG;
 
       return {
-        name: ing.name,
-        ratio: ing.ratio,
-        displayG,
-        neededQtyKg
+        itemIndex: idx + 1,
+        item: it,
+        product,
+        itemTotalQty,
+        itemTotalWeightG,
+        itemInputWeightG,
+        computedIngredients,
+        totalRatioSum,
+        totalWeightSum,
+        baseYogurtNeededG
       };
-    });
+    }).filter(Boolean);
 
-    // Secondary base product computation if flavor product
-    let baseProductDetails = null;
-    if (product.isFlavor || product.baseProductId) {
-      const baseProduct = products.find(p => p.id === product.baseProductId) || products.find(p => !p.isFlavor);
-      if (baseProduct) {
-        // Find base ingredient in flavor product recipe
-        const baseIng = product.ingredients.find(ing => ing.name.includes(baseProduct.name) || ing.name.includes('위시그릭') || ing.name.includes('플레인')) || product.ingredients[0];
-        const baseRatio = baseIng ? baseIng.ratio : 70;
-        
-        // Needed finished base yogurt weight for this batch
-        const neededBaseFinishedG = totalInputWeightG * (baseRatio / 100);
-        const neededBaseFinishedKg = neededBaseFinishedG / 1000;
-        
-        // Input weight required for producing this amount of base product (incorporating base product's yield)
-        const baseYield = baseProduct.yield || 28;
-        const totalBaseInputWeightG = neededBaseFinishedG / (baseYield / 100);
-        
-        let baseRatioSum = 0;
-        let baseWeightSum = 0;
+    // Compute combined base product (Plain) recipe
+    const baseProduct = products.find(p => !p.isFlavor) || products[0];
+    const totalCombinedBaseYogurtKg = totalCombinedBaseYogurtG / 1000;
+    const baseYield = baseProduct ? (baseProduct.yield || 28) : 28;
+    const totalBaseInputWeightG = totalCombinedBaseYogurtG / (baseYield / 100);
 
-        const computedBaseIngredients = (baseProduct.ingredients || []).map(bIng => {
-          const bNeededQtyG = totalBaseInputWeightG * (bIng.ratio / 100);
-          const bNeededQtyKg = bNeededQtyG / 1000;
+    let baseRatioSum = 0;
+    let baseWeightSum = 0;
 
-          baseRatioSum += bIng.ratio;
-          baseWeightSum += bNeededQtyG;
+    const computedCombinedBaseIngredients = baseProduct ? (baseProduct.ingredients || []).map(bIng => {
+      const bNeededQtyG = totalBaseInputWeightG * (bIng.ratio / 100);
+      const bNeededQtyKg = bNeededQtyG / 1000;
 
-          const isLacticBacteria = bIng.name.includes('유산균');
-          const displayG = isLacticBacteria
-            ? Number(bNeededQtyG.toFixed(1)).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
-            : Math.round(bNeededQtyG).toLocaleString();
+      baseRatioSum += bIng.ratio;
+      baseWeightSum += bNeededQtyG;
 
-          return {
-            name: bIng.name,
-            ratio: bIng.ratio,
-            displayG,
-            neededQtyKg: bNeededQtyKg
-          };
-        });
+      const isLacticBacteria = bIng.name.includes('유산균');
+      const displayG = isLacticBacteria
+        ? Number(bNeededQtyG.toFixed(1)).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+        : Math.round(bNeededQtyG).toLocaleString();
 
-        baseProductDetails = {
-          product: baseProduct,
-          neededBaseFinishedG,
-          neededBaseFinishedKg,
-          baseYield,
-          totalBaseInputWeightG,
-          computedBaseIngredients,
-          baseRatioSum,
-          baseWeightSum
-        };
-      }
-    }
+      return {
+        name: bIng.name,
+        ratio: bIng.ratio,
+        displayG,
+        neededQtyKg: bNeededQtyKg
+      };
+    }) : [];
 
     return {
       plan,
-      product,
-      totalWeightG,
-      totalInputWeightG,
-      computedIngredients,
-      totalRatioSum,
-      totalWeightSum,
-      baseProductDetails
+      itemDetailsList,
+      combinedBaseDetails: {
+        baseProduct,
+        totalCombinedBaseYogurtG,
+        totalCombinedBaseYogurtKg,
+        baseYield,
+        totalBaseInputWeightG,
+        computedCombinedBaseIngredients,
+        baseRatioSum,
+        baseWeightSum
+      }
     };
   }, [isOpen, planId, plans, products]);
 
@@ -134,30 +149,29 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
               <span className="value" style={{ fontWeight: 600 }}>{details.plan.name}</span>
             </div>
             <div className="info-row" style={{ marginBottom: '12px' }}>
-              <span className="label">제품명</span>
-              <span className="value" style={{ fontWeight: 600 }}>{details.product.name}</span>
-            </div>
-            <div className="info-row" style={{ marginBottom: '12px' }}>
-              <span className="label">개별 제품 중량</span>
-              <span className="value" style={{ fontWeight: 600 }}>{details.product.weight.toLocaleString()} g</span>
-            </div>
-            <div className="info-row" style={{ marginBottom: '12px' }}>
-              <span className="label">수율</span>
-              <span className="value" style={{ fontWeight: 600 }}>{details.product.yield}%</span>
-            </div>
-            <div className="info-row" style={{ marginBottom: '12px' }}>
-              <span className="label">수량</span>
-              <span className="value" style={{ fontWeight: 600 }}>{details.plan.totalQty.toLocaleString()} 개</span>
-            </div>
-            <div className="info-row" style={{ marginBottom: '12px' }}>
-              <span className="label">총 생산 중량(g)</span>
-              <span className="value" style={{ fontWeight: 600 }}>{details.totalWeightG.toLocaleString()} g ({(details.totalWeightG / 1000).toFixed(2)} kg)</span>
-            </div>
-            <div className="info-row" style={{ marginBottom: '20px' }}>
               <span className="label">가동 발효기</span>
               <span className="value highlight" style={{ color: 'var(--color-primary)', fontSize: '1rem' }}>
-                {details.plan.fermenterType === 'small' ? '소형 발효기' : '대형 발효기'}
+                {details.plan.fermenterType === 'small' ? '소형 발효기' : '대형 발효기'} (원재료 총량: {(details.plan.totalVolumeL || 0).toFixed(2)} L)
               </span>
+            </div>
+
+            {/* Summary List of Produced Items */}
+            <div style={{ background: 'var(--bg-tertiary)', borderRadius: '8px', padding: '12px', marginBottom: '16px', border: '1px solid var(--border-color)' }}>
+              <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '6px' }}>
+                생산 품목 구성 ({details.itemDetailsList.length}개 품목)
+              </span>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {details.itemDetailsList.map((itDetail, idx) => (
+                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem' }}>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                      품목 {itDetail.itemIndex}: {itDetail.product.name} ({itDetail.product.weight}g)
+                    </span>
+                    <span style={{ fontFamily: 'var(--font-outfit)', fontWeight: 600 }}>
+                      {itDetail.itemTotalQty.toLocaleString()} 개 ({itDetail.itemTotalWeightG.toLocaleString()} g)
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* Print / PDF Action Button */}
@@ -182,58 +196,75 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
               </button>
             </div>
 
-            <div className="wysh-table-wrapper">
-              <table className="wysh-table" id="recipe-drawer-table">
-                <thead>
-                  <tr>
-                    <th>원재료명</th>
-                    <th style={{ textAlign: 'right' }}>함량(%)</th>
-                    <th style={{ textAlign: 'right' }}>필요량(g)</th>
-                    <th style={{ textAlign: 'right' }}>참고량(kg)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {details.computedIngredients.map((ing, idx) => (
-                    <tr key={idx}>
-                      <td style={{ fontWeight: 500 }}>{ing.name}</td>
-                      <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)' }}>{ing.ratio}%</td>
-                      <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', fontWeight: 600 }}>{ing.displayG} g</td>
-                      <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', color: 'var(--text-secondary)', fontStyle: 'italic' }}>({ing.neededQtyKg.toFixed(2)} kg)</td>
-                    </tr>
-                  ))}
-                  <tr className="total-row">
-                    <td>합계</td>
-                    <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)' }}>{details.totalRatioSum.toFixed(2)}%</td>
-                    <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)' }}>{Math.round(details.totalWeightSum).toLocaleString()} g</td>
-                    <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', fontStyle: 'italic' }}>({(details.totalWeightSum / 1000).toFixed(2)} kg)</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+            {/* Individual Item Recipe Tables */}
+            {details.itemDetailsList.map((itDetail, idx) => (
+              <div key={idx} style={{ marginBottom: '24px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ background: 'var(--color-primary)', color: '#fff', fontSize: '0.7rem', padding: '1px 6px', borderRadius: '10px' }}>
+                      품목 {itDetail.itemIndex}
+                    </span>
+                    {itDetail.product.name} 필요 배합표
+                  </h4>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontFamily: 'var(--font-outfit)' }}>
+                    수량: {itDetail.itemTotalQty.toLocaleString()} 개 | 수율: {itDetail.product.yield}%
+                  </span>
+                </div>
 
-            {/* Base Product Secondary Recipe Table */}
-            {details.baseProductDetails && (
+                <div className="wysh-table-wrapper">
+                  <table className="wysh-table">
+                    <thead>
+                      <tr>
+                        <th>원재료명</th>
+                        <th style={{ textAlign: 'right' }}>함량(%)</th>
+                        <th style={{ textAlign: 'right' }}>필요량(g)</th>
+                        <th style={{ textAlign: 'right' }}>참고량(kg)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {itDetail.computedIngredients.map((ing, ingIdx) => (
+                        <tr key={ingIdx}>
+                          <td style={{ fontWeight: 500 }}>{ing.name}</td>
+                          <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)' }}>{ing.ratio}%</td>
+                          <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', fontWeight: 600 }}>{ing.displayG} g</td>
+                          <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', color: 'var(--text-secondary)', fontStyle: 'italic' }}>({ing.neededQtyKg.toFixed(2)} kg)</td>
+                        </tr>
+                      ))}
+                      <tr className="total-row">
+                        <td>합계</td>
+                        <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)' }}>{itDetail.totalRatioSum.toFixed(2)}%</td>
+                        <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)' }}>{Math.round(itDetail.totalWeightSum).toLocaleString()} g</td>
+                        <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', fontStyle: 'italic' }}>({(itDetail.totalWeightSum / 1000).toFixed(2)} kg)</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))}
+
+            {/* Combined Base Product Secondary Recipe Table */}
+            {details.combinedBaseDetails && details.combinedBaseDetails.baseProduct && (
               <div className="base-recipe-section" style={{ marginTop: '28px', borderTop: '2px dashed var(--border-color)', paddingTop: '20px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
                   <h4 style={{ fontSize: '0.98rem', fontWeight: 700, color: 'var(--color-primary)', display: 'flex', alignItems: 'center', gap: '6px', margin: 0 }}>
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
                     </svg>
-                    [베이스 제품 필요 배합표] {details.baseProductDetails.product.name}
+                    [전체 합산 베이스 제품 필요 배합표] {details.combinedBaseDetails.baseProduct.name}
                   </h4>
                   <span style={{ fontSize: '0.78rem', background: 'rgba(2, 132, 199, 0.1)', color: 'var(--color-primary)', padding: '3px 8px', borderRadius: '6px', fontWeight: 600 }}>
-                    베이스 필요량: {details.baseProductDetails.neededBaseFinishedKg.toFixed(2)} kg
+                    총 베이스 필요량: {details.combinedBaseDetails.totalCombinedBaseYogurtKg.toFixed(2)} kg
                   </span>
                 </div>
 
                 <div className="info-row" style={{ marginBottom: '8px', fontSize: '0.85rem' }}>
-                  <span className="label">베이스 제품 수율</span>
-                  <span className="value" style={{ fontWeight: 600 }}>{details.baseProductDetails.baseYield}%</span>
+                  <span className="label">베이스 요거트 수율</span>
+                  <span className="value" style={{ fontWeight: 600 }}>{details.combinedBaseDetails.baseYield}%</span>
                 </div>
                 <div className="info-row" style={{ marginBottom: '14px', fontSize: '0.85rem' }}>
-                  <span className="label">베이스 투입 필요 총 중량</span>
+                  <span className="label">베이스 제조 필요 원유/유산균 총량</span>
                   <span className="value" style={{ fontWeight: 600 }}>
-                    {Math.round(details.baseProductDetails.totalBaseInputWeightG).toLocaleString()} g ({(details.baseProductDetails.totalBaseInputWeightG / 1000).toFixed(2)} kg)
+                    {Math.round(details.combinedBaseDetails.totalBaseInputWeightG).toLocaleString()} g ({(details.combinedBaseDetails.totalBaseInputWeightG / 1000).toFixed(2)} kg)
                   </span>
                 </div>
 
@@ -248,7 +279,7 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
                       </tr>
                     </thead>
                     <tbody>
-                      {details.baseProductDetails.computedBaseIngredients.map((ing, idx) => (
+                      {details.combinedBaseDetails.computedCombinedBaseIngredients.map((ing, idx) => (
                         <tr key={idx}>
                           <td style={{ fontWeight: 500 }}>{ing.name}</td>
                           <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)' }}>{ing.ratio}%</td>
@@ -258,9 +289,9 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
                       ))}
                       <tr className="total-row">
                         <td>합계</td>
-                        <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)' }}>{details.baseProductDetails.baseRatioSum.toFixed(2)}%</td>
-                        <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)' }}>{Math.round(details.baseProductDetails.baseWeightSum).toLocaleString()} g</td>
-                        <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', fontStyle: 'italic' }}>({(details.baseProductDetails.baseWeightSum / 1000).toFixed(2)} kg)</td>
+                        <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)' }}>{details.combinedBaseDetails.baseRatioSum.toFixed(2)}%</td>
+                        <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)' }}>{Math.round(details.combinedBaseDetails.baseWeightSum).toLocaleString()} g</td>
+                        <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', fontStyle: 'italic' }}>({(details.combinedBaseDetails.baseWeightSum / 1000).toFixed(2)} kg)</td>
                       </tr>
                     </tbody>
                   </table>
