@@ -1646,6 +1646,22 @@ button svg * {
         font-size: 1rem !important;
         white-space: nowrap !important;
     }
+
+    /* Mobile Sub-tab visibility and routing */
+    .mobile-subtab-container {
+        display: flex !important;
+        margin-bottom: 12px;
+    }
+
+    .report-history-card.mobile-inactive, 
+    .report-form-card.mobile-inactive {
+        display: none !important;
+    }
+
+    .report-history-card.mobile-active, 
+    .report-form-card.mobile-active {
+        display: flex !important;
+    }
 }
 
 @media print {

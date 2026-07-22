@@ -22,6 +22,7 @@ const ReportsView = () => {
   // Selected report for editing or viewing
   const [selectedReportId, setSelectedReportId] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [mobileSubTab, setMobileSubTab] = useState('form'); // 'form' or 'history' on mobile
 
   // Form states - General
   const [selectedPlanId, setSelectedPlanId] = useState('');
@@ -303,6 +304,7 @@ const ReportsView = () => {
     setIsEditing(true);
     setSelectedPlanId(report.planId);
     setWorkerName(report.workerName);
+    setMobileSubTab('form');
 
     if (report.type === 'whey_separation') {
       const d = report.details || {};
@@ -445,6 +447,7 @@ const ReportsView = () => {
       }
 
       handleResetForm();
+      setMobileSubTab('history');
       return;
     }
 
@@ -486,6 +489,7 @@ const ReportsView = () => {
     }
 
     handleResetForm();
+    setMobileSubTab('history');
   };
 
   // Handle delete report
@@ -690,6 +694,56 @@ const ReportsView = () => {
         </div>
       </div>
 
+      {/* Mobile-only sub-tab selector (신규 작성 / 이력 보기) */}
+      <div className="mobile-subtab-container" style={{ display: 'none', background: 'var(--bg-secondary)', padding: '6px', borderRadius: '12px', border: '1px solid var(--border-color)', gap: '6px', width: '100%', boxSizing: 'border-box' }}>
+        <button
+          type="button"
+          onClick={() => setMobileSubTab('form')}
+          style={{
+            flex: 1,
+            padding: '10px',
+            borderRadius: '8px',
+            fontSize: '0.86rem',
+            fontWeight: 700,
+            background: mobileSubTab === 'form' ? 'var(--color-primary)' : 'transparent',
+            color: mobileSubTab === 'form' ? '#fff' : 'var(--text-secondary)',
+            border: 'none',
+            cursor: 'pointer',
+            transition: 'var(--transition-smooth)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '6px'
+          }}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4z"></path></svg>
+          리포트 작성
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileSubTab('history')}
+          style={{
+            flex: 1,
+            padding: '10px',
+            borderRadius: '8px',
+            fontSize: '0.86rem',
+            fontWeight: 700,
+            background: mobileSubTab === 'history' ? 'var(--color-primary)' : 'transparent',
+            color: mobileSubTab === 'history' ? '#fff' : 'var(--text-secondary)',
+            border: 'none',
+            cursor: 'pointer',
+            transition: 'var(--transition-smooth)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '6px'
+          }}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
+          작성 이력 ({filteredReports.length})
+        </button>
+      </div>
+
       <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }} className="report-grid-container">
         
         {/* Layout responsive grid and toggle switch CSS */}
@@ -762,7 +816,7 @@ const ReportsView = () => {
         `}} />
 
         {/* Left: Report History List */}
-        <div className="glass-card" style={{ display: 'flex', flexDirection: 'column', height: 'fit-content' }}>
+        <div className={`glass-card report-history-card ${mobileSubTab === 'history' ? 'mobile-active' : 'mobile-inactive'}`} style={{ display: 'flex', flexDirection: 'column', height: 'fit-content' }}>
           <h3 style={{ fontSize: '1.15rem', fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text-primary)', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span>{activeReportType === 'whey_separation' ? '작성된 유청분리 리포트 이력' : '작성된 발효 리포트 이력'}</span>
             <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-outfit)', fontWeight: 600, color: 'var(--text-secondary)', background: 'var(--bg-tertiary)', padding: '2px 8px', borderRadius: '12px' }}>
@@ -869,7 +923,7 @@ const ReportsView = () => {
         </div>
 
         {/* Right: Report Form */}
-        <div className="glass-card" style={{ display: 'flex', flexDirection: 'column' }}>
+        <div className={`glass-card report-form-card ${mobileSubTab === 'form' ? 'mobile-active' : 'mobile-inactive'}`} style={{ display: 'flex', flexDirection: 'column' }}>
           <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 style={{ fontSize: '1.2rem', fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
               {isEditing 
