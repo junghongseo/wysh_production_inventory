@@ -1478,17 +1478,47 @@ button svg * {
     .modal-content, .drawer-content {
         width: 95% !important;
         max-width: 95% !important;
+        max-height: 88vh !important;
+        overflow-y: auto !important;
         margin: 10px auto;
         padding: 16px !important;
     }
     
-    /* Form controls touch size */
-    .form-control, input, select, textarea {
+    /* Form controls touch size - Exclude checkboxes, radios, and inline inputs */
+    .form-control, 
+    input:not([type="checkbox"]):not([type="radio"]):not(.inline-input), 
+    select, 
+    textarea {
         min-height: 44px; /* Touch target minimum height */
         font-size: 16px !important; /* Prevent iOS safari zoom-in on focus */
+        box-sizing: border-box !important;
+    }
+
+    /* Standard block inputs take full width on mobile */
+    .form-control,
+    .form-group input:not([type="checkbox"]):not([type="radio"]):not(.inline-input),
+    .form-group select {
+        width: 100% !important;
         min-width: 0 !important;
         max-width: 100% !important;
-        width: 100% !important;
+    }
+
+    /* Checkbox & Radio explicit touch fix */
+    input[type="checkbox"], input[type="radio"] {
+        width: 20px !important;
+        height: 20px !important;
+        min-height: 20px !important;
+        max-width: 20px !important;
+        flex-shrink: 0 !important;
+        cursor: pointer;
+        margin: 0 !important;
+    }
+
+    /* Inline numeric inputs inside forms */
+    input.inline-input {
+        min-height: 36px !important;
+        height: 36px !important;
+        font-size: 14px !important;
         box-sizing: border-box !important;
     }
 
@@ -1500,6 +1530,8 @@ button svg * {
     
     button {
         min-height: 44px; /* Touch target size */
+        word-break: keep-all;
+        overflow-wrap: break-word;
     }
     
     .btn-primary, .btn-secondary, .btn-success, .btn-danger {
@@ -1508,6 +1540,7 @@ button svg * {
         align-items: center;
         justify-content: center;
         padding: 10px 16px;
+        white-space: nowrap;
     }
 
     /* Custom button inside lists */
@@ -1525,6 +1558,74 @@ button svg * {
     .form-group-grid, .outflow-form-grid {
         grid-template-columns: 1fr !important;
         gap: 12px;
+    }
+
+    /* Mobile Report Category Grid (2x2) */
+    .report-category-grid {
+        display: grid !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 10px !important;
+        width: 100% !important;
+    }
+
+    .report-category-grid button {
+        width: 100% !important;
+        margin: 0 !important;
+        font-size: 0.88rem !important;
+        padding: 10px 6px !important;
+        white-space: nowrap !important;
+        justify-content: center !important;
+    }
+
+    /* Mobile Check Item Row (2-line layout) */
+    .report-check-row {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 8px !important;
+        padding: 12px 14px !important;
+    }
+
+    .report-check-top {
+        display: flex !important;
+        align-items: center !important;
+        gap: 10px !important;
+        width: 100% !important;
+    }
+
+    .report-check-bottom {
+        display: flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+        font-size: 0.85rem !important;
+        color: var(--text-secondary) !important;
+        padding-left: 30px !important; /* Indent under checkbox */
+        width: 100% !important;
+        flex-wrap: wrap !important;
+    }
+
+    /* Dashboard Header Stats Mobile Layout */
+    .header-stats {
+        width: 100% !important;
+        display: grid !important;
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 8px !important;
+    }
+
+    .header-stats .stat-mini-card {
+        padding: 10px 8px !important;
+        text-align: center !important;
+        min-width: 0 !important;
+    }
+
+    .header-stats .stat-mini-card .label {
+        font-size: 0.72rem !important;
+        white-space: nowrap !important;
+    }
+
+    .header-stats .stat-mini-card .value {
+        font-size: 1rem !important;
+        white-space: nowrap !important;
     }
 }
 

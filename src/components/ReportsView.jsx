@@ -631,7 +631,7 @@ const ReportsView = () => {
       
       {/* Category selector */}
       <div className="glass-card" style={{ padding: '16px' }}>
-        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+        <div className="report-category-grid" style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
           <button 
             className={`btn-secondary ${activeReportType === 'fermentation' ? 'active' : ''}`}
             onClick={() => { setActiveReportType('fermentation'); handleResetForm(); }}
@@ -1203,19 +1203,21 @@ const ReportsView = () => {
                   </label>
 
                   {/* Sterilization */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
-                    <input 
-                      type="checkbox" 
-                      id="chk-sterilization" 
-                      checked={checkedSterilization} 
-                      onChange={(e) => setCheckedSterilization(e.target.checked)}
-                      style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                    />
-                    <label htmlFor="chk-sterilization" style={{ fontSize: '0.88rem', fontWeight: 600, cursor: 'pointer', color: 'var(--text-primary)', minWidth: '40px' }}>살균:</label>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                  <div className="report-check-row" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
+                    <div className="report-check-top" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <input 
+                        type="checkbox" 
+                        id="chk-sterilization" 
+                        checked={checkedSterilization} 
+                        onChange={(e) => setCheckedSterilization(e.target.checked)}
+                        style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                      />
+                      <label htmlFor="chk-sterilization" style={{ fontSize: '0.88rem', fontWeight: 600, cursor: 'pointer', color: 'var(--text-primary)', minWidth: '40px' }}>살균:</label>
+                    </div>
+                    <div className="report-check-bottom" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                       <input 
                         type="number" 
-                        className="form-control" 
+                        className="form-control inline-input" 
                         value={sterilizationTemp} 
                         onChange={(e) => setSterilizationTemp(e.target.value)}
                         style={{ width: '70px', height: '32px', textAlign: 'center', padding: '4px', fontFamily: 'var(--font-outfit)', fontWeight: 600 }}
@@ -1224,7 +1226,7 @@ const ReportsView = () => {
                       <span>°C 에서</span>
                       <input 
                         type="number" 
-                        className="form-control" 
+                        className="form-control inline-input" 
                         value={sterilizationTime} 
                         onChange={(e) => setSterilizationTime(e.target.value)}
                         style={{ width: '70px', height: '32px', textAlign: 'center', padding: '4px', fontFamily: 'var(--font-outfit)', fontWeight: 600 }}
@@ -1235,19 +1237,21 @@ const ReportsView = () => {
                   </div>
 
                   {/* Cooling */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
-                    <input 
-                      type="checkbox" 
-                      id="chk-cooling" 
-                      checked={checkedCooling} 
-                      onChange={(e) => setCheckedCooling(e.target.checked)}
-                      style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                    />
-                    <label htmlFor="chk-cooling" style={{ fontSize: '0.88rem', fontWeight: 600, cursor: 'pointer', color: 'var(--text-primary)' }}>냉각 설정 온도:</label>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                  <div className="report-check-row" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
+                    <div className="report-check-top" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <input 
+                        type="checkbox" 
+                        id="chk-cooling" 
+                        checked={checkedCooling} 
+                        onChange={(e) => setCheckedCooling(e.target.checked)}
+                        style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                      />
+                      <label htmlFor="chk-cooling" style={{ fontSize: '0.88rem', fontWeight: 600, cursor: 'pointer', color: 'var(--text-primary)' }}>냉각 설정 온도:</label>
+                    </div>
+                    <div className="report-check-bottom" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                       <input 
                         type="number" 
-                        className="form-control" 
+                        className="form-control inline-input" 
                         value={coolingTemp} 
                         onChange={(e) => setCoolingTemp(e.target.value)}
                         style={{ width: '75px', height: '32px', textAlign: 'center', padding: '4px', fontFamily: 'var(--font-outfit)', fontWeight: 600 }}
@@ -1258,19 +1262,21 @@ const ReportsView = () => {
                   </div>
 
                   {/* Inoculation */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
-                    <input 
-                      type="checkbox" 
-                      id="chk-inoculation" 
-                      checked={checkedInoculation} 
-                      onChange={(e) => setCheckedInoculation(e.target.checked)}
-                      style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                    />
-                    <label htmlFor="chk-inoculation" style={{ fontSize: '0.88rem', fontWeight: 600, cursor: 'pointer', color: 'var(--text-primary)' }}>유산균 접종:</label>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                  <div className="report-check-row" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
+                    <div className="report-check-top" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <input 
+                        type="checkbox" 
+                        id="chk-inoculation" 
+                        checked={checkedInoculation} 
+                        onChange={(e) => setCheckedInoculation(e.target.checked)}
+                        style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                      />
+                      <label htmlFor="chk-inoculation" style={{ fontSize: '0.88rem', fontWeight: 600, cursor: 'pointer', color: 'var(--text-primary)' }}>유산균 접종:</label>
+                    </div>
+                    <div className="report-check-bottom" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                       <input 
                         type="number" 
-                        className="form-control" 
+                        className="form-control inline-input" 
                         value={inoculationTemp} 
                         onChange={(e) => setInoculationTemp(e.target.value)}
                         style={{ width: '75px', height: '32px', textAlign: 'center', padding: '4px', fontFamily: 'var(--font-outfit)', fontWeight: 600 }}
@@ -1281,19 +1287,21 @@ const ReportsView = () => {
                   </div>
 
                   {/* Heating */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
-                    <input 
-                      type="checkbox" 
-                      id="chk-heating" 
-                      checked={checkedHeating} 
-                      onChange={(e) => setCheckedHeating(e.target.checked)}
-                      style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                    />
-                    <label htmlFor="chk-heating" style={{ fontSize: '0.88rem', fontWeight: 600, cursor: 'pointer', color: 'var(--text-primary)' }}>가열 설정 온도:</label>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                  <div className="report-check-row" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
+                    <div className="report-check-top" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <input 
+                        type="checkbox" 
+                        id="chk-heating" 
+                        checked={checkedHeating} 
+                        onChange={(e) => setCheckedHeating(e.target.checked)}
+                        style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                      />
+                      <label htmlFor="chk-heating" style={{ fontSize: '0.88rem', fontWeight: 600, cursor: 'pointer', color: 'var(--text-primary)' }}>가열 설정 온도:</label>
+                    </div>
+                    <div className="report-check-bottom" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                       <input 
                         type="number" 
-                        className="form-control" 
+                        className="form-control inline-input" 
                         value={heatingTemp} 
                         onChange={(e) => setHeatingTemp(e.target.value)}
                         style={{ width: '75px', height: '32px', textAlign: 'center', padding: '4px', fontFamily: 'var(--font-outfit)', fontWeight: 600 }}
@@ -1304,19 +1312,21 @@ const ReportsView = () => {
                   </div>
 
                   {/* Heater */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
-                    <input 
-                      type="checkbox" 
-                      id="chk-heater" 
-                      checked={checkedHeater} 
-                      onChange={(e) => setCheckedHeater(e.target.checked)}
-                      style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                    />
-                    <label htmlFor="chk-heater" style={{ fontSize: '0.88rem', fontWeight: 600, cursor: 'pointer', color: 'var(--text-primary)' }}>히터 설정 온도:</label>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                  <div className="report-check-row" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
+                    <div className="report-check-top" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <input 
+                        type="checkbox" 
+                        id="chk-heater" 
+                        checked={checkedHeater} 
+                        onChange={(e) => setCheckedHeater(e.target.checked)}
+                        style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+                      />
+                      <label htmlFor="chk-heater" style={{ fontSize: '0.88rem', fontWeight: 600, cursor: 'pointer', color: 'var(--text-primary)' }}>히터 설정 온도:</label>
+                    </div>
+                    <div className="report-check-bottom" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                       <input 
                         type="number" 
-                        className="form-control" 
+                        className="form-control inline-input" 
                         value={heaterTemp} 
                         onChange={(e) => setHeaterTemp(e.target.value)}
                         style={{ width: '75px', height: '32px', textAlign: 'center', padding: '4px', fontFamily: 'var(--font-outfit)', fontWeight: 600 }}
