@@ -99,6 +99,7 @@ const ReportsView = () => {
     }
 
     const product = baseProduct;
+    if (!product) return null;
 
     // Calculate total base yogurt weight needed for this fermentation batch
     let totalBaseYogurtG = 0;
@@ -552,14 +553,14 @@ const ReportsView = () => {
                 </h4>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px', fontSize: '0.82rem', marginBottom: '12px', color: 'var(--text-secondary)', borderBottom: '1px dashed var(--border-color)', paddingBottom: '10px' }}>
                   <div>
-                    기준 베이스 제품: <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{selectedPlanDetails.product.name}</strong>
+                    기준 베이스 제품: <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{selectedPlanDetails.product?.name || '베이스 제품'}</strong>
                     <span style={{ fontSize: '0.72rem', background: 'rgba(2, 132, 199, 0.1)', color: 'var(--color-primary)', padding: '1px 6px', borderRadius: '4px', marginLeft: '6px', fontWeight: 600 }}>
                       발효 공정 기준
                     </span>
                   </div>
-                  <div>수량: <strong style={{ color: 'var(--text-primary)', fontWeight: 600, fontFamily: 'var(--font-outfit)' }}>{selectedPlanDetails.plan.totalQty.toLocaleString()} 개</strong></div>
-                  <div>필요 베이스 총량: <strong style={{ color: 'var(--text-primary)', fontWeight: 600, fontFamily: 'var(--font-outfit)' }}>{(selectedPlanDetails.totalWeightG / 1000).toFixed(2)} kg</strong></div>
-                  <div>가동 발효기: <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{selectedPlanDetails.plan.fermenterType === 'large' ? '대형 발효기' : '소형 발효기'}</strong></div>
+                  <div>수량: <strong style={{ color: 'var(--text-primary)', fontWeight: 600, fontFamily: 'var(--font-outfit)' }}>{(selectedPlanDetails.plan?.totalQty || 0).toLocaleString()} 개</strong></div>
+                  <div>필요 베이스 총량: <strong style={{ color: 'var(--text-primary)', fontWeight: 600, fontFamily: 'var(--font-outfit)' }}>{((selectedPlanDetails.totalWeightG || 0) / 1000).toFixed(2)} kg</strong></div>
+                  <div>가동 발효기: <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{selectedPlanDetails.plan?.fermenterType === 'large' ? '대형 발효기' : '소형 발효기'}</strong></div>
                 </div>
 
                 <div className="wysh-table-wrapper" style={{ overflowX: 'auto', background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
