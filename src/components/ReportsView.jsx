@@ -153,7 +153,7 @@ const ReportsView = () => {
       totalWeightSumG += neededQtyG;
 
       const isLacticBacteria = ing.name.includes('유산균');
-      const displayG = isLacticBacteria
+      const displayG = neededQtyG <= 10 || isLacticBacteria
         ? Number(neededQtyG.toFixed(1)).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
         : Math.round(neededQtyG).toLocaleString();
 

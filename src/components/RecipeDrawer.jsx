@@ -1,6 +1,13 @@
 import React, { useMemo, useCallback } from 'react';
 import { useWysh } from '../WyshContext';
 
+const formatQtyG = (qtyG, isLacticBacteria = false) => {
+  if (qtyG <= 10 || isLacticBacteria) {
+    return Number(qtyG.toFixed(1)).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  }
+  return Math.round(qtyG).toLocaleString();
+};
+
 const RecipeDrawer = ({ isOpen, onClose, planId }) => {
   const { plans, products } = useWysh();
 
@@ -42,7 +49,7 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
         return {
           name: ing.name,
           ratio: ing.ratio,
-          displayG: Number(qtyG.toFixed(1)).toLocaleString(),
+          displayG: formatQtyG(qtyG, ing.name?.includes('유산균')),
           qtyKg: qtyG / 1000
         };
       });
@@ -53,7 +60,7 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
         return {
           name: ing.name,
           ratio: ing.ratio,
-          displayG: Math.round(qtyG).toLocaleString(),
+          displayG: formatQtyG(qtyG, ing.name?.includes('유산균')),
           qtyKg: qtyG / 1000
         };
       });
@@ -64,7 +71,7 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
         return {
           name: ing.name,
           ratio: ing.ratio,
-          displayG: Math.round(qtyG).toLocaleString(),
+          displayG: formatQtyG(qtyG, ing.name?.includes('유산균')),
           qtyKg: qtyG / 1000
         };
       });
@@ -115,9 +122,7 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
         totalWeightSum += neededQtyG;
 
         const isLacticBacteria = ing.name.includes('유산균');
-        const displayG = isLacticBacteria
-          ? Number(neededQtyG.toFixed(1)).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
-          : Math.round(neededQtyG).toLocaleString();
+        const displayG = formatQtyG(neededQtyG, isLacticBacteria);
 
         return {
           name: ing.name,
@@ -158,9 +163,7 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
           totalWeightSum20 += neededQtyG;
 
           const isLacticBacteria = ing.name.includes('유산균');
-          const displayG = isLacticBacteria
-            ? Number(neededQtyG.toFixed(1)).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
-            : Math.round(neededQtyG).toLocaleString();
+          const displayG = formatQtyG(neededQtyG, isLacticBacteria);
 
           return {
             name: ing.name,
@@ -237,9 +240,7 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
       baseWeightSum += bNeededQtyG;
 
       const isLacticBacteria = bIng.name.includes('유산균');
-      const displayG = isLacticBacteria
-        ? Number(bNeededQtyG.toFixed(1)).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
-        : Math.round(bNeededQtyG).toLocaleString();
+      const displayG = formatQtyG(bNeededQtyG, isLacticBacteria);
 
       return {
         name: bIng.name,
