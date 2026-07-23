@@ -69,6 +69,8 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
         };
       });
 
+      const subIngredientRatioSum = subIngredients.reduce((sum, ing) => sum + (Number(ing.ratio) || 0), 0);
+
       return {
         isSubIngredientPlan: true,
         plan,
@@ -80,6 +82,7 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
         subWeightPer1YogurtG,
         subWeightPer20YogurtG,
         totalSubWeightG,
+        subIngredientRatioSum,
         table1Items,
         table2Items,
         table3Items
@@ -329,6 +332,11 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
                             <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', fontWeight: 600 }}>{ing.displayG} g</td>
                           </tr>
                         ))}
+                        <tr className="total-row">
+                          <td>합계</td>
+                          <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)' }}>{details.subIngredientRatioSum.toFixed(2)}%</td>
+                          <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', fontWeight: 700 }}>{details.subWeightPer1YogurtG.toFixed(1)} g</td>
+                        </tr>
                       </tbody>
                     </table>
                   </div>
@@ -363,6 +371,12 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
                             <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', color: 'var(--text-secondary)', fontStyle: 'italic' }}>({ing.qtyKg.toFixed(2)} kg)</td>
                           </tr>
                         ))}
+                        <tr className="total-row">
+                          <td>합계</td>
+                          <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)' }}>{details.subIngredientRatioSum.toFixed(2)}%</td>
+                          <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', fontWeight: 700 }}>{Math.round(details.subWeightPer20YogurtG).toLocaleString()} g</td>
+                          <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', fontStyle: 'italic' }}>({(details.subWeightPer20YogurtG / 1000).toFixed(2)} kg)</td>
+                        </tr>
                       </tbody>
                     </table>
                   </div>
@@ -397,6 +411,12 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
                             <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', color: 'var(--text-secondary)', fontStyle: 'italic' }}>({ing.qtyKg.toFixed(2)} kg)</td>
                           </tr>
                         ))}
+                        <tr className="total-row">
+                          <td>합계</td>
+                          <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)' }}>{details.subIngredientRatioSum.toFixed(2)}%</td>
+                          <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', fontWeight: 700 }}>{Math.round(details.totalSubWeightG).toLocaleString()} g</td>
+                          <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', fontStyle: 'italic' }}>({(details.totalSubWeightG / 1000).toFixed(2)} kg)</td>
+                        </tr>
                       </tbody>
                     </table>
                   </div>
