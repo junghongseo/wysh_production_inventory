@@ -218,7 +218,7 @@ const CalendarView = ({
   // Right sidebar details calculations for all items
   const selectedPlanDetails = useMemo(() => {
     if (!selectedPlan) return null;
-    const plan = plans.find(p => p.id === selectedPlan.id);
+    const plan = plans.find(p => p.id === selectedPlan.id) || selectedPlan;
     if (!plan) return null;
 
     const planItems = plan.items && Array.isArray(plan.items) && plan.items.length > 0

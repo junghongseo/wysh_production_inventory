@@ -57,6 +57,16 @@ const App = () => {
     }
   }, [products, selectedProduct]);
 
+  // Keep selectedPlan in sync with updated plans list from WyshContext
+  React.useEffect(() => {
+    if (selectedPlan) {
+      const updated = plans.find(p => p.id === selectedPlan.id);
+      if (updated && JSON.stringify(updated) !== JSON.stringify(selectedPlan)) {
+        setSelectedPlan(updated);
+      }
+    }
+  }, [plans, selectedPlan]);
+
   // Modal open states
   const [planModal, setPlanModal] = useState({ 
     isOpen: false, 

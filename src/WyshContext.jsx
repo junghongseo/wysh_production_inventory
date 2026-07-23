@@ -73,19 +73,39 @@ export const WyshProvider = ({ children }) => {
 
       const mergedProducts = Array.from(mergedProductsMap.values());
 
-      // Merge local plans with remote plans
+      // Merge local plans with remote plans and ensure no ID collisions
       const localPlans = localInitial.plans || [];
-      const mergedPlansMap = new Map();
-      mappedPlans.forEach(p => mergedPlansMap.set(p.id, p));
-
+      const allRawPlans = [...mappedPlans];
       localPlans.forEach(lp => {
-        if (!mergedPlansMap.has(lp.id)) {
-          mergedPlansMap.set(lp.id, lp);
-          pushPlanToSupabase(lp);
+        if (!allRawPlans.some(p => p.id === lp.id)) {
+          allRawPlans.push(lp);
         }
       });
 
-      const mergedPlans = Array.from(mergedPlansMap.values());
+      const seenPlanIds = new Set();
+      const mergedPlans = [];
+      allRawPlans.forEach(p => {
+        if (!seenPlanIds.has(p.id)) {
+          seenPlanIds.add(p.id);
+          mergedPlans.push(p);
+        } else {
+          // Re-assign unique ID if collision detected
+          const isSub = p.planType === 'sub_ingredient';
+          const dateStr = p.startDate ? p.startDate.replace(/-/g, '') : '20260101';
+          const prefix = isSub ? 'P-SUB' : 'P';
+          const idPrefix = `${prefix}-${dateStr}-`;
+          let seq = 1;
+          let newId = `${idPrefix}${String(seq).padStart(2, '0')}`;
+          while (seenPlanIds.has(newId) || allRawPlans.some(rp => rp.id === newId)) {
+            seq++;
+            newId = `${idPrefix}${String(seq).padStart(2, '0')}`;
+          }
+          seenPlanIds.add(newId);
+          const fixedPlan = { ...p, id: newId };
+          mergedPlans.push(fixedPlan);
+          pushPlanToSupabase(fixedPlan);
+        }
+      });
 
       // Save merged datasets to local storage and react state
       saveStorageItems('PRODUCTS', mergedProducts);
@@ -180,12 +200,31 @@ export const WyshProvider = ({ children }) => {
   const addPlan = useCallback((planData) => {
     const isSubIngredient = planData.planType === 'sub_ingredient';
     const dateStr = planData.startDate ? planData.startDate.replace(/-/g, '') : '20260101';
-    const sameDayCount = plans.filter(p => p.startDate === planData.startDate).length;
     const prefix = isSubIngredient ? 'P-SUB' : 'P';
+    const idPrefix = `${prefix}-${dateStr}-`;
+
+    let maxSeq = 0;
+    plans.forEach(p => {
+      if (p.id && p.id.startsWith(idPrefix)) {
+        const seqStr = p.id.substring(idPrefix.length);
+        const seqNum = parseInt(seqStr, 10);
+        if (!isNaN(seqNum) && seqNum > maxSeq) {
+          maxSeq = seqNum;
+        }
+      }
+    });
+
+    let seq = maxSeq + 1;
+    let newId = `${idPrefix}${String(seq).padStart(2, '0')}`;
+    while (plans.some(p => p.id === newId)) {
+      seq++;
+      newId = `${idPrefix}${String(seq).padStart(2, '0')}`;
+    }
+
     const newPlan = {
       ...planData,
       planType: planData.planType || 'yogurt',
-      id: `${prefix}-${dateStr}-${String(sameDayCount + 1).padStart(2, '0')}`
+      id: newId
     };
 
     setPlans(prev => {
