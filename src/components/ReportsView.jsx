@@ -683,15 +683,6 @@ const ReportsView = () => {
           >
             🍾 병입 (준비 중)
           </button>
-
-          <button 
-            className="btn-secondary" 
-            disabled 
-            style={{ flex: 1, justifyBox: 'center', padding: '12px', borderRadius: '10px', opacity: 0.6, cursor: 'not-allowed', fontSize: '0.92rem', fontWeight: 600 }}
-            title="포장 리포트는 추후 지원 예정입니다."
-          >
-            📦 포장 (준비 중)
-          </button>
         </div>
       </div>
 

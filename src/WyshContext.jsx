@@ -340,7 +340,7 @@ export const WyshProvider = ({ children }) => {
     });
   }, []);
 
-  const addOutflow = useCallback((planId, qty, purpose, customDateString, memo, productId = null) => {
+  const addOutflow = useCallback((planId, qty, purpose, customDateString, memo, productId = null, signer = '', verified = true) => {
     let dateString = customDateString;
     if (!dateString) {
       const date = new Date();
@@ -353,7 +353,9 @@ export const WyshProvider = ({ children }) => {
       date: dateString,
       qty: qty,
       purpose: purpose,
-      memo: memo || ''
+      memo: memo || '',
+      signer: signer || '',
+      verified: verified !== undefined ? verified : true
     };
 
     setInventory(prev => {
@@ -430,7 +432,7 @@ export const WyshProvider = ({ children }) => {
     });
   }, []);
 
-  const updateOutflow = useCallback((planId, historyId, qty, purpose, dateString, memo) => {
+  const updateOutflow = useCallback((planId, historyId, qty, purpose, dateString, memo, signer, verified) => {
     setInventory(prev => {
       let updatedRecord = null;
       const updatedInventory = prev.map(i => {
@@ -439,9 +441,39 @@ export const WyshProvider = ({ children }) => {
             ...i,
             history: i.history.map(h => 
               h.id === historyId 
-                ? { ...h, qty, purpose, date: dateString, memo: memo || '' } 
+                ? { 
+                    ...h, 
+                    qty, 
+                    purpose, 
+                    date: dateString, 
+                    memo: memo || '',
+                    signer: signer !== undefined ? signer : (h.signer || ''),
+                    verified: verified !== undefined ? verified : (h.verified !== undefined ? h.verified : true)
+                  } 
                 : h
             )
+          };
+          return updatedRecord;
+        }
+        return i;
+      });
+
+      saveStorageItems('INVENTORY', updatedInventory);
+      if (updatedRecord) {
+        pushInventoryToSupabase(updatedRecord);
+      }
+      return updatedInventory;
+    });
+  }, []);
+
+  const verifyOutflow = useCallback((planId, historyId) => {
+    setInventory(prev => {
+      let updatedRecord = null;
+      const updatedInventory = prev.map(i => {
+        if (i.planId === planId) {
+          updatedRecord = {
+            ...i,
+            history: i.history.map(h => h.id === historyId ? { ...h, verified: true } : h)
           };
           return updatedRecord;
         }
@@ -570,6 +602,7 @@ export const WyshProvider = ({ children }) => {
     updateActualQty,
     addOutflow,
     updateOutflow,
+    verifyOutflow,
     deleteHistoryItem,
     updateOutflowMemo,
     getInventoryRecord,
@@ -601,6 +634,7 @@ export const WyshProvider = ({ children }) => {
     updateActualQty,
     addOutflow,
     updateOutflow,
+    verifyOutflow,
     deleteHistoryItem,
     updateOutflowMemo,
     getInventoryRecord,

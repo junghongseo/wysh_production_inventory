@@ -2,12 +2,13 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { useWysh } from '../WyshContext';
 
 const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal, isAdminLoggedIn }) => {
-  const { plans, products, inventory, addOutflow, updateOutflow, getInventoryRecord } = useWysh();
+  const { plans, products, inventory, addOutflow, updateOutflow, verifyOutflow, getInventoryRecord } = useWysh();
 
   const [outflowPlanId, setOutflowPlanId] = useState('');
   const [outflowQty, setOutflowQty] = useState('');
   const [outflowPurpose, setOutflowPurpose] = useState('');
   const [outflowDate, setOutflowDate] = useState('');
+  const [outflowSigner, setOutflowSigner] = useState('');
   const [outflowMemo, setOutflowMemo] = useState('');
   const [selectedInventoryPlanId, setSelectedInventoryPlanId] = useState(null);
   const [editingHistoryId, setEditingHistoryId] = useState(null);
@@ -18,6 +19,10 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal,
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
+
+  // History Pagination
+  const [historyPage, setHistoryPage] = useState(1);
+  const historyItemsPerPage = 10;
 
   // Local-time safe today string
   const todayStr = useMemo(() => {
@@ -41,6 +46,11 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal,
   React.useEffect(() => {
     setCurrentPage(1);
   }, [statusFilter, monthFilter, searchTerm]);
+
+  // Reset history page when plan selection changes
+  React.useEffect(() => {
+    setHistoryPage(1);
+  }, [selectedInventoryPlanId]);
 
   // Set default outflow date to todayStr
   React.useEffect(() => {
@@ -194,6 +204,13 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal,
     return historyList.sort((a, b) => new Date(b.date.replace(/-/g, '/')) - new Date(a.date.replace(/-/g, '/')));
   }, [inventory, plans, products, selectedInventoryPlanId]);
 
+  // History Pagination Slice
+  const totalHistoryPages = Math.ceil(outflowHistory.length / historyItemsPerPage);
+  const paginatedOutflowHistory = useMemo(() => {
+    const startIdx = (historyPage - 1) * historyItemsPerPage;
+    return outflowHistory.slice(startIdx, startIdx + historyItemsPerPage);
+  }, [outflowHistory, historyPage, historyItemsPerPage]);
+
   // Handle start/cancel edit outflow
   const handleStartEdit = useCallback((item) => {
     setEditingHistoryId(item.id);
@@ -202,6 +219,7 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal,
     setOutflowDate((item.date || '').split(' ')[0]);
     setOutflowQty(item.qty.toString());
     setOutflowPurpose(item.purpose);
+    setOutflowSigner(item.signer || '');
     setOutflowMemo(item.memo || '');
   }, []);
 
@@ -210,6 +228,7 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal,
     setOutflowPlanId('');
     setOutflowQty('');
     setOutflowPurpose('');
+    setOutflowSigner('');
     setOutflowMemo('');
     setOutflowDate(todayStr);
   }, [todayStr]);
@@ -234,6 +253,10 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal,
     }
     if (!outflowDate) {
       alert('출고 일자를 선택하세요.');
+      return;
+    }
+    if (!outflowSigner.trim()) {
+      alert('작성자 서명(이름)을 입력해 주세요.');
       return;
     }
 
@@ -270,18 +293,21 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal,
     const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
     const finalDateStr = `${outflowDate} ${timeStr}`;
 
+    const isVerified = isAdminLoggedIn;
+
     if (editingHistoryId) {
-      updateOutflow(targetPlanId, editingHistoryId, qty, outflowPurpose.trim(), finalDateStr, outflowMemo.trim());
+      updateOutflow(targetPlanId, editingHistoryId, qty, outflowPurpose.trim(), finalDateStr, outflowMemo.trim(), outflowSigner.trim(), isVerified);
       handleCancelEdit();
     } else {
-      addOutflow(targetPlanId, qty, outflowPurpose.trim(), finalDateStr, outflowMemo.trim(), targetProdId);
+      addOutflow(targetPlanId, qty, outflowPurpose.trim(), finalDateStr, outflowMemo.trim(), targetProdId, outflowSigner.trim(), isVerified);
       // Reset inputs
       setOutflowQty('');
       setOutflowPurpose('');
+      setOutflowSigner('');
       setOutflowMemo('');
       setOutflowDate(todayStr);
     }
-  }, [outflowPlanId, outflowQty, outflowPurpose, outflowDate, outflowMemo, todayStr, editingHistoryId, getInventoryRecord, updateOutflow, addOutflow, handleCancelEdit, allInventoryData]);
+  }, [outflowPlanId, outflowQty, outflowPurpose, outflowDate, outflowSigner, outflowMemo, todayStr, editingHistoryId, getInventoryRecord, updateOutflow, addOutflow, handleCancelEdit, allInventoryData, isAdminLoggedIn]);
 
   return (
     <div className="inventory-layout">
@@ -442,31 +468,7 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal,
               </button>
             )}
           </div>
-          {!isAdminLoggedIn && (
-            <div style={{
-              background: 'rgba(14, 165, 233, 0.08)',
-              border: '1px solid rgba(14, 165, 233, 0.2)',
-              borderRadius: '8px',
-              padding: '12px',
-              marginBottom: '16px',
-              fontSize: '0.82rem',
-              color: 'var(--color-primary)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              fontWeight: 500,
-              lineHeight: '1.4'
-            }}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                <circle cx="12" cy="12" r="10"></circle>
-                <line x1="12" y1="16" x2="12" y2="12"></line>
-                <line x1="12" y1="8" x2="12.01" y2="8"></line>
-              </svg>
-              <span style={{ flex: 1 }}>
-                읽기 전용 상태입니다. 출고 정보 등록 및 수정은 관리자 로그인 후 사용하실 수 있습니다.
-              </span>
-            </div>
-          )}
+
           <form id="outflow-form" onSubmit={handleOutflowSubmit}>
             <div className="form-group">
               <label htmlFor="outflow-plan-select">출고 차수 선택</label>
@@ -475,7 +477,7 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal,
                 id="outflow-plan-select" 
                 value={outflowPlanId}
                 onChange={(e) => setOutflowPlanId(e.target.value)}
-                disabled={!isAdminLoggedIn || !!editingHistoryId}
+                disabled={!!editingHistoryId}
                 required
               >
                 <option value="" disabled>출고할 생산 차수를 선택하세요</option>
@@ -499,13 +501,12 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal,
               <div className="form-group">
                 <label htmlFor="outflow-date">출고 일자</label>
                 <input 
-                  type={isAdminLoggedIn ? "date" : "text"} 
+                  type="date" 
                   className="form-control" 
                   id="outflow-date" 
                   value={outflowDate}
                   onChange={(e) => setOutflowDate(e.target.value)}
                   required 
-                  disabled={!isAdminLoggedIn}
                 />
               </div>
               <div className="form-group">
@@ -519,7 +520,6 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal,
                   value={outflowQty}
                   onChange={(e) => setOutflowQty(e.target.value)}
                   required 
-                  disabled={!isAdminLoggedIn}
                 />
               </div>
               <div className="form-group">
@@ -532,34 +532,44 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal,
                   value={outflowPurpose}
                   onChange={(e) => setOutflowPurpose(e.target.value)}
                   required 
-                  disabled={!isAdminLoggedIn}
                 />
               </div>
             </div>
-            <div className="form-group" style={{ marginBottom: '16px' }}>
-              <label htmlFor="outflow-memo">메모 (선택사항)</label>
-              <input 
-                type="text" 
-                className="form-control" 
-                id="outflow-memo" 
-                placeholder="출고와 관련된 세부 특이사항 메모를 입력하세요 (선택)" 
-                value={outflowMemo}
-                onChange={(e) => setOutflowMemo(e.target.value)}
-                disabled={!isAdminLoggedIn}
-              />
+            <div className="form-group-grid outflow-form-grid" style={{ marginTop: '12px' }}>
+              <div className="form-group">
+                <label htmlFor="outflow-signer">작성자 서명 / 이름 (필수)</label>
+                <input 
+                  type="text" 
+                  className="form-control" 
+                  id="outflow-signer" 
+                  placeholder="작성자 성함 입력" 
+                  value={outflowSigner}
+                  onChange={(e) => setOutflowSigner(e.target.value)}
+                  required 
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="outflow-memo">메모 (선택사항)</label>
+                <input 
+                  type="text" 
+                  className="form-control" 
+                  id="outflow-memo" 
+                  placeholder="출고 세부 메모 (선택)" 
+                  value={outflowMemo}
+                  onChange={(e) => setOutflowMemo(e.target.value)}
+                />
+              </div>
             </div>
-            {isAdminLoggedIn && (
-              <button type="submit" className={editingHistoryId ? "btn-primary" : "btn-success"} style={{ width: '100%', justifyContent: 'center', marginTop: '8px' }}>
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  {editingHistoryId ? (
-                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
-                  ) : (
-                    <polyline points="20 6 9 17 4 12"></polyline>
-                  )}
-                </svg>
-                {editingHistoryId ? '출고 내역 수정완료' : '출고 내역 반영하기'}
-              </button>
-            )}
+            <button type="submit" className={editingHistoryId ? "btn-primary" : "btn-success"} style={{ width: '100%', justifyContent: 'center', marginTop: '12px' }}>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                {editingHistoryId ? (
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                ) : (
+                  <polyline points="20 6 9 17 4 12"></polyline>
+                )}
+              </svg>
+              {editingHistoryId ? '출고 내역 수정완료' : '출고 내역 반영하기'}
+            </button>
           </form>
         </div>
 
@@ -582,66 +592,134 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal,
               )}
             </div>
           </div>
-          <div className="history-timeline" id="inventory-history-timeline">
-            {outflowHistory.length === 0 ? (
+          <div className="history-timeline" id="inventory-history-timeline" style={{ flexGrow: 1 }}>
+            {paginatedOutflowHistory.length === 0 ? (
               <div className="empty-state" style={{ padding: '20px' }}>
                 <p>출고 내역이 없습니다. 양식을 작성하여 반영해 보세요.</p>
               </div>
             ) : (
-              outflowHistory.map(item => (
-                <div 
-                  key={item.id} 
-                  className="timeline-item"
-                  style={{
-                    cursor: isAdminLoggedIn ? 'pointer' : 'default',
-                    borderColor: editingHistoryId === item.id ? 'var(--color-primary)' : 'var(--border-color)',
-                    background: editingHistoryId === item.id ? 'rgba(2, 132, 199, 0.05)' : 'var(--bg-secondary)',
-                    transition: 'var(--transition-smooth)'
-                  }}
-                  onClick={isAdminLoggedIn ? () => handleStartEdit(item) : undefined}
-                >
-                  <div className="timeline-item-meta">
-                    <span className="date">{(item.date || '').split(' ')[0]}</span>
-                    <span className="purpose">
-                      <strong style={{ color: 'var(--color-primary)' }}>{item.planId}</strong>{' '}
-                      ({item.purpose}) - {item.planName}
-                    </span>
+              paginatedOutflowHistory.map(item => {
+                const isUnverified = item.verified === false;
+                return (
+                  <div 
+                    key={item.id} 
+                    className="timeline-item"
+                    style={{
+                      cursor: 'pointer',
+                      borderColor: editingHistoryId === item.id 
+                        ? 'var(--color-primary)' 
+                        : isUnverified 
+                        ? 'rgba(245, 158, 11, 0.4)' 
+                        : 'var(--border-color)',
+                      background: editingHistoryId === item.id 
+                        ? 'rgba(2, 132, 199, 0.05)' 
+                        : isUnverified 
+                        ? 'rgba(245, 158, 11, 0.08)' 
+                        : 'var(--bg-secondary)',
+                      transition: 'var(--transition-smooth)',
+                      padding: '10px 12px'
+                    }}
+                    onClick={() => handleStartEdit(item)}
+                  >
+                    <div className="timeline-item-meta" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span className="date">{(item.date || '').split(' ')[0]}</span>
+                        {isUnverified ? (
+                          <span style={{ background: '#f59e0b', color: '#fff', fontSize: '0.72rem', padding: '1px 6px', borderRadius: '4px', fontWeight: 700 }}>
+                            ⚠️ 미확인
+                          </span>
+                        ) : (
+                          <span style={{ color: 'var(--color-success)', fontSize: '0.72rem', fontWeight: 600 }}>
+                            ✅ 확인완료
+                          </span>
+                        )}
+                        {isAdminLoggedIn && isUnverified && (
+                          <button
+                            type="button"
+                            className="btn-success"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              verifyOutflow(item.planId, item.id);
+                            }}
+                            style={{ padding: '2px 8px', fontSize: '0.72rem', borderRadius: '4px', fontWeight: 700, background: '#10b981', border: 'none' }}
+                          >
+                            ✔️ 확인
+                          </button>
+                        )}
+                      </div>
+                      <span className="purpose" style={{ fontSize: '0.86rem' }}>
+                        <strong style={{ color: 'var(--color-primary)' }}>{item.planId}</strong>{' '}
+                        ({item.purpose}) - {item.planName}
+                      </span>
+                      <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'flex', gap: '8px', alignItems: 'center', marginTop: '2px' }}>
+                        <span>🖋️ 서명: <strong>{item.signer || '미입력'}</strong></span>
+                      </div>
+                    </div>
+                    <div className="timeline-item-values" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {item.memo && (
+                        <button 
+                          type="button" 
+                          title="출고 메모 확인/수정" 
+                          onClick={(e) => { e.stopPropagation(); onOpenMemoModal(item.planId, item.id, item.memo); }}
+                          style={{ background: 'transparent', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                            <line x1="16" y1="13" x2="8" y2="13"></line>
+                            <line x1="16" y1="17" x2="8" y2="17"></line>
+                            <polyline points="10 9 9 9 8 9"></polyline>
+                          </svg>
+                        </button>
+                      )}
+                      <span className="qty" style={{ fontWeight: 700 }}>-{item.qty}개</span>
+                      {isAdminLoggedIn && (
+                        <button 
+                          className="btn-delete-tiny" 
+                          title="출고 취소"
+                          onClick={(e) => { e.stopPropagation(); onDeleteHistory(item.planId, item.id); }}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                          </svg>
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <div className="timeline-item-values" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    {item.memo && (
-                      <button 
-                        type="button" 
-                        title={isAdminLoggedIn ? "출고 메모 확인/수정" : "출고 메모 확인"} 
-                        onClick={(e) => { e.stopPropagation(); onOpenMemoModal(item.planId, item.id, item.memo); }}
-                        style={{ background: 'transparent', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                          <polyline points="14 2 14 8 20 8"></polyline>
-                          <line x1="16" y1="13" x2="8" y2="13"></line>
-                          <line x1="16" y1="17" x2="8" y2="17"></line>
-                          <polyline points="10 9 9 9 8 9"></polyline>
-                        </svg>
-                      </button>
-                    )}
-                    <span className="qty">-{item.qty}개</span>
-                    {isAdminLoggedIn && (
-                      <button 
-                        className="btn-delete-tiny" 
-                        title="출고 취소"
-                        onClick={(e) => { e.stopPropagation(); onDeleteHistory(item.planId, item.id); }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <line x1="18" y1="6" x2="6" y2="18"></line>
-                          <line x1="6" y1="6" x2="18" y2="18"></line>
-                        </svg>
-                      </button>
-                    )}
-                  </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
+
+          {/* Outflow History Pagination */}
+          {totalHistoryPages > 1 && (
+            <div className="pagination-wrapper" style={{ marginTop: '16px' }}>
+              <button 
+                className="pagination-btn" 
+                disabled={historyPage === 1}
+                onClick={() => setHistoryPage(prev => Math.max(prev - 1, 1))}
+              >
+                이전
+              </button>
+              {Array.from({ length: totalHistoryPages }, (_, i) => i + 1).map(pageNum => (
+                 <button 
+                   key={pageNum}
+                   className={`pagination-btn ${historyPage === pageNum ? 'active' : ''}`}
+                   onClick={() => setHistoryPage(pageNum)}
+                 >
+                   {pageNum}
+                 </button>
+              ))}
+              <button 
+                className="pagination-btn" 
+                disabled={historyPage === totalHistoryPages}
+                onClick={() => setHistoryPage(prev => Math.min(prev + 1, totalHistoryPages))}
+              >
+                다음
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
