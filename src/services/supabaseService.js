@@ -55,9 +55,8 @@ export const fetchAllRemoteData = async () => {
   console.log("Supabase Fetch: Successfully pulled data from Cloud DB.");
 
   const mappedProducts = remoteProducts.map(p => {
-    const isSubIngredientVal = p.is_sub_ingredient !== undefined && p.is_sub_ingredient !== null
-      ? p.is_sub_ingredient
-      : (p.category === 'sub_ingredient' || (p.name && (p.name.includes('페이스트') || p.name.includes('부재료') || p.name.includes('라즈베리(수율'))));
+    const isSubIngredientVal = p.category === 'sub_ingredient' || p.is_sub_ingredient === true
+      || (p.name && (p.name.includes('페이스트') || p.name.includes('부재료') || p.name.includes('라즈베리(수율')));
 
     const isFlavorVal = !isSubIngredientVal && (p.is_flavor !== undefined && p.is_flavor !== null 
       ? p.is_flavor 
@@ -161,7 +160,6 @@ export const pushProductToSupabase = async (product) => {
       ingredients: product.ingredients,
       category: product.category,
       is_flavor: product.isFlavor,
-      is_sub_ingredient: product.isSubIngredient,
       base_product_id: product.baseProductId,
       shipping_limit_days: product.shippingLimitDays,
       expiry_days: product.expiryDays,

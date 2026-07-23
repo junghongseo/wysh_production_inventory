@@ -55,15 +55,47 @@ export const WyshProvider = ({ children }) => {
         mappedReports
       } = await fetchAllRemoteData();
 
-      // Overwrite local storage and react state
-      saveStorageItems('PRODUCTS', mappedProducts);
-      saveStorageItems('PLANS', mappedPlans);
+      // Merge local storage products with remote products so newly added items are never lost on refresh
+      const localInitial = loadInitialLocalStorageData();
+      const localProducts = localInitial.products || [];
+
+      const mergedProductsMap = new Map();
+      mappedProducts.forEach(p => mergedProductsMap.set(p.id, p));
+
+      localProducts.forEach(lp => {
+        const existsById = mergedProductsMap.has(lp.id);
+        const existsByName = Array.from(mergedProductsMap.values()).some(p => p.name === lp.name);
+        if (!existsById && !existsByName) {
+          mergedProductsMap.set(lp.id, lp);
+          pushProductToSupabase(lp);
+        }
+      });
+
+      const mergedProducts = Array.from(mergedProductsMap.values());
+
+      // Merge local plans with remote plans
+      const localPlans = localInitial.plans || [];
+      const mergedPlansMap = new Map();
+      mappedPlans.forEach(p => mergedPlansMap.set(p.id, p));
+
+      localPlans.forEach(lp => {
+        if (!mergedPlansMap.has(lp.id)) {
+          mergedPlansMap.set(lp.id, lp);
+          pushPlanToSupabase(lp);
+        }
+      });
+
+      const mergedPlans = Array.from(mergedPlansMap.values());
+
+      // Save merged datasets to local storage and react state
+      saveStorageItems('PRODUCTS', mergedProducts);
+      saveStorageItems('PLANS', mergedPlans);
       saveStorageItems('INVENTORY', mappedInventory);
       saveStorageItems('CALENDAR_NOTES', mappedCalendarNotes);
       saveStorageItems('REPORTS', mappedReports);
 
-      setProducts(mappedProducts);
-      setPlans(mappedPlans);
+      setProducts(mergedProducts);
+      setPlans(mergedPlans);
       setInventory(mappedInventory);
       setCalendarNotes(mappedCalendarNotes);
       setReports(mappedReports);
