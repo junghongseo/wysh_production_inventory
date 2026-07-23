@@ -79,24 +79,6 @@ export const DEFAULT_PRODUCTS = [
     defaultHeaterTemp: 44
   },
   {
-    id: 'prod-4',
-    name: '(미출시) 페레로로쉐',
-    category: 'flavor',
-    isFlavor: true,
-    isSubIngredient: false,
-    baseProductId: 'prod-1',
-    weight: 130,
-    yield: 100,
-    color: 'yellow',
-    shippingLimitDays: 7,
-    expiryDays: 22,
-    ingredients: [
-      { name: '위시그릭 019', ratio: 70 },
-      { name: '아몬드초코페이스트(페레로로쉐 용)', ratio: 25, subProductId: 'prod-sub-1' },
-      { name: '헤이즐넛', ratio: 5 }
-    ]
-  },
-  {
     id: 'prod-5',
     name: '(미출시) 위시크림 라즈베리치즈케이크',
     category: 'flavor',
@@ -115,21 +97,6 @@ export const DEFAULT_PRODUCTS = [
     ]
   },
   // Sub-ingredients
-  {
-    id: 'prod-sub-1',
-    name: '아몬드초코페이스트(페레로로쉐 용)',
-    category: 'sub_ingredient',
-    isFlavor: false,
-    isSubIngredient: true,
-    baseProductId: null,
-    weight: 0,
-    yield: 100,
-    color: 'orange',
-    ingredients: [
-      { name: '아몬드 페이스트', ratio: 60 },
-      { name: '다크 초콜릿', ratio: 40 }
-    ]
-  },
   {
     id: 'prod-sub-2',
     name: '아몬드초코페이스트(블랙카카오밀키웨이 용)',
@@ -223,15 +190,6 @@ export const loadInitialLocalStorageData = () => {
   if (!localProducts) {
     localProducts = DEFAULT_PRODUCTS;
     localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(DEFAULT_PRODUCTS));
-  } else {
-    // Ensure default sub-ingredients exist in localProducts if missing
-    DEFAULT_PRODUCTS.forEach(defP => {
-      const existing = localProducts.find(p => p.id === defP.id || p.name === defP.name);
-      if (!existing) {
-        localProducts.push(defP);
-      }
-    });
-    localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(localProducts));
   }
 
   // Backward compatibility check for products
