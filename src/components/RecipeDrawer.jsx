@@ -128,6 +128,7 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
       });
 
       let baseYogurtNeededG = 0;
+      let details20Qty = null;
       if (product.isFlavor) {
         let baseIng = null;
         if (product.baseProductId) {
@@ -141,6 +142,42 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
         }
         const baseRatio = baseIng ? baseIng.ratio : 70;
         baseYogurtNeededG = itemInputWeightG * (baseRatio / 100);
+
+        // 20-unit calculation for Flavor Yogurt
+        const weight20G = 20 * product.weight;
+        const inputWeight20G = weight20G / (product.yield / 100);
+
+        let totalRatioSum20 = 0;
+        let totalWeightSum20 = 0;
+
+        const computedIngredients20 = (product.ingredients || []).map(ing => {
+          const neededQtyG = inputWeight20G * (ing.ratio / 100);
+          const neededQtyKg = neededQtyG / 1000;
+
+          totalRatioSum20 += ing.ratio;
+          totalWeightSum20 += neededQtyG;
+
+          const isLacticBacteria = ing.name.includes('유산균');
+          const displayG = isLacticBacteria
+            ? Number(neededQtyG.toFixed(1)).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+            : Math.round(neededQtyG).toLocaleString();
+
+          return {
+            name: ing.name,
+            ratio: ing.ratio,
+            displayG,
+            neededQtyKg
+          };
+        });
+
+        details20Qty = {
+          qty: 20,
+          totalWeightG: weight20G,
+          inputWeightG: inputWeight20G,
+          computedIngredients: computedIngredients20,
+          totalRatioSum: totalRatioSum20,
+          totalWeightSum: totalWeightSum20
+        };
       } else {
         baseYogurtNeededG = itemTotalWeightG;
       }
@@ -157,7 +194,8 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
         computedIngredients,
         totalRatioSum,
         totalWeightSum,
-        baseYogurtNeededG
+        baseYogurtNeededG,
+        details20Qty
       };
     }).filter(Boolean);
 
@@ -496,7 +534,7 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
                         <span style={{ background: 'var(--color-primary)', color: '#fff', fontSize: '0.7rem', padding: '1px 6px', borderRadius: '10px' }}>
                           품목 {itDetail.itemIndex}
                         </span>
-                        {itDetail.product.name} 필요 배합표
+                        {itDetail.product.name} 필요 배합표 ({itDetail.itemTotalQty.toLocaleString()}개 전체 수량 기준)
                       </h4>
                       <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontFamily: 'var(--font-outfit)' }}>
                         수량: {itDetail.itemTotalQty.toLocaleString()} 개 | 수율: {itDetail.product.yield}%
@@ -531,6 +569,48 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
                         </tbody>
                       </table>
                     </div>
+
+                    {/* 20-Unit Flavor Recipe Table */}
+                    {itDetail.details20Qty && (
+                      <div style={{ marginTop: '16px', background: 'rgba(2, 132, 199, 0.04)', padding: '14px', borderRadius: '10px', border: '1px solid rgba(2, 132, 199, 0.2)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                          <h5 style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--color-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            🧪 {itDetail.product.name} (20개 기준 필요 배합표)
+                          </h5>
+                          <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontFamily: 'var(--font-outfit)' }}>
+                            20개 생산 기준 소요 원재료
+                          </span>
+                        </div>
+                        <div className="wysh-table-wrapper">
+                          <table className="wysh-table">
+                            <thead>
+                              <tr>
+                                <th>원재료명</th>
+                                <th style={{ textAlign: 'right' }}>함량(%)</th>
+                                <th style={{ textAlign: 'right' }}>필요량(g)</th>
+                                <th style={{ textAlign: 'right' }}>참고량(kg)</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {itDetail.details20Qty.computedIngredients.map((ing, ingIdx) => (
+                                <tr key={ingIdx}>
+                                  <td style={{ fontWeight: 500 }}>{ing.name}</td>
+                                  <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)' }}>{ing.ratio}%</td>
+                                  <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', fontWeight: 600 }}>{ing.displayG} g</td>
+                                  <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', color: 'var(--text-secondary)', fontStyle: 'italic' }}>({ing.neededQtyKg.toFixed(2)} kg)</td>
+                                </tr>
+                              ))}
+                              <tr className="total-row">
+                                <td>합계</td>
+                                <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)' }}>{itDetail.details20Qty.totalRatioSum.toFixed(2)}%</td>
+                                <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)' }}>{Math.round(itDetail.details20Qty.totalWeightSum).toLocaleString()} g</td>
+                                <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', fontStyle: 'italic' }}>({(itDetail.details20Qty.totalWeightSum / 1000).toFixed(2)} kg)</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
 
