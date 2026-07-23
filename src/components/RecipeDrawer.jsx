@@ -1,8 +1,8 @@
 import React, { useMemo, useCallback } from 'react';
 import { useWysh } from '../WyshContext';
 
-const formatQtyG = (qtyG, isLacticBacteria = false) => {
-  if (qtyG <= 10 || isLacticBacteria) {
+const formatQtyG = (qtyG, ratio = 0, isLacticBacteria = false) => {
+  if (ratio <= 1 || isLacticBacteria) {
     return Number(qtyG.toFixed(1)).toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
   }
   return Math.round(qtyG).toLocaleString();
@@ -49,7 +49,7 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
         return {
           name: ing.name,
           ratio: ing.ratio,
-          displayG: formatQtyG(qtyG, ing.name?.includes('유산균')),
+          displayG: formatQtyG(qtyG, ing.ratio, ing.name?.includes('유산균')),
           qtyKg: qtyG / 1000
         };
       });
@@ -60,7 +60,7 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
         return {
           name: ing.name,
           ratio: ing.ratio,
-          displayG: formatQtyG(qtyG, ing.name?.includes('유산균')),
+          displayG: formatQtyG(qtyG, ing.ratio, ing.name?.includes('유산균')),
           qtyKg: qtyG / 1000
         };
       });
@@ -71,7 +71,7 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
         return {
           name: ing.name,
           ratio: ing.ratio,
-          displayG: formatQtyG(qtyG, ing.name?.includes('유산균')),
+          displayG: formatQtyG(qtyG, ing.ratio, ing.name?.includes('유산균')),
           qtyKg: qtyG / 1000
         };
       });
@@ -122,7 +122,7 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
         totalWeightSum += neededQtyG;
 
         const isLacticBacteria = ing.name.includes('유산균');
-        const displayG = formatQtyG(neededQtyG, isLacticBacteria);
+        const displayG = formatQtyG(neededQtyG, ing.ratio, isLacticBacteria);
 
         return {
           name: ing.name,
@@ -163,7 +163,7 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
           totalWeightSum20 += neededQtyG;
 
           const isLacticBacteria = ing.name.includes('유산균');
-          const displayG = formatQtyG(neededQtyG, isLacticBacteria);
+          const displayG = formatQtyG(neededQtyG, ing.ratio, isLacticBacteria);
 
           return {
             name: ing.name,
@@ -240,7 +240,7 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
       baseWeightSum += bNeededQtyG;
 
       const isLacticBacteria = bIng.name.includes('유산균');
-      const displayG = formatQtyG(bNeededQtyG, isLacticBacteria);
+      const displayG = formatQtyG(bNeededQtyG, bIng.ratio, isLacticBacteria);
 
       return {
         name: bIng.name,
