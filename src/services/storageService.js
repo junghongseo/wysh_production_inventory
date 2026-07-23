@@ -72,56 +72,9 @@ export const DEFAULT_PRODUCTS = [
   }
 ];
 
-export const DEFAULT_PLANS = [
-  {
-    id: 'P-20260708-01',
-    name: '7월 1주차 플레인 생산',
-    planType: 'yogurt',
-    productId: 'prod-1',
-    startDate: '2026-07-08',
-    bottlingDate: '2026-07-10',
-    shippingLimit: '2026-07-17',
-    expiryDate: '2026-07-29',
-    expectedOrderQty: 700,
-    marketingQty: 50,
-    bufferQty: 50,
-    totalQty: 800,
-    fermenterType: 'large',
-    totalVolumeL: 428.57
-  },
-  {
-    id: 'P-20260713-01',
-    name: '7월 2주차 블랙카카오 생산',
-    planType: 'yogurt',
-    productId: 'prod-2',
-    startDate: '2026-07-13',
-    bottlingDate: '2026-07-15',
-    shippingLimit: '2026-07-22',
-    expiryDate: '2026-08-06',
-    expectedOrderQty: 2100,
-    marketingQty: 110,
-    bufferQty: 100,
-    totalQty: 2310,
-    fermenterType: 'large',
-    totalVolumeL: 1001.0
-  }
-];
+export const DEFAULT_PLANS = [];
 
-export const DEFAULT_INVENTORY = [
-  {
-    planId: 'P-20260708-01',
-    actualQty: 800,
-    history: [
-      { id: 'h-1', date: '2026-07-10 10:00', qty: 150, purpose: '출고' },
-      { id: 'h-2', date: '2026-07-10 14:00', qty: 20, purpose: '마케팅 활용' }
-    ]
-  },
-  {
-    planId: 'P-20260713-01',
-    actualQty: 2310,
-    history: []
-  }
-];
+export const DEFAULT_INVENTORY = [];
 
 export const loadInitialLocalStorageData = () => {
   let localProducts = JSON.parse(localStorage.getItem(STORAGE_KEYS.PRODUCTS));
