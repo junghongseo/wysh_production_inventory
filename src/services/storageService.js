@@ -54,48 +54,6 @@ export const DEFAULT_PRODUCTS = [
     defaultHeatingTemp: 43,
     defaultHeaterTemp: 44
   },
-  {
-    id: 'prod-3',
-    name: '위시크림 피스타치오 초코칩',
-    category: 'flavor',
-    isFlavor: true,
-    isSubIngredient: false,
-    baseProductId: 'prod-1',
-    weight: 130,
-    yield: 100,
-    color: 'green',
-    shippingLimitDays: 7,
-    expiryDays: 22,
-    ingredients: [
-      { name: '위시그릭 019', ratio: 70 },
-      { name: '피스타치오 페이스트', ratio: 25 },
-      { name: '초코칩', ratio: 5 }
-    ],
-    defaultSterilizationTemp: 85,
-    defaultSterilizationTime: 30,
-    defaultCoolingTemp: 40,
-    defaultInoculationTemp: 42,
-    defaultHeatingTemp: 43,
-    defaultHeaterTemp: 44
-  },
-  {
-    id: 'prod-5',
-    name: '(미출시) 위시크림 라즈베리치즈케이크',
-    category: 'flavor',
-    isFlavor: true,
-    isSubIngredient: false,
-    baseProductId: 'prod-1',
-    weight: 130,
-    yield: 100,
-    color: 'pink',
-    shippingLimitDays: 7,
-    expiryDays: 22,
-    ingredients: [
-      { name: '위시그릭 019', ratio: 70 },
-      { name: '라즈베리(수율50%)', ratio: 20, subProductId: 'prod-sub-3' },
-      { name: '치즈케이크 큐브', ratio: 10 }
-    ]
-  },
   // Sub-ingredients
   {
     id: 'prod-sub-2',
@@ -110,21 +68,6 @@ export const DEFAULT_PRODUCTS = [
     ingredients: [
       { name: '아몬드 페이스트', ratio: 50 },
       { name: '블랙 카카오 퓨레', ratio: 50 }
-    ]
-  },
-  {
-    id: 'prod-sub-3',
-    name: '라즈베리(수율50%)',
-    category: 'sub_ingredient',
-    isFlavor: false,
-    isSubIngredient: true,
-    baseProductId: null,
-    weight: 0,
-    yield: 100,
-    color: 'pink',
-    ingredients: [
-      { name: '냉동 라즈베리', ratio: 90 },
-      { name: '설탕', ratio: 10 }
     ]
   }
 ];
