@@ -93,7 +93,22 @@ export const WyshProvider = ({ children }) => {
 
   const updateProduct = useCallback((updatedProd) => {
     setProducts(prev => {
-      const updatedProducts = prev.map(p => p.id === updatedProd.id ? updatedProd : p);
+      const updatedProducts = prev.map(p => {
+        if (p.id === updatedProd.id) {
+          return updatedProd;
+        }
+        // Automatically sync base ingredient name for linked flavor products if base plain product name changed
+        if (!updatedProd.isFlavor && p.isFlavor && p.baseProductId === updatedProd.id) {
+          const updatedIngredients = p.ingredients ? [...p.ingredients] : [];
+          if (updatedIngredients.length > 0) {
+            updatedIngredients[0] = { ...updatedIngredients[0], name: updatedProd.name };
+          }
+          const flavorUpdated = { ...p, ingredients: updatedIngredients };
+          pushProductToSupabase(flavorUpdated);
+          return flavorUpdated;
+        }
+        return p;
+      });
       saveStorageItems('PRODUCTS', updatedProducts);
       return updatedProducts;
     });

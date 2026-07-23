@@ -65,7 +65,7 @@ const RecipesView = ({
       setDefaultHeatingTemp(43);
       setDefaultHeaterTemp(44);
     }
-  }, [selectedProduct, plainProducts]);
+  }, [selectedProduct?.id]);
 
   // Compute ingredients ratio sum
   const ratioSum = useMemo(() => {
@@ -73,7 +73,7 @@ const RecipesView = ({
     return Math.round(sum * 100) / 100;
   }, [ingredients]);
 
-  const isRatioValid = ratioSum === 100;
+  const isRatioValid = Math.abs(ratioSum - 100) < 0.001 || ratioSum === 100;
 
   // Swatch colors list
   const colors = ['blue', 'purple', 'green', 'orange', 'pink', 'red', 'brown', 'black', 'gray', 'teal', 'yellow', 'indigo'];
@@ -101,8 +101,10 @@ const RecipesView = ({
           const next = [...prev];
           if (next.length === 0) {
             next.push({ name: baseProduct.name, ratio: 70 });
-          } else {
+          } else if (next[0].name !== baseProduct.name) {
             next[0] = { ...next[0], name: baseProduct.name };
+          } else {
+            return prev;
           }
           return next;
         });

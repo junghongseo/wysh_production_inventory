@@ -28,7 +28,7 @@ const ViewFallback = () => (
 );
 
 const App = () => {
-  const { deletePlan, deleteProduct, deleteHistoryItem, updateOutflowMemo, saveCalendarNote, deleteCalendarNote, loading, isDbConnected, dbError, isAdminLoggedIn, loginAdmin, logoutAdmin } = useWysh();
+  const { deletePlan, deleteProduct, deleteHistoryItem, updateOutflowMemo, saveCalendarNote, deleteCalendarNote, loading, isDbConnected, dbError, isAdminLoggedIn, loginAdmin, logoutAdmin, products } = useWysh();
 
   // Tab state
   const [activeTab, setActiveTab] = useState('calendar-view');
@@ -46,6 +46,16 @@ const App = () => {
   // Selection states
   const [selectedPlan, setSelectedPlan] = useState(null);
   const [selectedProduct, setSelectedProduct] = useState(null);
+
+  // Keep selectedProduct in sync with updated products list from WyshContext
+  React.useEffect(() => {
+    if (selectedProduct) {
+      const updated = products.find(p => p.id === selectedProduct.id);
+      if (updated && JSON.stringify(updated) !== JSON.stringify(selectedProduct)) {
+        setSelectedProduct(updated);
+      }
+    }
+  }, [products, selectedProduct]);
 
   // Modal open states
   const [planModal, setPlanModal] = useState({ isOpen: false, editPlanId: null, initialStartDate: null });
