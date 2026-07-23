@@ -146,11 +146,14 @@ export const WyshProvider = ({ children }) => {
 
   // 2. Plans Actions
   const addPlan = useCallback((planData) => {
-    const dateStr = planData.startDate.replace(/-/g, '');
+    const isSubIngredient = planData.planType === 'sub_ingredient';
+    const dateStr = planData.startDate ? planData.startDate.replace(/-/g, '') : '20260101';
     const sameDayCount = plans.filter(p => p.startDate === planData.startDate).length;
+    const prefix = isSubIngredient ? 'P-SUB' : 'P';
     const newPlan = {
       ...planData,
-      id: `P-${dateStr}-${String(sameDayCount + 1).padStart(2, '0')}`
+      planType: planData.planType || 'yogurt',
+      id: `${prefix}-${dateStr}-${String(sameDayCount + 1).padStart(2, '0')}`
     };
 
     setPlans(prev => {
@@ -159,20 +162,22 @@ export const WyshProvider = ({ children }) => {
       return updatedPlans;
     });
 
-    const newInv = {
-      planId: newPlan.id,
-      actualQty: newPlan.totalQty,
-      history: []
-    };
+    if (!isSubIngredient) {
+      const newInv = {
+        planId: newPlan.id,
+        actualQty: newPlan.totalQty || 0,
+        history: []
+      };
 
-    setInventory(prev => {
-      const updatedInventory = [...prev, newInv];
-      saveStorageItems('INVENTORY', updatedInventory);
-      return updatedInventory;
-    });
+      setInventory(prev => {
+        const updatedInventory = [...prev, newInv];
+        saveStorageItems('INVENTORY', updatedInventory);
+        return updatedInventory;
+      });
+      pushInventoryToSupabase(newInv);
+    }
 
     pushPlanToSupabase(newPlan);
-    pushInventoryToSupabase(newInv);
 
     return newPlan;
   }, [plans]);

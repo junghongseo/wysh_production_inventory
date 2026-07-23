@@ -55,10 +55,14 @@ export const fetchAllRemoteData = async () => {
   console.log("Supabase Fetch: Successfully pulled data from Cloud DB.");
 
   const mappedProducts = remoteProducts.map(p => {
-    const isFlavorVal = p.is_flavor !== undefined && p.is_flavor !== null 
+    const isSubIngredientVal = p.is_sub_ingredient !== undefined && p.is_sub_ingredient !== null
+      ? p.is_sub_ingredient
+      : (p.category === 'sub_ingredient' || (p.name && (p.name.includes('페이스트') || p.name.includes('부재료') || p.name.includes('라즈베리(수율'))));
+
+    const isFlavorVal = !isSubIngredientVal && (p.is_flavor !== undefined && p.is_flavor !== null 
       ? p.is_flavor 
-      : (p.id === 'prod-2' || p.id === 'prod-3' || (p.name && (p.name.includes('블랙카카오') || p.name.includes('피스타치오') || p.name.includes('블루베리') || p.name.includes('딸기'))));
-    const categoryVal = p.category || (isFlavorVal ? 'flavor' : 'plain');
+      : (p.id === 'prod-2' || p.id === 'prod-3' || (p.name && (p.name.includes('블랙카카오') || p.name.includes('피스타치오') || p.name.includes('블루베리') || p.name.includes('딸기')))));
+    const categoryVal = p.category || (isSubIngredientVal ? 'sub_ingredient' : (isFlavorVal ? 'flavor' : 'plain'));
     const baseProdIdVal = p.base_product_id !== undefined ? p.base_product_id : (isFlavorVal ? 'prod-1' : null);
 
     return {
@@ -70,6 +74,7 @@ export const fetchAllRemoteData = async () => {
       ingredients: p.ingredients,
       category: categoryVal,
       isFlavor: isFlavorVal,
+      isSubIngredient: isSubIngredientVal,
       baseProductId: baseProdIdVal,
       shippingLimitDays: p.shipping_limit_days !== undefined && p.shipping_limit_days !== null ? p.shipping_limit_days : 7,
       expiryDays: p.expiry_days !== undefined && p.expiry_days !== null ? p.expiry_days : 22,
@@ -108,6 +113,10 @@ export const fetchAllRemoteData = async () => {
     return {
       id: p.id,
       name: p.name,
+      planType: p.plan_type || 'yogurt',
+      subProductId: p.sub_product_id || null,
+      targetYogurtProductId: p.target_yogurt_product_id || null,
+      targetYogurtQty: p.target_yogurt_qty || 0,
       productId: p.product_id,
       startDate: p.start_date,
       bottlingDate: primaryItem.bottlingDate || p.bottling_date,
@@ -152,6 +161,7 @@ export const pushProductToSupabase = async (product) => {
       ingredients: product.ingredients,
       category: product.category,
       is_flavor: product.isFlavor,
+      is_sub_ingredient: product.isSubIngredient,
       base_product_id: product.baseProductId,
       shipping_limit_days: product.shippingLimitDays,
       expiry_days: product.expiryDays,
@@ -185,19 +195,23 @@ export const pushPlanToSupabase = async (plan) => {
     const dbPlan = {
       id: plan.id,
       name: plan.name,
-      product_id: plan.productId,
+      plan_type: plan.planType || 'yogurt',
+      sub_product_id: plan.subProductId || null,
+      target_yogurt_product_id: plan.targetYogurtProductId || null,
+      target_yogurt_qty: plan.targetYogurtQty || 0,
+      product_id: plan.productId || null,
       start_date: plan.startDate,
-      bottling_date: plan.bottlingDate,
-      shipping_limit: plan.shippingLimit,
-      expiry_date: plan.expiryDate,
-      expected_order_qty: plan.expectedOrderQty,
-      marketing_qty: plan.marketingQty,
-      buffer_qty: plan.bufferQty,
-      total_qty: plan.totalQty,
-      fermenter_type: plan.fermenterType,
-      total_volume_l: plan.totalVolumeL,
+      bottling_date: plan.bottlingDate || null,
+      shipping_limit: plan.shippingLimit || null,
+      expiry_date: plan.expiryDate || null,
+      expected_order_qty: plan.expectedOrderQty || 0,
+      marketing_qty: plan.marketingQty || 0,
+      buffer_qty: plan.bufferQty || 0,
+      total_qty: plan.totalQty || 0,
+      fermenter_type: plan.fermenterType || null,
+      total_volume_l: plan.totalVolumeL || 0,
       memo: plan.memo,
-      items: plan.items
+      items: plan.items || []
     };
     const { error } = await supabase.from('plans').upsert(dbPlan);
     if (error) throw error;

@@ -12,6 +12,7 @@ export const DEFAULT_PRODUCTS = [
     name: '위시그릭 019',
     category: 'plain',
     isFlavor: false,
+    isSubIngredient: false,
     baseProductId: null,
     weight: 150,
     yield: 28,
@@ -34,6 +35,7 @@ export const DEFAULT_PRODUCTS = [
     name: '위시크림 블랙카카오밀키웨이',
     category: 'flavor',
     isFlavor: true,
+    isSubIngredient: false,
     baseProductId: 'prod-1',
     weight: 130,
     yield: 100,
@@ -42,7 +44,7 @@ export const DEFAULT_PRODUCTS = [
     expiryDays: 22,
     ingredients: [
       { name: '위시그릭 019', ratio: 70 },
-      { name: '블랙카카오 퓨레', ratio: 28 },
+      { name: '아몬드초코페이스트(블랙카카오밀키웨이 용)', ratio: 28, subProductId: 'prod-sub-2' },
       { name: '초코칩', ratio: 2 }
     ],
     defaultSterilizationTemp: 85,
@@ -57,6 +59,7 @@ export const DEFAULT_PRODUCTS = [
     name: '위시크림 피스타치오 초코칩',
     category: 'flavor',
     isFlavor: true,
+    isSubIngredient: false,
     baseProductId: 'prod-1',
     weight: 130,
     yield: 100,
@@ -74,6 +77,88 @@ export const DEFAULT_PRODUCTS = [
     defaultInoculationTemp: 42,
     defaultHeatingTemp: 43,
     defaultHeaterTemp: 44
+  },
+  {
+    id: 'prod-4',
+    name: '(미출시) 페레로로쉐',
+    category: 'flavor',
+    isFlavor: true,
+    isSubIngredient: false,
+    baseProductId: 'prod-1',
+    weight: 130,
+    yield: 100,
+    color: 'yellow',
+    shippingLimitDays: 7,
+    expiryDays: 22,
+    ingredients: [
+      { name: '위시그릭 019', ratio: 70 },
+      { name: '아몬드초코페이스트(페레로로쉐 용)', ratio: 25, subProductId: 'prod-sub-1' },
+      { name: '헤이즐넛', ratio: 5 }
+    ]
+  },
+  {
+    id: 'prod-5',
+    name: '(미출시) 위시크림 라즈베리치즈케이크',
+    category: 'flavor',
+    isFlavor: true,
+    isSubIngredient: false,
+    baseProductId: 'prod-1',
+    weight: 130,
+    yield: 100,
+    color: 'pink',
+    shippingLimitDays: 7,
+    expiryDays: 22,
+    ingredients: [
+      { name: '위시그릭 019', ratio: 70 },
+      { name: '라즈베리(수율50%)', ratio: 20, subProductId: 'prod-sub-3' },
+      { name: '치즈케이크 큐브', ratio: 10 }
+    ]
+  },
+  // Sub-ingredients
+  {
+    id: 'prod-sub-1',
+    name: '아몬드초코페이스트(페레로로쉐 용)',
+    category: 'sub_ingredient',
+    isFlavor: false,
+    isSubIngredient: true,
+    baseProductId: null,
+    weight: 0,
+    yield: 100,
+    color: 'orange',
+    ingredients: [
+      { name: '아몬드 페이스트', ratio: 60 },
+      { name: '다크 초콜릿', ratio: 40 }
+    ]
+  },
+  {
+    id: 'prod-sub-2',
+    name: '아몬드초코페이스트(블랙카카오밀키웨이 용)',
+    category: 'sub_ingredient',
+    isFlavor: false,
+    isSubIngredient: true,
+    baseProductId: null,
+    weight: 0,
+    yield: 100,
+    color: 'brown',
+    ingredients: [
+      { name: '아몬드 페이스트', ratio: 50 },
+      { name: '블랙 카카오 퓨레', ratio: 50 }
+    ]
+  },
+  {
+    id: 'prod-sub-3',
+    name: '라즈베리(수율50%)',
+    category: 'sub_ingredient',
+    isFlavor: false,
+    isSubIngredient: true,
+    baseProductId: null,
+    weight: 0,
+    yield: 100,
+    color: 'pink',
+    ingredients: [
+      { name: '냉동 라즈베리', ratio: 90 },
+      { name: '설탕', ratio: 10 }
+    ]
   }
 ];
 
@@ -81,6 +166,7 @@ export const DEFAULT_PLANS = [
   {
     id: 'P-20260708-01',
     name: '7월 1주차 플레인 생산',
+    planType: 'yogurt',
     productId: 'prod-1',
     startDate: '2026-07-08',
     bottlingDate: '2026-07-10',
@@ -96,6 +182,7 @@ export const DEFAULT_PLANS = [
   {
     id: 'P-20260713-01',
     name: '7월 2주차 블랙카카오 생산',
+    planType: 'yogurt',
     productId: 'prod-2',
     startDate: '2026-07-13',
     bottlingDate: '2026-07-15',
@@ -136,29 +223,35 @@ export const loadInitialLocalStorageData = () => {
   if (!localProducts) {
     localProducts = DEFAULT_PRODUCTS;
     localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(DEFAULT_PRODUCTS));
+  } else {
+    // Ensure default sub-ingredients exist in localProducts if missing
+    DEFAULT_PRODUCTS.forEach(defP => {
+      const existing = localProducts.find(p => p.id === defP.id || p.name === defP.name);
+      if (!existing) {
+        localProducts.push(defP);
+      }
+    });
+    localStorage.setItem(STORAGE_KEYS.PRODUCTS, JSON.stringify(localProducts));
   }
 
   // Backward compatibility check for products
   localProducts.forEach(p => {
+    if (p.isSubIngredient === undefined) {
+      p.isSubIngredient = p.category === 'sub_ingredient' || (p.name && (p.name.includes('페이스트') || p.name.includes('부재료') || p.name.includes('라즈베리(수율')));
+    }
     if (p.isFlavor === undefined) {
-      p.isFlavor = (p.id === 'prod-2' || p.id === 'prod-3' || (p.name && (p.name.includes('블랙카카오') || p.name.includes('피스타치오') || p.name.includes('블루베리') || p.name.includes('딸기'))));
+      p.isFlavor = !p.isSubIngredient && (p.id === 'prod-2' || p.id === 'prod-3' || (p.name && (p.name.includes('블랙카카오') || p.name.includes('피스타치오') || p.name.includes('블루베리') || p.name.includes('딸기'))));
     }
     if (p.category === undefined) {
-      p.category = p.isFlavor ? 'flavor' : 'plain';
+      p.category = p.isSubIngredient ? 'sub_ingredient' : (p.isFlavor ? 'flavor' : 'plain');
     }
     if (p.baseProductId === undefined) {
       p.baseProductId = p.isFlavor ? 'prod-1' : null;
     }
     if (p.yield === undefined) {
       if (p.id === 'prod-1') p.yield = 28;
-      else if (p.isFlavor) p.yield = 100;
+      else if (p.isFlavor || p.isSubIngredient) p.yield = 100;
       else p.yield = 28;
-    }
-    if (p.color === undefined) {
-      if (p.id === 'prod-1') p.color = 'blue';
-      else if (p.id === 'prod-2') p.color = 'purple';
-      else if (p.id === 'prod-3') p.color = 'green';
-      else p.color = 'blue';
     }
     if (p.shippingLimitDays === undefined) p.shippingLimitDays = 7;
     if (p.expiryDays === undefined) p.expiryDays = 22;

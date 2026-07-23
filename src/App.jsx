@@ -58,7 +58,15 @@ const App = () => {
   }, [products, selectedProduct]);
 
   // Modal open states
-  const [planModal, setPlanModal] = useState({ isOpen: false, editPlanId: null, initialStartDate: null });
+  const [planModal, setPlanModal] = useState({ 
+    isOpen: false, 
+    editPlanId: null, 
+    initialStartDate: null,
+    initialPlanType: 'yogurt',
+    initialSubProductId: '',
+    initialTargetYogurtProductId: '',
+    initialTargetYogurtQty: ''
+  });
   const [productModal, setProductModal] = useState({ isOpen: false });
   const [modifyQtyModal, setModifyQtyModal] = useState({ isOpen: false, planId: null });
   const [recipeDrawer, setRecipeDrawer] = useState({ isOpen: false, planId: null });
@@ -82,7 +90,27 @@ const App = () => {
   };
 
   const handleOpenPlanRegistration = (initialStartDate = null) => {
-    setPlanModal({ isOpen: true, editPlanId: null, initialStartDate });
+    setPlanModal({ 
+      isOpen: true, 
+      editPlanId: null, 
+      initialStartDate,
+      initialPlanType: 'yogurt',
+      initialSubProductId: '',
+      initialTargetYogurtProductId: '',
+      initialTargetYogurtQty: ''
+    });
+  };
+
+  const handleRequestSubPlanModal = ({ subProductId, targetYogurtProductId, targetYogurtQty, startDate }) => {
+    setPlanModal({
+      isOpen: true,
+      editPlanId: null,
+      initialStartDate: startDate,
+      initialPlanType: 'sub_ingredient',
+      initialSubProductId: subProductId,
+      initialTargetYogurtProductId: targetYogurtProductId,
+      initialTargetYogurtQty: targetYogurtQty
+    });
   };
 
   const handleOpenPlanEdit = (planId) => {
@@ -350,9 +378,14 @@ const App = () => {
       {/* Popup Modal: Production Plan Registration */}
       <PlanRegistrationModal
         isOpen={planModal.isOpen}
-        onClose={() => setPlanModal({ isOpen: false, editPlanId: null, initialStartDate: null })}
+        onClose={() => setPlanModal({ isOpen: false, editPlanId: null, initialStartDate: null, initialPlanType: 'yogurt', initialSubProductId: '', initialTargetYogurtProductId: '', initialTargetYogurtQty: '' })}
         editPlanId={planModal.editPlanId}
         initialStartDate={planModal.initialStartDate}
+        initialPlanType={planModal.initialPlanType}
+        initialSubProductId={planModal.initialSubProductId}
+        initialTargetYogurtProductId={planModal.initialTargetYogurtProductId}
+        initialTargetYogurtQty={planModal.initialTargetYogurtQty}
+        onRequestSubPlanModal={handleRequestSubPlanModal}
       />
 
       {/* Popup Modal: Register New Product */}

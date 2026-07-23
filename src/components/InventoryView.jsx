@@ -28,12 +28,12 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal,
 
   // Filter plans whose shipping limit has not passed AND bottling has completed (strictly for drop-down selection)
   const activePlans = useMemo(() => {
-    return plans.filter(plan => plan.shippingLimit >= todayStr && todayStr >= plan.bottlingDate);
+    return plans.filter(plan => plan.planType !== 'sub_ingredient' && plan.shippingLimit >= todayStr && todayStr >= plan.bottlingDate);
   }, [plans, todayStr]);
 
   // Extract list of months dynamically for dropdown filtering
   const uniqueMonths = useMemo(() => {
-    const months = plans.map(p => (p.startDate ? p.startDate.substring(0, 7) : '')).filter(Boolean);
+    const months = plans.filter(p => p.planType !== 'sub_ingredient').map(p => (p.startDate ? p.startDate.substring(0, 7) : '')).filter(Boolean);
     return [...new Set(months)].sort((a, b) => (b || '').localeCompare(a || ''));
   }, [plans]);
 
@@ -62,7 +62,7 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal,
   // Compute stats for all sub-plans/items in the system
   const allInventoryData = useMemo(() => {
     const rows = [];
-    plans.forEach(plan => {
+    plans.filter(plan => plan.planType !== 'sub_ingredient').forEach(plan => {
       const planItems = plan.items && Array.isArray(plan.items) && plan.items.length > 0 
         ? plan.items 
         : [{ productId: plan.productId, totalQty: plan.totalQty }];

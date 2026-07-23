@@ -21,7 +21,7 @@ const ProductRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
   const { products, addProduct } = useWysh();
 
   const [name, setName] = useState('');
-  const [isFlavor, setIsFlavor] = useState(false);
+  const [categoryType, setCategoryType] = useState('plain'); // 'plain' | 'flavor' | 'sub_ingredient'
   const [baseProductId, setBaseProductId] = useState('');
   const [weight, setWeight] = useState('');
   const [yieldRate, setYieldRate] = useState(28);
@@ -36,13 +36,13 @@ const ProductRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
   const [defaultHeaterTemp, setDefaultHeaterTemp] = useState(44);
 
   // Available plain base products
-  const plainProducts = products.filter(p => !p.isFlavor);
+  const plainProducts = products.filter(p => !p.isFlavor && !p.isSubIngredient);
 
   // Reset form fields when opened
   useEffect(() => {
     if (isOpen) {
       setName('');
-      setIsFlavor(false);
+      setCategoryType('plain');
       const defaultBase = plainProducts.length > 0 ? plainProducts[0].id : '';
       setBaseProductId(defaultBase);
       setWeight('');
@@ -60,15 +60,22 @@ const ProductRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
   }, [isOpen]);
 
   // Handle category change
-  const handleCategoryChange = (flavorStatus) => {
-    setIsFlavor(flavorStatus);
-    if (flavorStatus) {
+  const handleCategoryChange = (cat) => {
+    setCategoryType(cat);
+    if (cat === 'flavor') {
       setYieldRate(100);
+      setColor('purple');
       if (!baseProductId && plainProducts.length > 0) {
         setBaseProductId(plainProducts[0].id);
       }
+    } else if (cat === 'sub_ingredient') {
+      setYieldRate(100);
+      setColor('orange');
+      setBaseProductId('');
+      setWeight(0);
     } else {
       setYieldRate(28);
+      setColor('blue');
       setBaseProductId('');
     }
   };
@@ -81,22 +88,31 @@ const ProductRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
       { name: '유산균', ratio: 5 }
     ];
 
-    if (isFlavor && baseProductId) {
+    if (categoryType === 'flavor' && baseProductId) {
       const baseProd = products.find(p => p.id === baseProductId);
       const baseName = baseProd ? baseProd.name : '위시그릭 019';
       initialIngredients = [
         { name: baseName, ratio: 70 },
         { name: '추가 재료', ratio: 30 }
       ];
+    } else if (categoryType === 'sub_ingredient') {
+      initialIngredients = [
+        { name: '주원료 1', ratio: 60 },
+        { name: '부원료 2', ratio: 40 }
+      ];
     }
+
+    const isSubIngredient = categoryType === 'sub_ingredient';
+    const isFlavor = categoryType === 'flavor';
 
     const newProduct = {
       name: name.trim(),
-      category: isFlavor ? 'flavor' : 'plain',
+      category: categoryType,
       isFlavor,
+      isSubIngredient,
       baseProductId: isFlavor ? baseProductId : null,
-      weight: parseInt(weight) || 0,
-      yield: parseFloat(yieldRate) || (isFlavor ? 100 : 28),
+      weight: isSubIngredient ? 0 : (parseInt(weight) || 0),
+      yield: parseFloat(yieldRate) || (isFlavor || isSubIngredient ? 100 : 28),
       color,
       shippingLimitDays: parseInt(shippingLimitDays) || 7,
       expiryDays: parseInt(expiryDays) || 22,
@@ -122,7 +138,7 @@ const ProductRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
     <div className="modal-overlay open" id="product-registration-modal">
       <div className="modal-content" style={{ width: '540px' }}>
         <div className="modal-header">
-          <h3>새 요거트 제품 추가</h3>
+          <h3>신규 요거트 제품 / 부재료 등록</h3>
           <button className="btn-icon" onClick={onClose} aria-label="닫기">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -132,121 +148,136 @@ const ProductRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
         </div>
         <form id="product-registration-form" onSubmit={handleSubmit}>
           <div className="modal-body">
-            <div className="form-group-grid" style={{ gridTemplateColumns: '1fr 1fr', marginBottom: '12px' }}>
-              <div className="form-group">
-                <label>제품 카테고리</label>
-                <div style={{ display: 'flex', gap: '12px', marginTop: '6px' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', cursor: 'pointer', fontWeight: 500 }}>
-                    <input 
-                      type="radio" 
-                      name="product-category" 
-                      checked={!isFlavor} 
-                      onChange={() => handleCategoryChange(false)} 
-                    />
-                    플레인 요거트
-                  </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', cursor: 'pointer', fontWeight: 500 }}>
-                    <input 
-                      type="radio" 
-                      name="product-category" 
-                      checked={isFlavor} 
-                      onChange={() => handleCategoryChange(true)} 
-                    />
-                    플레이버 요거트
-                  </label>
-                </div>
+            <div className="form-group" style={{ marginBottom: '16px' }}>
+              <label style={{ fontWeight: 600 }}>등록 카테고리</label>
+              <div style={{ display: 'flex', gap: '16px', marginTop: '8px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', cursor: 'pointer', fontWeight: 500 }}>
+                  <input 
+                    type="radio" 
+                    name="product-category" 
+                    checked={categoryType === 'plain'} 
+                    onChange={() => handleCategoryChange('plain')} 
+                  />
+                  플레인 요거트
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', cursor: 'pointer', fontWeight: 500 }}>
+                  <input 
+                    type="radio" 
+                    name="product-category" 
+                    checked={categoryType === 'flavor'} 
+                    onChange={() => handleCategoryChange('flavor')} 
+                  />
+                  플레이버 요거트
+                </label>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', cursor: 'pointer', fontWeight: 600, color: '#c2410c' }}>
+                  <input 
+                    type="radio" 
+                    name="product-category" 
+                    checked={categoryType === 'sub_ingredient'} 
+                    onChange={() => handleCategoryChange('sub_ingredient')} 
+                  />
+                  🍞 부재료 (Pre-mix)
+                </label>
               </div>
-              {isFlavor && (
-                <div className="form-group">
-                  <label htmlFor="base-product-select">대표 베이스 제품 선택</label>
-                  <select
-                    id="base-product-select"
-                    className="form-control"
-                    value={baseProductId}
-                    onChange={(e) => setBaseProductId(e.target.value)}
-                    required={isFlavor}
-                    style={{ marginTop: '2px' }}
-                  >
-                    {plainProducts.map(p => (
-                      <option key={p.id} value={p.id}>{p.name}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
             </div>
 
+            {categoryType === 'flavor' && (
+              <div className="form-group" style={{ marginBottom: '16px' }}>
+                <label htmlFor="base-product-select">대표 베이스 제품 선택 (플레인)</label>
+                <select
+                  id="base-product-select"
+                  className="form-control"
+                  value={baseProductId}
+                  onChange={(e) => setBaseProductId(e.target.value)}
+                  required={categoryType === 'flavor'}
+                  style={{ marginTop: '4px' }}
+                >
+                  {plainProducts.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <div className="form-group">
-              <label htmlFor="new-product-name">제품명</label>
+              <label htmlFor="new-product-name">{categoryType === 'sub_ingredient' ? '부재료명' : '제품명'}</label>
               <input 
                 type="text" 
                 className="form-control" 
                 id="new-product-name" 
-                placeholder={isFlavor ? "예: 위시크림 피스타치오 초코칩" : "예: 위시그릭 019"} 
+                placeholder={categoryType === 'sub_ingredient' ? "예: 아몬드초코페이스트(블랙카카오밀키웨이 용)" : (categoryType === 'flavor' ? "예: 위시크림 피스타치오 초코칩" : "예: 위시그릭 019")} 
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required 
               />
             </div>
-            <div className="form-group-grid">
-              <div className="form-group">
-                <label htmlFor="new-product-weight">단일 중량 (g)</label>
-                <input 
-                  type="number" 
-                  className="form-control" 
-                  id="new-product-weight" 
-                  min="1" 
-                  placeholder="예: 150" 
-                  value={weight}
-                  onChange={(e) => setWeight(e.target.value)}
-                  required 
-                />
+
+            {categoryType !== 'sub_ingredient' && (
+              <div className="form-group-grid">
+                <div className="form-group">
+                  <label htmlFor="new-product-weight">단일 중량 (g)</label>
+                  <input 
+                    type="number" 
+                    className="form-control" 
+                    id="new-product-weight" 
+                    min="1" 
+                    placeholder="예: 150" 
+                    value={weight}
+                    onChange={(e) => setWeight(e.target.value)}
+                    required 
+                  />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="new-product-yield">수율 (%)</label>
+                  <input 
+                    type="number" 
+                    className="form-control" 
+                    id="new-product-yield" 
+                    min="1" 
+                    max="100" 
+                    step="0.1"
+                    placeholder="예: 28" 
+                    value={yieldRate}
+                    onChange={(e) => setYieldRate(e.target.value)}
+                    required 
+                  />
+                </div>
               </div>
-              <div className="form-group">
-                <label htmlFor="new-product-yield">수율 (%)</label>
-                <input 
-                  type="number" 
-                  className="form-control" 
-                  id="new-product-yield" 
-                  min="1" 
-                  max="100" 
-                  step="0.1"
-                  placeholder="예: 28" 
-                  value={yieldRate}
-                  onChange={(e) => setYieldRate(e.target.value)}
-                  required 
-                />
+            )}
+
+            {categoryType !== 'sub_ingredient' && (
+              <div className="form-group-grid" style={{ marginTop: '12px' }}>
+                <div className="form-group">
+                  <label htmlFor="new-product-shipping-days">최종 출고 기한 (일)</label>
+                  <input 
+                    type="number" 
+                    className="form-control" 
+                    id="new-product-shipping-days" 
+                    min="1" 
+                    value={shippingLimitDays}
+                    onChange={(e) => setShippingLimitDays(e.target.value)}
+                    onFocus={(e) => e.target.select()}
+                    required 
+                  />
+                </div>
+                <div className="form-group">
+                  <label htmlFor="new-product-expiry-days">소비 기한 (일)</label>
+                  <input 
+                    type="number" 
+                    className="form-control" 
+                    id="new-product-expiry-days" 
+                    min="1" 
+                    value={expiryDays}
+                    onChange={(e) => setExpiryDays(e.target.value)}
+                    onFocus={(e) => e.target.select()}
+                    required 
+                  />
+                </div>
               </div>
-            </div>
-            <div className="form-group-grid" style={{ marginTop: '12px' }}>
-              <div className="form-group">
-                <label htmlFor="new-product-shipping-days">최종 출고 기한 (일)</label>
-                <input 
-                  type="number" 
-                  className="form-control" 
-                  id="new-product-shipping-days" 
-                  min="1" 
-                  value={shippingLimitDays}
-                  onChange={(e) => setShippingLimitDays(e.target.value)}
-                  onFocus={(e) => e.target.select()}
-                  required 
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor="new-product-expiry-days">소비 기한 (일)</label>
-                <input 
-                  type="number" 
-                  className="form-control" 
-                  id="new-product-expiry-days" 
-                  min="1" 
-                  value={expiryDays}
-                  onChange={(e) => setExpiryDays(e.target.value)}
-                  onFocus={(e) => e.target.select()}
-                  required 
-                />
-              </div>
-            </div>
+            )}
+
             <div className="form-group" style={{ marginTop: '12px' }}>
-              <label>생산 일정 표시 색상</label>
+              <label>표시 색상</label>
               <div className="color-picker-grid" id="new-product-color-picker" style={{ maxWidth: '100%', gridTemplateColumns: 'repeat(12, 1fr)', gap: '8px', marginTop: '6px' }}>
                 {colors.map(c => (
                   <div 
@@ -259,94 +290,103 @@ const ProductRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
                 ))}
               </div>
             </div>
-            <div style={{ marginTop: '16px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
-              <h4 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: '12px' }}>발효 공정 기본 설정값</h4>
-              
-              <div className="form-group-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
-                <div className="form-group">
-                  <label htmlFor="new-product-sterilization-temp">기본 살균 온도 (°C)</label>
-                  <input 
-                    type="number" 
-                    className="form-control" 
-                    id="new-product-sterilization-temp" 
-                    value={defaultSterilizationTemp}
-                    onChange={(e) => setDefaultSterilizationTemp(e.target.value)}
-                    required 
-                  />
-                </div>
-                <div className="form-group">
-                  <label htmlFor="new-product-sterilization-time">기본 살균 시간 (분)</label>
-                  <input 
-                    type="number" 
-                    className="form-control" 
-                    id="new-product-sterilization-time" 
-                    value={defaultSterilizationTime}
-                    onChange={(e) => setDefaultSterilizationTime(e.target.value)}
-                    required 
-                  />
-                </div>
-              </div>
 
-              <div className="form-group-grid" style={{ gridTemplateColumns: '1fr 1fr', marginTop: '8px' }}>
-                <div className="form-group">
-                  <label htmlFor="new-product-cooling-temp">기본 냉각 설정 온도 (°C)</label>
-                  <input 
-                    type="number" 
-                    className="form-control" 
-                    id="new-product-cooling-temp" 
-                    value={defaultCoolingTemp}
-                    onChange={(e) => setDefaultCoolingTemp(e.target.value)}
-                    required 
-                  />
+            {categoryType !== 'sub_ingredient' && (
+              <div style={{ marginTop: '16px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
+                <h4 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: '12px' }}>발효 공정 기본 설정값</h4>
+                
+                <div className="form-group-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
+                  <div className="form-group">
+                    <label htmlFor="new-product-sterilization-temp">기본 살균 온도 (°C)</label>
+                    <input 
+                      type="number" 
+                      className="form-control" 
+                      id="new-product-sterilization-temp" 
+                      value={defaultSterilizationTemp}
+                      onChange={(e) => setDefaultSterilizationTemp(e.target.value)}
+                      required 
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="new-product-sterilization-time">기본 살균 시간 (분)</label>
+                    <input 
+                      type="number" 
+                      className="form-control" 
+                      id="new-product-sterilization-time" 
+                      value={defaultSterilizationTime}
+                      onChange={(e) => setDefaultSterilizationTime(e.target.value)}
+                      required 
+                    />
+                  </div>
                 </div>
-                <div className="form-group">
-                  <label htmlFor="new-product-inoculation-temp">기본 접종 온도 (°C)</label>
-                  <input 
-                    type="number" 
-                    className="form-control" 
-                    id="new-product-inoculation-temp" 
-                    value={defaultInoculationTemp}
-                    onChange={(e) => setDefaultInoculationTemp(e.target.value)}
-                    required 
-                  />
-                </div>
-              </div>
 
-              <div className="form-group-grid" style={{ gridTemplateColumns: '1fr 1fr', marginTop: '8px' }}>
-                <div className="form-group">
-                  <label htmlFor="new-product-heating-temp">기본 가열 설정 온도 (°C)</label>
-                  <input 
-                    type="number" 
-                    className="form-control" 
-                    id="new-product-heating-temp" 
-                    value={defaultHeatingTemp}
-                    onChange={(e) => setDefaultHeatingTemp(e.target.value)}
-                    required 
-                  />
+                <div className="form-group-grid" style={{ gridTemplateColumns: '1fr 1fr', marginTop: '8px' }}>
+                  <div className="form-group">
+                    <label htmlFor="new-product-cooling-temp">기본 냉각 설정 온도 (°C)</label>
+                    <input 
+                      type="number" 
+                      className="form-control" 
+                      id="new-product-cooling-temp" 
+                      value={defaultCoolingTemp}
+                      onChange={(e) => setDefaultCoolingTemp(e.target.value)}
+                      required 
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="new-product-inoculation-temp">기본 접종 온도 (°C)</label>
+                    <input 
+                      type="number" 
+                      className="form-control" 
+                      id="new-product-inoculation-temp" 
+                      value={defaultInoculationTemp}
+                      onChange={(e) => setDefaultInoculationTemp(e.target.value)}
+                      required 
+                    />
+                  </div>
                 </div>
-                <div className="form-group">
-                  <label htmlFor="new-product-heater-temp">기본 히터 설정 온도 (°C)</label>
-                  <input 
-                    type="number" 
-                    className="form-control" 
-                    id="new-product-heater-temp" 
-                    value={defaultHeaterTemp}
-                    onChange={(e) => setDefaultHeaterTemp(e.target.value)}
-                    required 
-                  />
+
+                <div className="form-group-grid" style={{ gridTemplateColumns: '1fr 1fr', marginTop: '8px' }}>
+                  <div className="form-group">
+                    <label htmlFor="new-product-heating-temp">기본 가열 설정 온도 (°C)</label>
+                    <input 
+                      type="number" 
+                      className="form-control" 
+                      id="new-product-heating-temp" 
+                      value={defaultHeatingTemp}
+                      onChange={(e) => setDefaultHeatingTemp(e.target.value)}
+                      required 
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label htmlFor="new-product-heater-temp">기본 히터 설정 온도 (°C)</label>
+                    <input 
+                      type="number" 
+                      className="form-control" 
+                      id="new-product-heater-temp" 
+                      value={defaultHeaterTemp}
+                      onChange={(e) => setDefaultHeaterTemp(e.target.value)}
+                      required 
+                    />
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
+
             <div className="note-card" style={{ marginTop: '16px' }}>
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <p style={{ fontSize: '0.8rem', lineHeight: '1.4' }}>제품을 등록한 뒤, '제품 및 레시피 설정' 탭에서 각 원재료(원유, 유산균 등)의 상세 배합 비율(합계 100%)을 구성할 수 있습니다.</p>
+              <p style={{ fontSize: '0.8rem', lineHeight: '1.4' }}>
+                {categoryType === 'sub_ingredient' 
+                  ? "부재료 등록 완료 후 '제품 및 레시피 설정' 탭에서 구성 원재료 비율(합계 100%)을 세부 설정할 수 있습니다."
+                  : "제품 등록 완료 후 '제품 및 레시피 설정' 탭에서 각 원재료 및 부재료의 상세 배합 비율(합계 100%)을 구성할 수 있습니다."
+                }
+              </p>
             </div>
           </div>
           <div className="modal-footer">
             <button type="button" className="btn-secondary" onClick={onClose}>취소</button>
-            <button type="submit" className="btn-primary">제품 등록</button>
+            <button type="submit" className="btn-primary">등록 완료</button>
           </div>
         </form>
       </div>

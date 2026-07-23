@@ -140,6 +140,29 @@ const CalendarView = ({
     calendarCells.forEach(cell => {
       const cellEvents = Array(planSlots.maxSlotCount).fill(null);
       plans.forEach((plan, planIdx) => {
+        if (plan.planType === 'sub_ingredient') {
+          const subProd = products.find(p => p.id === plan.subProductId);
+          const targetYogurt = products.find(p => p.id === plan.targetYogurtProductId);
+          const subProdName = subProd ? subProd.name : '부재료';
+          const targetYogurtName = targetYogurt ? targetYogurt.name : '';
+
+          if (cell.dateStr === plan.startDate) {
+            const assignedSlotIdx = planSlots.map[plan.id];
+            if (assignedSlotIdx !== undefined && assignedSlotIdx >= 0) {
+              cellEvents[assignedSlotIdx] = {
+                plan,
+                prod: subProd,
+                prodName: subProdName,
+                dayLabel: `🍞 [부재료] ${subProdName} (${targetYogurtName} ${plan.targetYogurtQty || 0}개분)`,
+                dayClass: 'event-day-sub',
+                planIdx,
+                isMulti: false
+              };
+            }
+          }
+          return;
+        }
+
         const planItems = plan.items && Array.isArray(plan.items) && plan.items.length > 0 ? plan.items : [{ productId: plan.productId }];
         const isMulti = planItems.length > 1;
 

@@ -80,6 +80,7 @@ const ReportsView = () => {
     const endStr = format(sunday);
 
     return plans.filter(p => {
+      if (p.planType === 'sub_ingredient') return false;
       if (isEditing && p.id === selectedPlanId) return true;
       return p.startDate >= startStr && p.startDate <= endStr;
     });
