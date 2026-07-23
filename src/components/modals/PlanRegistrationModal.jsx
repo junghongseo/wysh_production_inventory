@@ -124,14 +124,16 @@ const PlanRegistrationModal = ({
         setTargetYogurtProductId(initialTargetYogurtProductId || (yogurtProducts.length > 0 ? yogurtProducts[0].id : ''));
         setTargetYogurtQty(initialTargetYogurtQty || '');
 
+        const defaultProd = yogurtProducts.length > 0 ? yogurtProducts[0] : null;
+        const initialDerived = calculateItemDerivedDates(defaultBot, defaultProd);
         setItems([{
-          productId: yogurtProducts.length > 0 ? yogurtProducts[0].id : '',
+          productId: defaultProd ? defaultProd.id : '',
           expectedOrderQty: 0,
           marketingQty: 0,
           bufferQty: 0,
           bottlingDate: defaultBot,
-          shippingLimit: '',
-          expiryDate: ''
+          shippingLimit: initialDerived.shippingLimit,
+          expiryDate: initialDerived.expiryDate
         }]);
       }
     }
@@ -177,7 +179,7 @@ const PlanRegistrationModal = ({
           return {
             ...item,
             bottlingDate: value,
-            shippingLimit: value,
+            shippingLimit: derived.shippingLimit,
             expiryDate: derived.expiryDate
           };
         } else if (field === 'shippingLimit' || field === 'expiryDate') {
