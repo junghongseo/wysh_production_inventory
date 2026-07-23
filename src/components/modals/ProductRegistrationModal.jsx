@@ -1,6 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { useWysh } from '../../WyshContext';
 
+const colors = ['blue', 'purple', 'green', 'orange', 'pink', 'red', 'brown', 'black', 'gray', 'teal', 'yellow', 'indigo'];
+const colorMap = {
+  blue: '#0ea5e9',
+  purple: '#a855f7',
+  green: '#10b981',
+  orange: '#f97316',
+  pink: '#ec4899',
+  red: '#ef4444',
+  brown: '#78350f',
+  black: '#0f172a',
+  gray: '#64748b',
+  teal: '#14b8a6',
+  yellow: '#eab308',
+  indigo: '#6366f1'
+};
+
 const ProductRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
   const { products, addProduct } = useWysh();
 

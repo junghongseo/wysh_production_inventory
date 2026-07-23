@@ -132,9 +132,20 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
       };
     }) : [];
 
+    // Filter display list: When plan items count is 2 and 1 item is a base product + 1 item is a flavor product,
+    // suppress the base product's individual recipe table (it is merged into the combined base recipe table on page 2).
+    const hasFlavor = itemDetailsList.some(d => d.product.isFlavor);
+    const hasBase = itemDetailsList.some(d => !d.product.isFlavor);
+    const isTwoItemsWithBaseAndFlavor = itemDetailsList.length === 2 && hasFlavor && hasBase;
+
+    const displayItemDetailsList = isTwoItemsWithBaseAndFlavor
+      ? itemDetailsList.filter(d => d.product.isFlavor)
+      : itemDetailsList;
+
     return {
       plan,
       itemDetailsList,
+      displayItemDetailsList,
       combinedBaseDetails: {
         baseProduct,
         totalCombinedBaseYogurtG,
@@ -228,7 +239,7 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
             </div>
 
             {/* Individual Item Recipe Tables */}
-            {details.itemDetailsList.map((itDetail, idx) => (
+            {details.displayItemDetailsList.map((itDetail, idx) => (
               <div key={idx} style={{ marginBottom: '24px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                   <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -281,7 +292,7 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
                     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
                     </svg>
-                    [전체 합산 베이스 제품 필요 배합표] {details.combinedBaseDetails.baseProduct.name}
+                    [전체 합산 베이스 배합표] {details.combinedBaseDetails.baseProduct.name}
                   </h4>
                   <span style={{ fontSize: '0.78rem', background: 'rgba(2, 132, 199, 0.1)', color: 'var(--color-primary)', padding: '3px 8px', borderRadius: '6px', fontWeight: 600 }}>
                     총 베이스 필요량: {details.combinedBaseDetails.totalCombinedBaseYogurtKg.toFixed(2)} kg

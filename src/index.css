@@ -1665,10 +1665,64 @@ button svg * {
 }
 
 @media print {
-    body {
+    html, body {
+        height: auto !important;
+        overflow: visible !important;
+        background: #ffffff !important;
+        color: #000000 !important;
+    }
+    body.printing-recipe {
+        height: auto !important;
+        overflow: visible !important;
+    }
+    body.printing-recipe .app-header,
+    body.printing-recipe .app-nav,
+    body.printing-recipe .tab-content,
+    body.printing-recipe .drawer-header button,
+    body.printing-recipe .drawer-print-actions {
+        display: none !important;
+    }
+    body.printing-recipe #recipe-drawer-overlay {
+        position: static !important;
+        background: none !important;
+        border: none !important;
+        box-shadow: none !important;
+        backdrop-filter: none !important;
         width: 100% !important;
-        margin: 0 !important;
+        max-width: 100% !important;
         padding: 0 !important;
+        margin: 0 !important;
+        display: block !important;
+    }
+    body.printing-recipe .drawer-content {
+        position: static !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        height: auto !important;
+        max-height: none !important;
+        overflow: visible !important;
+        background: #ffffff !important;
+        color: #000000 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        box-shadow: none !important;
+        border: none !important;
+    }
+    body.printing-recipe .drawer-body {
+        padding: 0 !important;
+    }
+    body.printing-recipe .base-recipe-section {
+        page-break-before: always !important;
+        break-before: page !important;
+        margin-top: 0 !important;
+        padding-top: 16px !important;
+        border-top: none !important;
+    }
+    body.printing-recipe .wysh-table-wrapper,
+    body.printing-recipe .wysh-table,
+    body.printing-recipe .note-card {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
     }
 }
 
