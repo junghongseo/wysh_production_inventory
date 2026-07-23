@@ -221,6 +221,20 @@ const CalendarView = ({
     const plan = plans.find(p => p.id === selectedPlan.id) || selectedPlan;
     if (!plan) return null;
 
+    if (plan.planType === 'sub_ingredient') {
+      const subProd = products.find(p => p.id === plan.subProductId);
+      const targetYogurt = products.find(p => p.id === plan.targetYogurtProductId);
+      return {
+        plan,
+        isSubIngredientPlan: true,
+        subProduct: subProd,
+        targetYogurt,
+        subProdName: subProd ? subProd.name : '부재료',
+        targetYogurtName: targetYogurt ? targetYogurt.name : '',
+        items: []
+      };
+    }
+
     const planItems = plan.items && Array.isArray(plan.items) && plan.items.length > 0
       ? plan.items
       : [{
@@ -282,6 +296,7 @@ const CalendarView = ({
 
     return {
       plan,
+      isSubIngredientPlan: false,
       items: itemDetails
     };
   }, [selectedPlan, plans, products, inventory]);
@@ -550,169 +565,245 @@ const CalendarView = ({
                 <p>달력에서 일정을 클릭하여 상세 정보를 확인하거나, 일반 날짜를 터치하여 새 메모를 등록해 보세요.</p>
               </div>
             ) : selectedPlanDetails ? (
-              <>
-                <div className="info-grid">
-                  <div className="info-row">
-                    <span className="label">차수 ID</span>
-                    <span className="value highlight" style={{ color: 'var(--color-primary)' }}>{selectedPlanDetails.plan.id}</span>
+              selectedPlanDetails.isSubIngredientPlan ? (
+                <>
+                  <div className="info-grid">
+                    <div className="info-row">
+                      <span className="label">차수 ID</span>
+                      <span className="value highlight" style={{ color: 'var(--color-primary)' }}>{selectedPlanDetails.plan.id}</span>
+                    </div>
+                    <div className="info-row">
+                      <span className="label">생산 계획명</span>
+                      <span className="value" style={{ fontWeight: 600 }}>{selectedPlanDetails.plan.name}</span>
+                    </div>
+                    <div className="info-row">
+                      <span className="label">구분</span>
+                      <span className="value highlight" style={{ color: '#ea580c' }}>🍞 부재료 생산계획</span>
+                    </div>
+                    <div className="info-row">
+                      <span className="label">부재료 품목명</span>
+                      <span className="value" style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{selectedPlanDetails.subProdName}</span>
+                    </div>
+                    <div className="info-row">
+                      <span className="label">대상 요거트 제품</span>
+                      <span className="value">{selectedPlanDetails.targetYogurtName || '전 품목'}</span>
+                    </div>
+                    <div className="info-row">
+                      <span className="label">생산 배치 목표량</span>
+                      <span className="value highlight" style={{ color: '#ea580c', fontWeight: 600 }}>
+                        {selectedPlanDetails.targetYogurtName} {selectedPlanDetails.plan.targetYogurtQty || 0}개분
+                      </span>
+                    </div>
+                    <div className="info-row">
+                      <span className="label">제조 시작일</span>
+                      <span className="value">{selectedPlanDetails.plan.startDate}</span>
+                    </div>
+
+                    {selectedPlanDetails.plan.memo && (
+                      <div style={{ marginTop: '14px', padding: '12px', background: 'rgba(249, 115, 22, 0.05)', border: '1px solid rgba(249, 115, 22, 0.2)', borderRadius: '8px', fontSize: '0.82rem', color: 'var(--text-secondary)', textAlign: 'left', whiteSpace: 'pre-wrap' }}>
+                        <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#ea580c', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          💡 부재료 생산 메모
+                        </div>
+                        <div style={{ lineHeight: '1.4', color: 'var(--text-primary)' }}>{selectedPlanDetails.plan.memo}</div>
+                      </div>
+                    )}
                   </div>
-                  <div className="info-row">
-                    <span className="label">생산 계획명</span>
-                    <span className="value" style={{ fontWeight: 600 }}>{selectedPlanDetails.plan.name}</span>
+
+                  <div style={{ marginTop: '16px', display: 'flex', gap: '10px' }}>
+                    <button className="btn-success" onClick={() => onOpenRecipeDrawer(selectedPlanDetails.plan.id)} style={{ flex: 1.2, justifyContent: 'center', fontSize: '0.85rem', padding: '8px 4px', background: '#ea580c', borderColor: '#c2410c' }}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                        <path d="M2 17l10 5 10-5"></path>
+                        <path d="M2 12l10 5 10-5"></path>
+                      </svg>
+                      부재료 배합표 보기
+                    </button>
+                    {isAdminLoggedIn && (
+                      <>
+                        <button className="btn-primary" onClick={() => onOpenEditModal(selectedPlanDetails.plan.id)} style={{ flex: 1.2, justifyContent: 'center', fontSize: '0.85rem', padding: '8px 4px' }}>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4z"></path>
+                          </svg>
+                          수정하기
+                        </button>
+                        <button className="btn-secondary btn-delete-plan" onClick={() => onDeletePlan(selectedPlanDetails.plan.id)} style={{ borderColor: 'rgba(248,113,113,0.3)', color: 'var(--color-danger)', padding: '0 10px' }} title="계획 삭제">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            <line x1="10" y1="11" x2="10" y2="17"></line>
+                            <line x1="14" y1="11" x2="14" y2="17"></line>
+                          </svg>
+                        </button>
+                      </>
+                    )}
                   </div>
-                  <div className="info-row">
-                    <span className="label">가동 발효기</span>
-                    <span className="value fermenter">{selectedPlanDetails.plan.fermenterType === 'small' ? '소형 발효기' : '대형 발효기'}</span>
-                  </div>
-                  <div className="info-row">
-                    <span className="label">원재료 총 투입량</span>
-                    <span className="value highlight" style={{ color: 'var(--color-success)' }}>{selectedPlanDetails.plan.totalVolumeL.toFixed(2)} L</span>
-                  </div>
-                  <div className="info-row">
-                    <span className="label">1일차 [발효 시작]</span>
-                    <span className="value">{selectedPlanDetails.plan.startDate}</span>
+                </>
+              ) : (
+                <>
+                  <div className="info-grid">
+                    <div className="info-row">
+                      <span className="label">차수 ID</span>
+                      <span className="value highlight" style={{ color: 'var(--color-primary)' }}>{selectedPlanDetails.plan.id}</span>
+                    </div>
+                    <div className="info-row">
+                      <span className="label">생산 계획명</span>
+                      <span className="value" style={{ fontWeight: 600 }}>{selectedPlanDetails.plan.name}</span>
+                    </div>
+                    <div className="info-row">
+                      <span className="label">가동 발효기</span>
+                      <span className="value fermenter">{selectedPlanDetails.plan.fermenterType === 'small' ? '소형 발효기' : '대형 발효기'}</span>
+                    </div>
+                    <div className="info-row">
+                      <span className="label">원재료 총 투입량</span>
+                      <span className="value highlight" style={{ color: 'var(--color-success)' }}>{(selectedPlanDetails.plan.totalVolumeL || 0).toFixed(2)} L</span>
+                    </div>
+                    <div className="info-row">
+                      <span className="label">1일차 [발효 시작]</span>
+                      <span className="value">{selectedPlanDetails.plan.startDate}</span>
+                    </div>
+                    
+                    {selectedPlanDetails.items.length > 1 && (
+                      <div style={{ margin: '10px 0 6px 0', background: 'rgba(255,255,255,0.02)', padding: '8px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600 }}>
+                          🎯 캘린더 달력 기한/재고 하이라이트 선택:
+                        </div>
+                        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                          <button
+                            type="button"
+                            className={`btn-secondary ${selectedSubProductId === 'ALL' ? 'active' : ''}`}
+                            onClick={() => setSelectedSubProductId('ALL')}
+                            style={{ padding: '3px 9px', fontSize: '0.75rem', borderRadius: '12px', background: selectedSubProductId === 'ALL' ? 'var(--color-primary)' : '', color: selectedSubProductId === 'ALL' ? '#fff' : '' }}
+                          >
+                            🌐 전체 품목 보기
+                          </button>
+                          {selectedPlanDetails.items.map((it, idx) => (
+                            <button
+                              key={it.productId}
+                              type="button"
+                              className={`btn-secondary ${selectedSubProductId === it.productId ? 'active' : ''}`}
+                              onClick={() => setSelectedSubProductId(it.productId)}
+                              style={{ padding: '3px 9px', fontSize: '0.75rem', borderRadius: '12px', background: selectedSubProductId === it.productId ? (idx === 0 ? 'var(--color-primary)' : '#a855f7') : '', color: selectedSubProductId === it.productId ? '#fff' : '' }}
+                            >
+                              품목 {idx + 1}: {it.prodName}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Detailed Card for Each Item */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '10px' }}>
+                      {selectedPlanDetails.items.map((it, idx) => (
+                        <div 
+                          key={idx}
+                          style={{
+                            background: idx === 0 ? 'rgba(2, 132, 199, 0.04)' : 'rgba(168, 85, 247, 0.04)',
+                            border: `1px solid ${idx === 0 ? 'rgba(2, 132, 199, 0.2)' : 'rgba(168, 85, 247, 0.2)'}`,
+                            borderRadius: '10px',
+                            padding: '12px'
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                            <span style={{ 
+                              fontSize: '0.72rem', 
+                              fontWeight: 700, 
+                              background: idx === 0 ? 'var(--color-primary)' : '#a855f7', 
+                              color: '#fff', 
+                              padding: '2px 8px', 
+                              borderRadius: '10px' 
+                            }}>
+                              품목 {idx + 1}
+                            </span>
+                            <strong style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>{it.prodName}</strong>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>({it.weight}g, 수율 {it.yieldRate}%)</span>
+                          </div>
+
+                          <div className="info-grid" style={{ gap: '6px' }}>
+                            <div className="info-row" style={{ padding: '2px 0' }}>
+                              <span className="label" style={{ fontSize: '0.78rem' }}>병입 일자</span>
+                              <span className="value" style={{ fontSize: '0.82rem', fontWeight: 600 }}>{it.bottlingDate}</span>
+                            </div>
+                            <div className="info-row" style={{ padding: '4px 6px', border: '1px dashed var(--color-warning)', borderRadius: '6px' }}>
+                              <span className="label" style={{ color: 'var(--color-warning)', fontSize: '0.75rem' }}>🚚 최종 출고기한</span>
+                              <span className="value" style={{ color: 'var(--color-warning)', fontWeight: 600, fontSize: '0.82rem' }}>{it.shippingLimit}</span>
+                            </div>
+                            <div className="info-row" style={{ padding: '4px 6px', border: '1px dashed var(--color-danger)', borderRadius: '6px' }}>
+                              <span className="label" style={{ color: 'var(--color-danger)', fontSize: '0.75rem' }}>⚠️ 최종 소비기한</span>
+                              <span className="value" style={{ color: 'var(--color-danger)', fontWeight: 600, fontSize: '0.82rem' }}>{it.expiryDate}</span>
+                            </div>
+                          </div>
+
+                          <div style={{ marginTop: '8px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px', background: 'rgba(255,255,255,0.03)', padding: '6px', borderRadius: '6px' }}>
+                            <div style={{ textAlign: 'center' }}>
+                              <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>주문예상</div>
+                              <div style={{ fontSize: '0.8rem', fontWeight: 600 }}>{it.expectedOrderQty || 0}</div>
+                            </div>
+                            <div style={{ textAlign: 'center', borderLeft: '1px solid var(--border-color)', borderRight: '1px solid var(--border-color)' }}>
+                              <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>마케팅</div>
+                              <div style={{ fontSize: '0.8rem', fontWeight: 600 }}>{it.marketingQty || 0}</div>
+                            </div>
+                            <div style={{ textAlign: 'center' }}>
+                              <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>여유분</div>
+                              <div style={{ fontSize: '0.8rem', fontWeight: 600 }}>{it.bufferQty || 0}</div>
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px', paddingTop: '6px', borderTop: '1px dashed var(--border-color)' }}>
+                            <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>목표 수량: <strong>{(it.plannedQty || 0).toLocaleString()}개</strong></span>
+                            <span style={{ fontSize: '0.82rem', fontWeight: 700, color: (it.currentStock || 0) < 100 ? 'var(--color-danger)' : 'var(--color-primary)' }}>
+                              현재 재고: {(it.currentStock || 0).toLocaleString()}개
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {selectedPlanDetails.plan.memo && (
+                      <div style={{ marginTop: '10px', padding: '10px', background: 'rgba(255,255,255,0.02)', border: '1px dashed var(--border-color)', borderRadius: '6px', fontSize: '0.8rem', color: 'var(--text-secondary)', textAlign: 'left', whiteSpace: 'pre-wrap' }}>
+                        <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-primary)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+                            <path d="M12 20h9"></path>
+                            <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
+                          </svg>
+                          생산 메모
+                        </div>
+                        <div style={{ lineHeight: '1.4' }}>{selectedPlanDetails.plan.memo}</div>
+                      </div>
+                    )}
                   </div>
                   
-                  {selectedPlanDetails.items.length > 1 && (
-                    <div style={{ margin: '10px 0 6px 0', background: 'rgba(255,255,255,0.02)', padding: '8px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '6px', fontWeight: 600 }}>
-                        🎯 캘린더 달력 기한/재고 하이라이트 선택:
-                      </div>
-                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                        <button
-                          type="button"
-                          className={`btn-secondary ${selectedSubProductId === 'ALL' ? 'active' : ''}`}
-                          onClick={() => setSelectedSubProductId('ALL')}
-                          style={{ padding: '3px 9px', fontSize: '0.75rem', borderRadius: '12px', background: selectedSubProductId === 'ALL' ? 'var(--color-primary)' : '', color: selectedSubProductId === 'ALL' ? '#fff' : '' }}
-                        >
-                          🌐 전체 품목 보기
+                  <div style={{ marginTop: '16px', display: 'flex', gap: '10px' }}>
+                    <button className="btn-success" onClick={() => onOpenRecipeDrawer(selectedPlanDetails.plan.id)} style={{ flex: 1.2, justifyContent: 'center', fontSize: '0.85rem', padding: '6px 4px' }}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                        <path d="M2 17l10 5 10-5"></path>
+                        <path d="M2 12l10 5 10-5"></path>
+                      </svg>
+                      배합표 보기
+                    </button>
+                    {isAdminLoggedIn && (
+                      <>
+                        <button className="btn-primary" onClick={() => onOpenEditModal(selectedPlanDetails.plan.id)} style={{ flex: 1.2, justifyContent: 'center', fontSize: '0.85rem', padding: '6px 4px' }}>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4z"></path>
+                          </svg>
+                          수정하기
                         </button>
-                        {selectedPlanDetails.items.map((it, idx) => (
-                          <button
-                            key={it.productId}
-                            type="button"
-                            className={`btn-secondary ${selectedSubProductId === it.productId ? 'active' : ''}`}
-                            onClick={() => setSelectedSubProductId(it.productId)}
-                            style={{ padding: '3px 9px', fontSize: '0.75rem', borderRadius: '12px', background: selectedSubProductId === it.productId ? (idx === 0 ? 'var(--color-primary)' : '#a855f7') : '', color: selectedSubProductId === it.productId ? '#fff' : '' }}
-                          >
-                            품목 {idx + 1}: {it.prodName}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Detailed Card for Each Item */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '10px' }}>
-                    {selectedPlanDetails.items.map((it, idx) => (
-                      <div 
-                        key={idx}
-                        style={{
-                          background: idx === 0 ? 'rgba(2, 132, 199, 0.04)' : 'rgba(168, 85, 247, 0.04)',
-                          border: `1px solid ${idx === 0 ? 'rgba(2, 132, 199, 0.2)' : 'rgba(168, 85, 247, 0.2)'}`,
-                          borderRadius: '10px',
-                          padding: '12px'
-                        }}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                          <span style={{ 
-                            fontSize: '0.72rem', 
-                            fontWeight: 700, 
-                            background: idx === 0 ? 'var(--color-primary)' : '#a855f7', 
-                            color: '#fff', 
-                            padding: '2px 8px', 
-                            borderRadius: '10px' 
-                          }}>
-                            품목 {idx + 1}
-                          </span>
-                          <strong style={{ fontSize: '0.9rem', color: 'var(--text-primary)' }}>{it.prodName}</strong>
-                          <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>({it.weight}g, 수율 {it.yieldRate}%)</span>
-                        </div>
-
-                        <div className="info-grid" style={{ gap: '6px' }}>
-                          <div className="info-row" style={{ padding: '2px 0' }}>
-                            <span className="label" style={{ fontSize: '0.78rem' }}>병입 일자</span>
-                            <span className="value" style={{ fontSize: '0.82rem', fontWeight: 600 }}>{it.bottlingDate}</span>
-                          </div>
-                          <div className="info-row" style={{ padding: '4px 6px', border: '1px dashed var(--color-warning)', borderRadius: '6px' }}>
-                            <span className="label" style={{ color: 'var(--color-warning)', fontSize: '0.75rem' }}>🚚 최종 출고기한</span>
-                            <span className="value" style={{ color: 'var(--color-warning)', fontWeight: 600, fontSize: '0.82rem' }}>{it.shippingLimit}</span>
-                          </div>
-                          <div className="info-row" style={{ padding: '4px 6px', border: '1px dashed var(--color-danger)', borderRadius: '6px' }}>
-                            <span className="label" style={{ color: 'var(--color-danger)', fontSize: '0.75rem' }}>⚠️ 최종 소비기한</span>
-                            <span className="value" style={{ color: 'var(--color-danger)', fontWeight: 600, fontSize: '0.82rem' }}>{it.expiryDate}</span>
-                          </div>
-                        </div>
-
-                        <div style={{ marginTop: '8px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '6px', background: 'rgba(255,255,255,0.03)', padding: '6px', borderRadius: '6px' }}>
-                          <div style={{ textAlign: 'center' }}>
-                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>주문예상</div>
-                            <div style={{ fontSize: '0.8rem', fontWeight: 600 }}>{it.expectedOrderQty || 0}</div>
-                          </div>
-                          <div style={{ textAlign: 'center', borderLeft: '1px solid var(--border-color)', borderRight: '1px solid var(--border-color)' }}>
-                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>마케팅</div>
-                            <div style={{ fontSize: '0.8rem', fontWeight: 600 }}>{it.marketingQty || 0}</div>
-                          </div>
-                          <div style={{ textAlign: 'center' }}>
-                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>여유분</div>
-                            <div style={{ fontSize: '0.8rem', fontWeight: 600 }}>{it.bufferQty || 0}</div>
-                          </div>
-                        </div>
-
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px', paddingTop: '6px', borderTop: '1px dashed var(--border-color)' }}>
-                          <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>목표 수량: <strong>{it.plannedQty.toLocaleString()}개</strong></span>
-                          <span style={{ fontSize: '0.82rem', fontWeight: 700, color: it.currentStock < 100 ? 'var(--color-danger)' : 'var(--color-primary)' }}>
-                            현재 재고: {it.currentStock.toLocaleString()}개
-                          </span>
-                        </div>
-                      </div>
-                    ))}
+                        <button className="btn-secondary btn-delete-plan" onClick={() => onDeletePlan(selectedPlanDetails.plan.id)} style={{ borderColor: 'rgba(248,113,113,0.3)', color: 'var(--color-danger)', padding: '0 10px' }} title="계획 삭제">
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            <line x1="10" y1="11" x2="10" y2="17"></line>
+                            <line x1="14" y1="11" x2="14" y2="17"></line>
+                          </svg>
+                        </button>
+                      </>
+                    )}
                   </div>
-
-                  {selectedPlanDetails.plan.memo && (
-                    <div style={{ marginTop: '10px', padding: '10px', background: 'rgba(255,255,255,0.02)', border: '1px dashed var(--border-color)', borderRadius: '6px', fontSize: '0.8rem', color: 'var(--text-secondary)', textAlign: 'left', whiteSpace: 'pre-wrap' }}>
-                      <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--color-primary)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
-                          <path d="M12 20h9"></path>
-                          <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-                        </svg>
-                        생산 메모
-                      </div>
-                      <div style={{ lineHeight: '1.4' }}>{selectedPlanDetails.plan.memo}</div>
-                    </div>
-                  )}
-                </div>
-                
-                <div style={{ marginTop: '16px', display: 'flex', gap: '10px' }}>
-                  <button className="btn-success" onClick={() => onOpenRecipeDrawer(selectedPlanDetails.plan.id)} style={{ flex: 1.2, justifyContent: 'center', fontSize: '0.85rem', padding: '6px 4px' }}>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
-                      <path d="M2 17l10 5 10-5"></path>
-                      <path d="M2 12l10 5 10-5"></path>
-                    </svg>
-                    배합표 보기
-                  </button>
-                  {isAdminLoggedIn && (
-                    <>
-                      <button className="btn-primary" onClick={() => onOpenEditModal(selectedPlanDetails.plan.id)} style={{ flex: 1.2, justifyContent: 'center', fontSize: '0.85rem', padding: '6px 4px' }}>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                          <path d="M18.5 2.5a2.121 2.121 0 1 1 3 3L12 15l-4 1 1-4z"></path>
-                        </svg>
-                        수정하기
-                      </button>
-                      <button className="btn-secondary btn-delete-plan" onClick={() => onDeletePlan(selectedPlanDetails.plan.id)} style={{ borderColor: 'rgba(248,113,113,0.3)', color: 'var(--color-danger)', padding: '0 10px' }} title="계획 삭제">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="3 6 5 6 21 6"></polyline>
-                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                          <line x1="10" y1="11" x2="10" y2="17"></line>
-                          <line x1="14" y1="11" x2="14" y2="17"></line>
-                        </svg>
-                      </button>
-                    </>
-                  )}
-                </div>
-              </>
+                </>
+              )
             ) : (
               <>
                 <div className="info-grid">
