@@ -28,7 +28,7 @@ const ViewFallback = () => (
 );
 
 const App = () => {
-  const { deletePlan, deleteProduct, deleteHistoryItem, updateOutflowMemo, saveCalendarNote, deleteCalendarNote, loading, isDbConnected, dbError, isAdminLoggedIn, loginAdmin, logoutAdmin, products } = useWysh();
+  const { deletePlan, deleteProduct, deleteHistoryItem, updateOutflowMemo, saveCalendarNote, deleteCalendarNote, loading, isDbConnected, dbError, isAdminLoggedIn, loginAdmin, logoutAdmin, products, plans } = useWysh();
 
   // Tab state
   const [activeTab, setActiveTab] = useState('calendar-view');
