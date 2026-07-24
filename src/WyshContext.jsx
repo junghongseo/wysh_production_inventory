@@ -86,6 +86,8 @@ export const WyshProvider = ({ children }) => {
         mappedReports
       } = await fetchAllRemoteData();
 
+      const localInitial = loadInitialLocalStorageData();
+
       // Clear local tombstone filters to prevent unintended auto-deletions
       localStorage.removeItem('wysh_deleted_notes');
       localStorage.removeItem('wysh_deleted_reports');
