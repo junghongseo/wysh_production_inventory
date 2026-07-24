@@ -140,15 +140,11 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal,
     return allInventoryData.filter(item => {
       const { plan, subName, prodName, shippingLimit, currentStock } = item;
 
-      // 현재 재고가 0 이하인 항목은 리스트에서 배제 (출고 가능 계획이 아니므로)
-      if (currentStock <= 0) {
-        return false;
-      }
-
-      // Status filter
+      // Status filter (출고 가능 계획만 보기)
       if (statusFilter === 'active') {
         const isActive = shippingLimit >= todayStr && todayStr >= plan.bottlingDate;
-        if (!isActive) return false;
+        // 출고 가능 기간 내에 있고, 현재 재고가 0보다 큰 경우에만 리스트에 표시
+        if (!isActive || currentStock <= 0) return false;
       }
 
       // Month filter
