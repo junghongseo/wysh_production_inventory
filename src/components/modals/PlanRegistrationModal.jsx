@@ -78,7 +78,7 @@ const PlanRegistrationModal = ({
           if (currentPlanType === 'sub_ingredient') {
             setSubProductId(plan.subProductId || '');
             setTargetYogurtProductId(plan.targetYogurtProductId || '');
-            setTargetYogurtQty(plan.targetYogurtQty || 0);
+            setTargetYogurtQty(plan.targetYogurtQty || '');
           } else {
             if (plan.items && Array.isArray(plan.items) && plan.items.length > 0) {
               setItems(plan.items.map(it => {
@@ -88,9 +88,9 @@ const PlanRegistrationModal = ({
                 const eDate = it.expiryDate || plan.expiryDate || (prod ? dateAddDays(botDate, prod.expiryDays ?? 22) : '');
                 return {
                   productId: it.productId || '',
-                  expectedOrderQty: it.expectedOrderQty || 0,
-                  marketingQty: it.marketingQty || 0,
-                  bufferQty: it.bufferQty || 0,
+                  expectedOrderQty: it.expectedOrderQty ?? '',
+                  marketingQty: it.marketingQty ?? '',
+                  bufferQty: it.bufferQty ?? '',
                   bottlingDate: botDate,
                   shippingLimit: sLimit,
                   expiryDate: eDate
@@ -100,9 +100,9 @@ const PlanRegistrationModal = ({
               const prod = yogurtProducts.find(p => p.id === plan.productId);
               setItems([{
                 productId: plan.productId || '',
-                expectedOrderQty: plan.expectedOrderQty || 0,
-                marketingQty: plan.marketingQty || 0,
-                bufferQty: plan.bufferQty || 0,
+                expectedOrderQty: plan.expectedOrderQty ?? '',
+                marketingQty: plan.marketingQty ?? '',
+                bufferQty: plan.bufferQty ?? '',
                 bottlingDate: plan.bottlingDate,
                 shippingLimit: plan.shippingLimit || (prod ? dateAddDays(plan.bottlingDate, prod.shippingLimitDays ?? 7) : ''),
                 expiryDate: plan.expiryDate || (prod ? dateAddDays(plan.bottlingDate, prod.expiryDays ?? 22) : '')
@@ -128,9 +128,9 @@ const PlanRegistrationModal = ({
         const initialDerived = calculateItemDerivedDates(defaultBot, defaultProd);
         setItems([{
           productId: defaultProd ? defaultProd.id : '',
-          expectedOrderQty: 0,
-          marketingQty: 0,
-          bufferQty: 0,
+          expectedOrderQty: '',
+          marketingQty: '',
+          bufferQty: '',
           bottlingDate: defaultBot,
           shippingLimit: initialDerived.shippingLimit,
           expiryDate: initialDerived.expiryDate
@@ -162,10 +162,10 @@ const PlanRegistrationModal = ({
   const handleItemChange = (index, field, value) => {
     const next = items.map((item, idx) => {
       if (idx === index) {
-        const prod = field === 'productId' ? yogurtProducts.find(p => p.id === value) : yogurtProducts.find(p => p.id === item.productId);
+        const prod = yogurtProducts.find(p => p.id === (field === 'productId' ? value : item.productId));
+        const itemBotDate = field === 'bottlingDate' ? value : (item.bottlingDate || dateAddDays(startDate || getTodayStr(), 2));
 
         if (field === 'productId') {
-          const itemBotDate = item.bottlingDate || dateAddDays(startDate || getTodayStr(), 2);
           const derived = calculateItemDerivedDates(itemBotDate, prod);
           return {
             ...item,
@@ -190,7 +190,7 @@ const PlanRegistrationModal = ({
         } else {
           return {
             ...item,
-            [field]: parseInt(value) || 0
+            [field]: value === '' ? '' : (parseInt(value, 10) || 0)
           };
         }
       }
@@ -204,9 +204,9 @@ const PlanRegistrationModal = ({
     const defaultBot = dateAddDays(startDate || getTodayStr(), 2);
     setItems([...items, {
       productId: '',
-      expectedOrderQty: 0,
-      marketingQty: 0,
-      bufferQty: 0,
+      expectedOrderQty: '',
+      marketingQty: '',
+      bufferQty: '',
       bottlingDate: defaultBot,
       shippingLimit: '',
       expiryDate: ''
@@ -221,7 +221,10 @@ const PlanRegistrationModal = ({
   // Calculations across items
   const computedItems = useMemo(() => {
     return items.map(item => {
-      const totalQty = (item.expectedOrderQty || 0) + (item.marketingQty || 0) + (item.bufferQty || 0);
+      const expQty = parseInt(item.expectedOrderQty, 10) || 0;
+      const mktQty = parseInt(item.marketingQty, 10) || 0;
+      const bufQty = parseInt(item.bufferQty, 10) || 0;
+      const totalQty = expQty + mktQty + bufQty;
       const prod = yogurtProducts.find(p => p.id === item.productId);
       
       let baseYogurtG = 0;
@@ -240,6 +243,9 @@ const PlanRegistrationModal = ({
 
       return {
         ...item,
+        expectedOrderQty: expQty,
+        marketingQty: mktQty,
+        bufferQty: bufQty,
         totalQty,
         product: prod,
         baseYogurtG
