@@ -7,6 +7,31 @@ import {
   fetchChatMessagesBySession 
 } from '../services/supabaseService';
 
+// Format raw AI text response into clean HTML (removes raw **, ###, * markdown syntax)
+const formatChatMessage = (text) => {
+  if (!text) return { __html: '' };
+  
+  let cleaned = text;
+  
+  // Format Headers ### 
+  cleaned = cleaned.replace(/^###\s*(.*$)/gim, '<div style="font-weight: 800; font-size: 1.05em; margin-top: 10px; margin-bottom: 4px; color: #38BDF8; letter-spacing: -0.2px;">$1</div>');
+  cleaned = cleaned.replace(/^##\s*(.*$)/gim, '<div style="font-weight: 800; font-size: 1.1em; margin-top: 12px; margin-bottom: 6px; color: #FFFFFF; letter-spacing: -0.2px;">$1</div>');
+
+  // Format Bold **text** -> clean bold without asterisks
+  cleaned = cleaned.replace(/\*\*(.*?)\*\*/g, '<strong style="color: #FFFFFF; font-weight: 700;">$1</strong>');
+  
+  // Format Italic *text* -> clean text without asterisks
+  cleaned = cleaned.replace(/\*(.*?)\*/g, '<span style="color: rgba(255,255,255,0.95);">$1</span>');
+
+  // Format bullet list items (* or -) -> clean dot
+  cleaned = cleaned.replace(/^\s*[\*\-]\s+/gim, '• ');
+
+  // Clean up any lingering loose asterisks
+  cleaned = cleaned.replace(/\*/g, '');
+
+  return { __html: cleaned };
+};
+
 export const AIManagerChat = () => {
   const { isAdminLoggedIn } = useWysh();
   const [isOpen, setIsOpen] = useState(false);
@@ -22,10 +47,10 @@ export const AIManagerChat = () => {
   const [pastMessages, setPastMessages] = useState([]);
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   
-  // Resizing state (Default: 390px x 560px, Limits: Min 350x450, Max 800x900)
-  const [dimensions, setDimensions] = useState({ width: 390, height: 560 });
+  // Resizing state (Default: 440px x 580px, Limits: Min 360x450, Max 800x900)
+  const [dimensions, setDimensions] = useState({ width: 440, height: 580 });
   const isResizingRef = useRef(false);
-  const resizeStartRef = useRef({ x: 0, y: 0, width: 390, height: 560 });
+  const resizeStartRef = useRef({ x: 0, y: 0, width: 440, height: 580 });
 
   const messagesEndRef = useRef(null);
 
@@ -58,7 +83,7 @@ export const AIManagerChat = () => {
     const deltaX = resizeStartRef.current.x - e.clientX;
     const deltaY = resizeStartRef.current.y - e.clientY;
 
-    const newWidth = Math.min(800, Math.max(350, resizeStartRef.current.width + deltaX));
+    const newWidth = Math.min(800, Math.max(360, resizeStartRef.current.width + deltaX));
     const newHeight = Math.min(900, Math.max(450, resizeStartRef.current.height + deltaY));
 
     setDimensions({ width: newWidth, height: newHeight });
@@ -70,14 +95,21 @@ export const AIManagerChat = () => {
     document.removeEventListener('mouseup', handleMouseUp);
   };
 
-  // Start a fresh new chat session
+  // Start a fresh new chat session with friendly greeting (no auto briefing)
   const startNewChatSession = () => {
     const newSessId = 'sess-' + Date.now();
     setSessionId(newSessId);
-    setMessages([]);
+    setMessages([
+      {
+        id: 'welcome-' + Date.now(),
+        sender: 'ai',
+        text: "안녕하세요! WYSH AI 생산매니저입니다.\n생산 일정, 실시간 재고, 발효 리포트 현황에 대해 무엇이든 편하게 질문해 주세요.",
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        showBriefingButton: true
+      }
+    ]);
     setShowHistoryView(false);
     setSelectedPastSession(null);
-    triggerBriefing(newSessId);
   };
 
   const handleOpenChat = () => {
@@ -87,25 +119,27 @@ export const AIManagerChat = () => {
     }
   };
 
-  const triggerBriefing = async (activeSessId) => {
+  // Trigger Briefing ONLY when user clicks the briefing button
+  const triggerBriefing = async () => {
+    if (isLoading) return;
     setIsLoading(true);
-    const currentSessId = activeSessId || sessionId;
     try {
-      const reply = await sendAIManagerMessage('', 'briefing', currentSessId);
+      const reply = await sendAIManagerMessage('', 'briefing', sessionId);
       const aiMsg = {
         id: 'brief-' + Date.now(),
         sender: 'ai',
         text: reply,
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
-      setMessages([aiMsg]);
-      pushChatMessageToSupabase('assistant', reply, currentSessId, '생산 현황 및 일일 브리핑');
+      setMessages(prev => [...prev, aiMsg]);
+      pushChatMessageToSupabase('assistant', reply, sessionId, '생산 현황 브리핑');
     } catch (err) {
-      setMessages([
+      setMessages(prev => [
+        ...prev,
         {
           id: 'err-' + Date.now(),
           sender: 'ai',
-          text: "⚠️ 안녕하세요! WYSH AI 생산매니저입니다. 무엇을 도와드릴까요?",
+          text: "⚠️ 현황 분석 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
       ]);
@@ -267,7 +301,7 @@ export const AIManagerChat = () => {
           {/* Top-Left Resize Handle */}
           <div
             onMouseDown={handleMouseDown}
-            title="드래그하여 창 크기 조절 (최소 350x450 ~ 최대 800x900)"
+            title="드래그하여 창 크기 조절"
             style={{
               position: 'absolute',
               top: '0',
@@ -290,26 +324,28 @@ export const AIManagerChat = () => {
             </svg>
           </div>
 
-          {/* WYSH Header */}
+          {/* WYSH Header - Clean single line, no wrapping */}
           <div style={{
-            padding: '16px 20px',
+            padding: '14px 18px',
             backgroundColor: '#000000',
             borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
             display: 'flex',
             justifyContent: 'space-between',
             alignItems: 'center',
-            userSelect: 'none'
+            userSelect: 'none',
+            gap: '10px'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
               <div style={{
-                width: '34px',
-                height: '34px',
+                width: '32px',
+                height: '32px',
                 borderRadius: '50%',
                 backgroundColor: '#FFFFFF',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                padding: '4px'
+                padding: '4px',
+                flexShrink: 0
               }}>
                 <img
                   src="/WYSH2_로고_1772157440156.webp"
@@ -317,31 +353,26 @@ export const AIManagerChat = () => {
                   style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                 />
               </div>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  <h4 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#FFFFFF', letterSpacing: '-0.3px' }}>
-                    AI 생산매니저
-                  </h4>
-                  <span style={{
-                    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-                    color: '#FFFFFF',
-                    fontSize: '10px',
-                    fontWeight: '800',
-                    padding: '2px 6px',
-                    borderRadius: '4px',
-                    border: '1px solid rgba(255,255,255,0.2)'
-                  }}>
-                    BETA
-                  </span>
-                </div>
-                <div style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.5)', marginTop: '2px' }}>
-                  {showHistoryView ? '📜 지난 대화 이력 보기' : '⚡ 신규 세션 진행 중'}
-                </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
+                <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '800', color: '#FFFFFF', whiteSpace: 'nowrap' }}>
+                  AI 생산매니저
+                </h4>
+                <span style={{
+                  backgroundColor: 'rgba(255, 255, 255, 0.15)',
+                  color: '#FFFFFF',
+                  fontSize: '9px',
+                  fontWeight: '800',
+                  padding: '2px 5px',
+                  borderRadius: '4px',
+                  flexShrink: 0
+                }}>
+                  BETA
+                </span>
               </div>
             </div>
 
-            {/* Header Control Buttons */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {/* Header Control Buttons - Fixed fit */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
               {showHistoryView ? (
                 <button
                   onClick={() => setShowHistoryView(false)}
@@ -350,10 +381,11 @@ export const AIManagerChat = () => {
                     border: '1px solid rgba(255, 255, 255, 0.2)',
                     color: '#FFFFFF',
                     borderRadius: '8px',
-                    padding: '5px 10px',
-                    fontSize: '12px',
+                    padding: '5px 9px',
+                    fontSize: '11.5px',
                     fontWeight: 600,
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap'
                   }}
                 >
                   💬 대화창으로
@@ -368,10 +400,11 @@ export const AIManagerChat = () => {
                       border: '1px solid rgba(255, 255, 255, 0.15)',
                       color: '#FFFFFF',
                       borderRadius: '8px',
-                      padding: '5px 10px',
-                      fontSize: '12px',
+                      padding: '5px 9px',
+                      fontSize: '11.5px',
                       fontWeight: 600,
-                      cursor: 'pointer'
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap'
                     }}
                   >
                     ✨ 새 대화
@@ -384,10 +417,11 @@ export const AIManagerChat = () => {
                       border: '1px solid rgba(255, 255, 255, 0.15)',
                       color: 'rgba(255, 255, 255, 0.8)',
                       borderRadius: '8px',
-                      padding: '5px 10px',
-                      fontSize: '12px',
+                      padding: '5px 9px',
+                      fontSize: '11.5px',
                       fontWeight: 600,
-                      cursor: 'pointer'
+                      cursor: 'pointer',
+                      whiteSpace: 'nowrap'
                     }}
                   >
                     📜 기록
@@ -402,9 +436,10 @@ export const AIManagerChat = () => {
                   border: 'none',
                   color: 'rgba(255, 255, 255, 0.5)',
                   cursor: 'pointer',
-                  fontSize: '20px',
-                  padding: '4px',
-                  lineHeight: 1
+                  fontSize: '18px',
+                  padding: '2px 4px',
+                  lineHeight: 1,
+                  flexShrink: 0
                 }}
               >
                 ✕
@@ -446,20 +481,20 @@ export const AIManagerChat = () => {
                             alignItems: msg.sender === 'user' ? 'flex-end' : 'flex-start'
                           }}
                         >
-                          <div style={{
-                            maxWidth: '85%',
-                            padding: '12px 16px',
-                            borderRadius: '16px',
-                            backgroundColor: msg.sender === 'user' ? '#FFFFFF' : '#222222',
-                            color: msg.sender === 'user' ? '#000000' : '#FFFFFF',
-                            fontSize: '13.5px',
-                            lineHeight: '1.55',
-                            whiteSpace: 'pre-wrap',
-                            boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-                            border: msg.sender === 'user' ? 'none' : '1px solid rgba(255,255,255,0.1)'
-                          }}>
-                            {msg.text}
-                          </div>
+                          <div 
+                            style={{
+                              maxWidth: '88%',
+                              padding: '12px 16px',
+                              borderRadius: '16px',
+                              backgroundColor: msg.sender === 'user' ? '#FFFFFF' : '#222222',
+                              color: msg.sender === 'user' ? '#000000' : '#FFFFFF',
+                              fontSize: '13.5px',
+                              lineHeight: '1.6',
+                              boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                              border: msg.sender === 'user' ? 'none' : '1px solid rgba(255,255,255,0.1)'
+                            }}
+                            dangerouslySetInnerHTML={formatChatMessage(msg.text)}
+                          />
                           <span style={{ fontSize: '10px', color: 'rgba(255, 255, 255, 0.4)', marginTop: '4px', padding: '0 4px' }}>
                             {msg.time}
                           </span>
@@ -523,7 +558,7 @@ export const AIManagerChat = () => {
               {/* Chat Message History */}
               <div style={{
                 flex: 1,
-                padding: '20px 18px',
+                padding: '18px 16px',
                 overflowY: 'auto',
                 display: 'flex',
                 flexDirection: 'column',
@@ -538,20 +573,49 @@ export const AIManagerChat = () => {
                       alignItems: msg.sender === 'user' ? 'flex-end' : 'flex-start'
                     }}
                   >
-                    <div style={{
-                      maxWidth: '85%',
-                      padding: '13px 18px',
-                      borderRadius: msg.sender === 'user' ? '20px 20px 4px 20px' : '20px 20px 20px 4px',
-                      backgroundColor: msg.sender === 'user' ? '#FFFFFF' : '#1A1A1A',
-                      color: msg.sender === 'user' ? '#000000' : '#FFFFFF',
-                      fontSize: '14px',
-                      lineHeight: '1.6',
-                      whiteSpace: 'pre-wrap',
-                      boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
-                      border: msg.sender === 'user' ? 'none' : '1px solid rgba(255,255,255,0.1)'
-                    }}>
-                      {msg.text}
-                    </div>
+                    <div 
+                      style={{
+                        maxWidth: '88%',
+                        padding: '13px 18px',
+                        borderRadius: msg.sender === 'user' ? '20px 20px 4px 20px' : '20px 20px 20px 4px',
+                        backgroundColor: msg.sender === 'user' ? '#FFFFFF' : '#1A1A1A',
+                        color: msg.sender === 'user' ? '#000000' : '#FFFFFF',
+                        fontSize: '13.5px',
+                        lineHeight: '1.6',
+                        boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
+                        border: msg.sender === 'user' ? 'none' : '1px solid rgba(255,255,255,0.1)'
+                      }}
+                      dangerouslySetInnerHTML={formatChatMessage(msg.text)}
+                    />
+                    
+                    {/* Optional Briefing Action Button */}
+                    {msg.showBriefingButton && (
+                      <button
+                        onClick={triggerBriefing}
+                        disabled={isLoading}
+                        style={{
+                          marginTop: '10px',
+                          padding: '10px 16px',
+                          fontSize: '12.5px',
+                          fontWeight: '700',
+                          backgroundColor: 'rgba(2, 132, 199, 0.2)',
+                          color: '#38BDF8',
+                          border: '1px solid rgba(56, 189, 248, 0.4)',
+                          borderRadius: '12px',
+                          cursor: isLoading ? 'not-allowed' : 'pointer',
+                          transition: 'all 0.2s',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgba(2, 132, 199, 0.35)'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgba(2, 132, 199, 0.2)'}
+                      >
+                        <span>📊</span>
+                        <span>오늘 생산 및 재고 현황 브리핑 받기</span>
+                      </button>
+                    )}
+
                     <span style={{
                       fontSize: '10px',
                       color: 'rgba(255, 255, 255, 0.4)',
