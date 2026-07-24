@@ -6,26 +6,33 @@ const CalendarNoteModal = ({ isOpen, onClose, dateStr, existingNote, onSave, onD
 
   const titleInputRef = useRef(null);
 
+  const [isInitialized, setIsInitialized] = useState(false);
+
   useEffect(() => {
-    if (isOpen) {
-      if (existingNote) {
-        setTitle(existingNote.title || '');
-        setContent(existingNote.content || '');
-      } else {
-        setTitle('');
-        setContent('');
-      }
-      
-      // Auto focus on title input after opening animation (only for admins)
-      if (isAdminLoggedIn) {
-        setTimeout(() => {
-          if (titleInputRef.current) {
-            titleInputRef.current.focus();
-          }
-        }, 80);
-      }
+    if (!isOpen) {
+      setIsInitialized(false);
+      return;
     }
-  }, [isOpen, existingNote, isAdminLoggedIn]);
+    if (isInitialized) return;
+
+    if (existingNote) {
+      setTitle(existingNote.title || '');
+      setContent(existingNote.content || '');
+    } else {
+      setTitle('');
+      setContent('');
+    }
+    
+    // Auto focus on title input after opening animation (only for admins)
+    if (isAdminLoggedIn) {
+      setTimeout(() => {
+        if (titleInputRef.current) {
+          titleInputRef.current.focus();
+        }
+      }, 80);
+    }
+    setIsInitialized(true);
+  }, [isOpen, existingNote, isInitialized, isAdminLoggedIn]);
 
   if (!isOpen) return null;
 

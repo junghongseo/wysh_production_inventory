@@ -4,12 +4,19 @@ const MemoModal = ({ isOpen, onClose, planId, historyId, initialMemo, onSave, is
   const [isEditing, setIsEditing] = useState(false);
   const [memoText, setMemoText] = useState('');
 
+  const [isInitialized, setIsInitialized] = useState(false);
+
   useEffect(() => {
-    if (isOpen) {
-      setMemoText(initialMemo || '');
-      setIsEditing(false);
+    if (!isOpen) {
+      setIsInitialized(false);
+      return;
     }
-  }, [isOpen, initialMemo]);
+    if (isInitialized) return;
+
+    setMemoText(initialMemo || '');
+    setIsEditing(false);
+    setIsInitialized(true);
+  }, [isOpen, initialMemo, isInitialized]);
 
   if (!isOpen) return null;
 

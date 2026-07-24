@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useWysh } from '../WyshContext';
 import AgitatorConfirmModal from './modals/AgitatorConfirmModal';
 
@@ -15,6 +15,8 @@ const MUD_GREEK_SEED_PH_DATA = [
 
 const ReportsView = () => {
   const { plans, products, reports, addReport, updateReport, deleteReport } = useWysh();
+
+  const lastInitializedPlanIdRef = useRef(null);
 
   // Active Report Type: fermentation, whey_separation, bottling, packaging
   const [activeReportType, setActiveReportType] = useState('fermentation');
@@ -281,6 +283,11 @@ const ReportsView = () => {
   // When plan changes, initialize details with product default settings (for fermentation)
   useEffect(() => {
     if (selectedPlanDetails && !isEditing && activeReportType === 'fermentation') {
+      const planId = selectedPlanDetails.plan?.id;
+      if (lastInitializedPlanIdRef.current === planId) {
+        // Already initialized for this plan! Do not overwrite user inputs on background sync!
+        return;
+      }
       const prod = selectedPlanDetails.product;
       setSterilizationTemp(prod.defaultSterilizationTemp !== undefined ? prod.defaultSterilizationTemp : 85);
       setSterilizationTime(prod.defaultSterilizationTime !== undefined ? prod.defaultSterilizationTime : 30);
@@ -296,6 +303,10 @@ const ReportsView = () => {
       setCheckedHeater(false);
       setCheckedHeaterLow(false);
       setCheckedAgitator(false);
+
+      lastInitializedPlanIdRef.current = planId;
+    } else {
+      lastInitializedPlanIdRef.current = null;
     }
   }, [selectedPlanDetails, isEditing, activeReportType]);
 

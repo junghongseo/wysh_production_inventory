@@ -33,14 +33,23 @@ const ModifyQtyModal = ({ isOpen, onClose, planId, productId }) => {
     };
   }, [isOpen, planId, productId, plans, products, getInventoryRecord]);
 
+  const [isInitialized, setIsInitialized] = useState(false);
+
   // Set initial actual quantity
   useEffect(() => {
+    if (!isOpen) {
+      setIsInitialized(false);
+      return;
+    }
+    if (isInitialized) return;
+
     if (details) {
       setActualQty(details.currentActual);
+      setIsInitialized(true);
     } else {
       setActualQty('');
     }
-  }, [details]);
+  }, [isOpen, details, isInitialized]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
