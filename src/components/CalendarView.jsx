@@ -31,6 +31,7 @@ const CalendarView = ({
   const [selectedDateNote, setSelectedDateNote] = useState(null);
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedSubProductId, setSelectedSubProductId] = useState('ALL');
+  const [scheduleTypeFilter, setScheduleTypeFilter] = useState('ALL'); // 'ALL' | 'yogurt' | 'sub'
 
   // Find inventory record for the selected plan
   const selectedInvRecord = useMemo(() => {
@@ -52,6 +53,17 @@ const CalendarView = ({
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
+
+  // Filter plans according to active scheduleTypeFilter ('ALL', 'yogurt', 'sub')
+  const filteredPlans = useMemo(() => {
+    if (scheduleTypeFilter === 'yogurt') {
+      return plans.filter(p => p.planType !== 'sub_ingredient');
+    }
+    if (scheduleTypeFilter === 'sub') {
+      return plans.filter(p => p.planType === 'sub_ingredient');
+    }
+    return plans;
+  }, [plans, scheduleTypeFilter]);
 
   // Generate calendar days
   const calendarCells = useMemo(() => {
@@ -91,11 +103,9 @@ const CalendarView = ({
 
   // Calculate layout slot indices to prevent overlapping plan blocks from snapping vertical positions
   const planSlots = useMemo(() => {
-    // 1. Sort plans by start date so slots are assigned chronologically
-    const sortedPlans = [...plans].sort((a, b) => (a.startDate || '').localeCompare(b.startDate || ''));
+    const sortedPlans = [...filteredPlans].sort((a, b) => (a.startDate || '').localeCompare(b.startDate || ''));
     
-    // 2. Distribute plans to slots where they do not overlap
-    const slots = []; // Array of arrays: [ [plan1, plan2], [plan3], ... ]
+    const slots = [];
     const planToSlotMap = {};
     
     sortedPlans.forEach(plan => {
@@ -108,7 +118,6 @@ const CalendarView = ({
           const startB = plan.startDate || '';
           const endB = plan.bottlingDate || startB;
           if (!startA || !startB) return false;
-          // Overlaps if startA <= endB and startB <= endA
           return startA <= endB && startB <= endA;
         });
         
@@ -132,14 +141,14 @@ const CalendarView = ({
       map: planToSlotMap,
       maxSlotCount: slots.length
     };
-  }, [plans]);
+  }, [filteredPlans]);
 
-  // Pre-calculate active plan events on all days to prevent nested loops in rendering
+  // Pre-calculate active plan events on all days
   const cellEventsMap = useMemo(() => {
     const map = {};
     calendarCells.forEach(cell => {
       const cellEvents = Array(planSlots.maxSlotCount).fill(null);
-      plans.forEach((plan, planIdx) => {
+      filteredPlans.forEach((plan, planIdx) => {
         if (plan.planType === 'sub_ingredient') {
           const subProd = products.find(p => p.id === plan.subProductId);
           const targetYogurt = products.find(p => p.id === plan.targetYogurtProductId);
@@ -153,7 +162,8 @@ const CalendarView = ({
                 plan,
                 prod: subProd,
                 prodName: subProdName,
-                dayLabel: `🍞 [부재료] ${subProdName} (${targetYogurtName} ${plan.targetYogurtQty || 0}개분)`,
+                dayLabel: `🍞 [부재료] ${subProdName}`,
+                fullTitle: `🍞 [부재료 생산] ${subProdName} (${targetYogurtName} ${plan.targetYogurtQty || 0}개분)`,
                 dayClass: 'event-day-sub',
                 planIdx,
                 isMulti: false
@@ -203,6 +213,7 @@ const CalendarView = ({
               prod,
               prodName,
               dayLabel,
+              fullTitle: `${plan.name} (${prodName})\n1일차: 발효 | 2일차: 유청분리 | 3일차: 병입`,
               dayClass,
               planIdx,
               isMulti
@@ -213,7 +224,7 @@ const CalendarView = ({
       map[cell.dateStr] = cellEvents;
     });
     return map;
-  }, [calendarCells, plans, products, planSlots]);
+  }, [calendarCells, filteredPlans, products, planSlots]);
 
   // Right sidebar details calculations for all items
   const selectedPlanDetails = useMemo(() => {
@@ -333,12 +344,24 @@ const CalendarView = ({
     return { shipping, expiry };
   }, [selectedPlanDetails, selectedSubProductId]);
 
+  const scrollToDetailOnMobile = () => {
+    if (window.innerWidth <= 768) {
+      setTimeout(() => {
+        const detailElem = document.getElementById('plan-detail-content');
+        if (detailElem) {
+          detailElem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+      }, 100);
+    }
+  };
+
   const handleDayClick = useCallback((dateStr) => {
     setSelectedPlan(null);
     setSelectedSubProductId('ALL');
     setSelectedDate(dateStr);
     const note = calendarNotes.find(n => n.dateStr === dateStr) || null;
     setSelectedDateNote(note);
+    scrollToDetailOnMobile();
   }, [setSelectedPlan, setSelectedDate, calendarNotes, setSelectedDateNote]);
 
   const handleDayDoubleClick = useCallback((dateStr) => {
@@ -350,58 +373,89 @@ const CalendarView = ({
     <div className="dashboard-grid">
       {/* Left: Calendar Area */}
       <div className="glass-card" style={{ padding: '20px' }}>
-        <div className="calendar-header-wrapper">
-          <div className="calendar-title" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-                <line x1="16" y1="2" x2="16" y2="6"></line>
-                <line x1="8" y1="2" x2="8" y2="6"></line>
-                <line x1="3" y1="10" x2="21" y2="10"></line>
-              </svg>
-              {year}년 {month + 1}월 생산 일정
-            </div>
-            {selectedPlan && (
-              <div className="calendar-info-banner" style={{ margin: '0 0 0 12px', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
-                <span style={{ fontSize: '0.95rem' }}>💡</span>
-                <span>선택 차수: <strong>{selectedPlan.id}</strong></span>
-                {selectedPlanDetails && selectedPlanDetails.items.length > 1 && (
-                  <div style={{ display: 'flex', gap: '4px', marginLeft: '6px' }}>
-                    <button
-                      type="button"
-                      className={`btn-secondary ${selectedSubProductId === 'ALL' ? 'active' : ''}`}
-                      onClick={() => setSelectedSubProductId('ALL')}
-                      style={{ padding: '2px 7px', fontSize: '0.72rem', borderRadius: '10px' }}
-                    >
-                      🌐 전체 보기
-                    </button>
-                    {selectedPlanDetails.items.map((it, idx) => (
+        <div className="calendar-header-wrapper" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '10px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', flexWrap: 'wrap', gap: '12px' }}>
+            <div className="calendar-title" style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                  <line x1="16" y1="2" x2="16" y2="6"></line>
+                  <line x1="8" y1="2" x2="8" y2="6"></line>
+                  <line x1="3" y1="10" x2="21" y2="10"></line>
+                </svg>
+                {year}년 {month + 1}월 생산 일정
+              </div>
+              {selectedPlan && (
+                <div className="calendar-info-banner" style={{ margin: '0 0 0 12px', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '6px' }}>
+                  <span style={{ fontSize: '0.95rem' }}>💡</span>
+                  <span>선택 차수: <strong>{selectedPlan.id}</strong></span>
+                  {selectedPlanDetails && selectedPlanDetails.items.length > 1 && (
+                    <div style={{ display: 'flex', gap: '4px', marginLeft: '6px' }}>
                       <button
-                        key={it.productId}
                         type="button"
-                        className={`btn-secondary ${selectedSubProductId === it.productId ? 'active' : ''}`}
-                        onClick={() => setSelectedSubProductId(it.productId)}
+                        className={`btn-secondary ${selectedSubProductId === 'ALL' ? 'active' : ''}`}
+                        onClick={() => setSelectedSubProductId('ALL')}
                         style={{ padding: '2px 7px', fontSize: '0.72rem', borderRadius: '10px' }}
                       >
-                        품목 {idx + 1}: {it.prodName}
+                        🌐 전체 보기
                       </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
+                      {selectedPlanDetails.items.map((it, idx) => (
+                        <button
+                          key={it.productId}
+                          type="button"
+                          className={`btn-secondary ${selectedSubProductId === it.productId ? 'active' : ''}`}
+                          onClick={() => setSelectedSubProductId(it.productId)}
+                          style={{ padding: '2px 7px', fontSize: '0.72rem', borderRadius: '10px' }}
+                        >
+                          품목 {idx + 1}: {it.prodName}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="calendar-controls">
+              <button className="btn-icon" onClick={prevMonth} title="이전 달">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+              </button>
+              <button className="btn-secondary" onClick={setToday} style={{ padding: '6px 12px', fontSize: '0.8rem', whiteSpace: 'nowrap', flexShrink: 0 }}>오늘</button>
+              <button className="btn-icon" onClick={nextMonth} title="다음 달">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+              </button>
+            </div>
           </div>
-          <div className="calendar-controls">
-            <button className="btn-icon" onClick={prevMonth} title="이전 달">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="15 18 9 12 15 6"></polyline>
-              </svg>
+
+          {/* Schedule Type Filter Chips (전체 / 요거트 생산 / 부재료 생산) */}
+          <div className="schedule-filter-bar" style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', width: '100%', borderTop: '1px dashed var(--border-color)', paddingTop: '8px', marginTop: '4px' }}>
+            <button
+              type="button"
+              className={`chip-button ${scheduleTypeFilter === 'ALL' ? 'active' : ''}`}
+              onClick={() => setScheduleTypeFilter('ALL')}
+              style={{ padding: '4px 10px', fontSize: '0.78rem', borderRadius: '12px' }}
+            >
+              🌐 전체 일정 ({plans.length})
             </button>
-            <button className="btn-secondary" onClick={setToday} style={{ padding: '6px 12px', fontSize: '0.8rem', whiteSpace: 'nowrap', flexShrink: 0 }}>오늘</button>
-            <button className="btn-icon" onClick={nextMonth} title="다음 달">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="9 18 15 12 9 6"></polyline>
-              </svg>
+            <button
+              type="button"
+              className={`chip-button ${scheduleTypeFilter === 'yogurt' ? 'active' : ''}`}
+              onClick={() => setScheduleTypeFilter('yogurt')}
+              style={{ padding: '4px 10px', fontSize: '0.78rem', borderRadius: '12px' }}
+            >
+              🥛 요거트 생산 ({plans.filter(p => p.planType !== 'sub_ingredient').length})
+            </button>
+            <button
+              type="button"
+              className={`chip-button ${scheduleTypeFilter === 'sub' ? 'active' : ''}`}
+              onClick={() => setScheduleTypeFilter('sub')}
+              style={{ padding: '4px 10px', fontSize: '0.78rem', borderRadius: '12px', background: scheduleTypeFilter === 'sub' ? '#ea580c' : '', borderColor: scheduleTypeFilter === 'sub' ? '#ea580c' : '' }}
+            >
+              🍞 부재료 생산 ({plans.filter(p => p.planType === 'sub_ingredient').length})
             </button>
           </div>
         </div>
@@ -496,7 +550,7 @@ const CalendarView = ({
                       );
                     }
 
-                    const { plan, prod, prodName, dayLabel, dayClass, planIdx } = evt;
+                    const { plan, prod, prodName, dayLabel, fullTitle, dayClass, planIdx } = evt;
                     const eventColor = prod?.color || ['blue', 'purple', 'green', 'orange', 'pink'][planIdx % 5];
                     const isSelected = selectedPlan?.id === plan.id;
                     const isDimmed = selectedPlan && selectedPlan.id !== plan.id;
@@ -505,13 +559,14 @@ const CalendarView = ({
                       <div
                         key={plan.id}
                         className={`calendar-event ${dayClass} event-color-${eventColor} ${isSelected ? 'selected' : ''} ${isDimmed ? 'dimmed' : ''}`}
-                        title={`${plan.name} (${prodName})\n1일차: 발효 | 2일차: 유청분리 | 3일차: 병입`}
+                        title={fullTitle || `${plan.name} (${prodName})`}
                         onClick={(e) => {
                           e.stopPropagation();
                           setSelectedPlan(plan);
                           setSelectedSubProductId('ALL');
                           setSelectedDate(null);
                           setSelectedDateNote(null);
+                          scrollToDetailOnMobile();
                         }}
                       >
                         {dayLabel}

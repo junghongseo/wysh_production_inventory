@@ -73,9 +73,38 @@ export const WyshProvider = ({ children }) => {
 
       const mergedProducts = Array.from(mergedProductsMap.values());
 
-      // Merge local plans with remote plans and ensure no ID collisions
-      const localPlans = localInitial.plans || [];
-      const allRawPlans = [...mappedPlans];
+      const deletedNotesSet = new Set(localInitial.deletedNotes || []);
+      const deletedReportsSet = new Set(localInitial.deletedReports || []);
+      const deletedPlansSet = new Set(localInitial.deletedPlans || []);
+
+      // Filter remote data against local deletion tombstones
+      const filteredRemoteNotes = mappedCalendarNotes.filter(n => {
+        if (n && n.dateStr && deletedNotesSet.has(n.dateStr)) {
+          deleteCalendarNoteFromSupabase(n.dateStr);
+          return false;
+        }
+        return true;
+      });
+
+      const filteredRemoteReports = mappedReports.filter(r => {
+        if (r && r.id && deletedReportsSet.has(r.id)) {
+          deleteReportFromSupabase(r.id);
+          return false;
+        }
+        return true;
+      });
+
+      const filteredRemotePlans = mappedPlans.filter(p => {
+        if (p && p.id && deletedPlansSet.has(p.id)) {
+          deletePlanFromSupabase(p.id);
+          return false;
+        }
+        return true;
+      });
+
+      // Merge local plans with remote plans (respecting tombstones) and ensure no ID collisions
+      const localPlans = (localInitial.plans || []).filter(p => p && p.id && !deletedPlansSet.has(p.id));
+      const allRawPlans = [...filteredRemotePlans];
       localPlans.forEach(lp => {
         if (!allRawPlans.some(p => p.id === lp.id)) {
           allRawPlans.push(lp);
@@ -107,18 +136,80 @@ export const WyshProvider = ({ children }) => {
         }
       });
 
+      // Merge local calendar notes with remote notes (respecting tombstones)
+      const localCalendarNotes = (localInitial.calendarNotes || []).filter(n => n && n.dateStr && !deletedNotesSet.has(n.dateStr));
+      const mergedNotesMap = new Map();
+      filteredRemoteNotes.forEach(n => mergedNotesMap.set(n.dateStr, n));
+
+      localCalendarNotes.forEach(ln => {
+        if (ln && ln.dateStr && !mergedNotesMap.has(ln.dateStr)) {
+          mergedNotesMap.set(ln.dateStr, ln);
+          pushCalendarNoteToSupabase(ln);
+        }
+      });
+      const mergedCalendarNotes = Array.from(mergedNotesMap.values());
+
+      // Merge local reports with remote reports so newly added reports are never lost on refresh (respecting tombstones)
+      const localReports = (localInitial.reports || []).filter(r => r && r.id && !deletedReportsSet.has(r.id));
+      const mergedReportsMap = new Map();
+      filteredRemoteReports.forEach(r => mergedReportsMap.set(r.id, r));
+
+      localReports.forEach(lr => {
+        if (lr && lr.id && !mergedReportsMap.has(lr.id)) {
+          mergedReportsMap.set(lr.id, lr);
+          pushReportToSupabase(lr);
+        }
+      });
+
+      const mergedReports = Array.from(mergedReportsMap.values());
+      mergedReports.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+
+      // Merge local inventory with remote inventory
+      const localInventory = localInitial.inventory || [];
+      const mergedInventoryMap = new Map();
+      mappedInventory.forEach(inv => mergedInventoryMap.set(inv.planId, inv));
+
+      localInventory.forEach(li => {
+        if (li && li.planId) {
+          if (!mergedInventoryMap.has(li.planId)) {
+            mergedInventoryMap.set(li.planId, li);
+            pushInventoryToSupabase(li);
+          } else {
+            const remoteInv = mergedInventoryMap.get(li.planId);
+            const remoteHistoryIds = new Set((remoteInv.history || []).map(h => h.id));
+            const localHistory = li.history || [];
+            let updated = false;
+            const mergedHistory = [...(remoteInv.history || [])];
+
+            localHistory.forEach(lh => {
+              if (lh && lh.id && !remoteHistoryIds.has(lh.id)) {
+                mergedHistory.push(lh);
+                updated = true;
+              }
+            });
+
+            if (updated) {
+              const updatedInvRecord = { ...remoteInv, history: mergedHistory };
+              mergedInventoryMap.set(li.planId, updatedInvRecord);
+              pushInventoryToSupabase(updatedInvRecord);
+            }
+          }
+        }
+      });
+      const mergedInventory = Array.from(mergedInventoryMap.values());
+
       // Save merged datasets to local storage and react state
       saveStorageItems('PRODUCTS', mergedProducts);
       saveStorageItems('PLANS', mergedPlans);
-      saveStorageItems('INVENTORY', mappedInventory);
-      saveStorageItems('CALENDAR_NOTES', mappedCalendarNotes);
-      saveStorageItems('REPORTS', mappedReports);
+      saveStorageItems('INVENTORY', mergedInventory);
+      saveStorageItems('CALENDAR_NOTES', mergedCalendarNotes);
+      saveStorageItems('REPORTS', mergedReports);
 
       setProducts(mergedProducts);
       setPlans(mergedPlans);
-      setInventory(mappedInventory);
-      setCalendarNotes(mappedCalendarNotes);
-      setReports(mappedReports);
+      setInventory(mergedInventory);
+      setCalendarNotes(mergedCalendarNotes);
+      setReports(mergedReports);
       setIsDbConnected(true);
       setDbError(null);
     } catch (e) {
@@ -227,6 +318,9 @@ export const WyshProvider = ({ children }) => {
       id: newId
     };
 
+    const delPlans = (JSON.parse(localStorage.getItem('wysh_deleted_plans')) || []).filter(d => d !== newId);
+    localStorage.setItem('wysh_deleted_plans', JSON.stringify(delPlans));
+
     setPlans(prev => {
       const updatedPlans = [...prev, newPlan];
       saveStorageItems('PLANS', updatedPlans);
@@ -289,6 +383,12 @@ export const WyshProvider = ({ children }) => {
   }, []);
 
   const deletePlan = useCallback((id) => {
+    const delPlans = JSON.parse(localStorage.getItem('wysh_deleted_plans')) || [];
+    if (!delPlans.includes(id)) {
+      delPlans.push(id);
+      localStorage.setItem('wysh_deleted_plans', JSON.stringify(delPlans));
+    }
+
     setPlans(prev => {
       const updatedPlans = prev.filter(p => p.id !== id);
       saveStorageItems('PLANS', updatedPlans);
@@ -506,6 +606,10 @@ export const WyshProvider = ({ children }) => {
   // 4. Calendar Notes Actions
   const saveCalendarNote = useCallback((dateStr, title, content) => {
     const newNote = { dateStr, title, content };
+    // Clear tombstone if re-created/updated
+    const delNotes = (JSON.parse(localStorage.getItem('wysh_deleted_notes')) || []).filter(d => d !== dateStr);
+    localStorage.setItem('wysh_deleted_notes', JSON.stringify(delNotes));
+
     setCalendarNotes(prev => {
       const updatedNotes = [...prev];
       const existingIdx = updatedNotes.findIndex(n => n.dateStr === dateStr);
@@ -521,6 +625,13 @@ export const WyshProvider = ({ children }) => {
   }, []);
 
   const deleteCalendarNote = useCallback((dateStr) => {
+    // Record tombstone
+    const delNotes = JSON.parse(localStorage.getItem('wysh_deleted_notes')) || [];
+    if (!delNotes.includes(dateStr)) {
+      delNotes.push(dateStr);
+      localStorage.setItem('wysh_deleted_notes', JSON.stringify(delNotes));
+    }
+
     setCalendarNotes(prev => {
       const updatedNotes = prev.filter(n => n.dateStr !== dateStr);
       saveStorageItems('CALENDAR_NOTES', updatedNotes);
@@ -536,6 +647,9 @@ export const WyshProvider = ({ children }) => {
       id: 'rep-' + Date.now(),
       createdAt: new Date().toISOString()
     };
+    const delReps = (JSON.parse(localStorage.getItem('wysh_deleted_reports')) || []).filter(d => d !== newReport.id);
+    localStorage.setItem('wysh_deleted_reports', JSON.stringify(delReps));
+
     setReports(prev => {
       const updatedReports = [newReport, ...prev];
       saveStorageItems('REPORTS', updatedReports);
@@ -555,6 +669,12 @@ export const WyshProvider = ({ children }) => {
   }, []);
 
   const deleteReport = useCallback((id) => {
+    const delReps = JSON.parse(localStorage.getItem('wysh_deleted_reports')) || [];
+    if (!delReps.includes(id)) {
+      delReps.push(id);
+      localStorage.setItem('wysh_deleted_reports', JSON.stringify(delReps));
+    }
+
     setReports(prev => {
       const updatedReports = prev.filter(r => r.id !== id);
       saveStorageItems('REPORTS', updatedReports);
