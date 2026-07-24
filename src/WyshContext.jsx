@@ -26,7 +26,7 @@ export const WyshProvider = ({ children }) => {
   const [isDbConnected, setIsDbConnected] = useState(false);
   const [dbError, setDbError] = useState(null);
 
-  // Initialize data from LocalStorage
+  // Initialize data from LocalStorage and start Realtime sync
   useEffect(() => {
     const initialData = loadInitialLocalStorageData();
     setProducts(initialData.products);
@@ -36,8 +36,39 @@ export const WyshProvider = ({ children }) => {
     setReports(initialData.reports);
     setLoading(false);
 
-    // Sync from Supabase if connected
+    // Initial sync
     syncFromSupabase();
+
+    if (!supabase) return;
+
+    // Realtime channel subscription for multi-device instant sync (PC <-> Mobile)
+    const channel = supabase.channel('wysh_realtime_db_changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'plans' }, () => {
+        syncFromSupabase();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'calendar_notes' }, () => {
+        syncFromSupabase();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'reports' }, () => {
+        syncFromSupabase();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory' }, () => {
+        syncFromSupabase();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
+        syncFromSupabase();
+      })
+      .subscribe();
+
+    // 10-second background polling fallback
+    const intervalId = setInterval(() => {
+      syncFromSupabase();
+    }, 10000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(intervalId);
+    };
   }, []);
 
   const syncFromSupabase = useCallback(async () => {
@@ -55,10 +86,38 @@ export const WyshProvider = ({ children }) => {
         mappedReports
       } = await fetchAllRemoteData();
 
-      // Merge local storage products with remote products so newly added items are never lost on refresh
       const localInitial = loadInitialLocalStorageData();
-      const localProducts = localInitial.products || [];
+      const deletedNotesSet = new Set(localInitial.deletedNotes || []);
+      const deletedReportsSet = new Set(localInitial.deletedReports || []);
+      const deletedPlansSet = new Set(localInitial.deletedPlans || []);
 
+      // Filter out any tombstoned items from remote data & clean up remote DB
+      const finalNotes = mappedCalendarNotes.filter(n => {
+        if (n && n.dateStr && deletedNotesSet.has(n.dateStr)) {
+          deleteCalendarNoteFromSupabase(n.dateStr);
+          return false;
+        }
+        return true;
+      });
+
+      const finalReports = mappedReports.filter(r => {
+        if (r && r.id && deletedReportsSet.has(r.id)) {
+          deleteReportFromSupabase(r.id);
+          return false;
+        }
+        return true;
+      });
+
+      const finalPlans = mappedPlans.filter(p => {
+        if (p && p.id && deletedPlansSet.has(p.id)) {
+          deletePlanFromSupabase(p.id);
+          return false;
+        }
+        return true;
+      });
+
+      // Maintain products compatibility
+      const localProducts = localInitial.products || [];
       const mergedProductsMap = new Map();
       mappedProducts.forEach(p => mergedProductsMap.set(p.id, p));
 
@@ -70,152 +129,32 @@ export const WyshProvider = ({ children }) => {
           pushProductToSupabase(lp);
         }
       });
+      const finalProducts = Array.from(mergedProductsMap.values());
 
-      const mergedProducts = Array.from(mergedProductsMap.values());
+      const finalInventory = mappedInventory || [];
 
-      const deletedNotesSet = new Set(localInitial.deletedNotes || []);
-      const deletedReportsSet = new Set(localInitial.deletedReports || []);
-      const deletedPlansSet = new Set(localInitial.deletedPlans || []);
+      // Sort reports chronologically
+      finalReports.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
 
-      // Filter remote data against local deletion tombstones
-      const filteredRemoteNotes = mappedCalendarNotes.filter(n => {
-        if (n && n.dateStr && deletedNotesSet.has(n.dateStr)) {
-          deleteCalendarNoteFromSupabase(n.dateStr);
-          return false;
-        }
-        return true;
-      });
+      // Save Authoritative Remote State to LocalStorage and React State
+      saveStorageItems('PRODUCTS', finalProducts);
+      saveStorageItems('PLANS', finalPlans);
+      saveStorageItems('INVENTORY', finalInventory);
+      saveStorageItems('CALENDAR_NOTES', finalNotes);
+      saveStorageItems('REPORTS', finalReports);
 
-      const filteredRemoteReports = mappedReports.filter(r => {
-        if (r && r.id && deletedReportsSet.has(r.id)) {
-          deleteReportFromSupabase(r.id);
-          return false;
-        }
-        return true;
-      });
+      setProducts(finalProducts);
+      setPlans(finalPlans);
+      setInventory(finalInventory);
+      setCalendarNotes(finalNotes);
+      setReports(finalReports);
 
-      const filteredRemotePlans = mappedPlans.filter(p => {
-        if (p && p.id && deletedPlansSet.has(p.id)) {
-          deletePlanFromSupabase(p.id);
-          return false;
-        }
-        return true;
-      });
-
-      // Merge local plans with remote plans (respecting tombstones) and ensure no ID collisions
-      const localPlans = (localInitial.plans || []).filter(p => p && p.id && !deletedPlansSet.has(p.id));
-      const allRawPlans = [...filteredRemotePlans];
-      localPlans.forEach(lp => {
-        if (!allRawPlans.some(p => p.id === lp.id)) {
-          allRawPlans.push(lp);
-        }
-      });
-
-      const seenPlanIds = new Set();
-      const mergedPlans = [];
-      allRawPlans.forEach(p => {
-        if (!seenPlanIds.has(p.id)) {
-          seenPlanIds.add(p.id);
-          mergedPlans.push(p);
-        } else {
-          // Re-assign unique ID if collision detected
-          const isSub = p.planType === 'sub_ingredient';
-          const dateStr = p.startDate ? p.startDate.replace(/-/g, '') : '20260101';
-          const prefix = isSub ? 'P-SUB' : 'P';
-          const idPrefix = `${prefix}-${dateStr}-`;
-          let seq = 1;
-          let newId = `${idPrefix}${String(seq).padStart(2, '0')}`;
-          while (seenPlanIds.has(newId) || allRawPlans.some(rp => rp.id === newId)) {
-            seq++;
-            newId = `${idPrefix}${String(seq).padStart(2, '0')}`;
-          }
-          seenPlanIds.add(newId);
-          const fixedPlan = { ...p, id: newId };
-          mergedPlans.push(fixedPlan);
-          pushPlanToSupabase(fixedPlan);
-        }
-      });
-
-      // Merge local calendar notes with remote notes (respecting tombstones)
-      const localCalendarNotes = (localInitial.calendarNotes || []).filter(n => n && n.dateStr && !deletedNotesSet.has(n.dateStr));
-      const mergedNotesMap = new Map();
-      filteredRemoteNotes.forEach(n => mergedNotesMap.set(n.dateStr, n));
-
-      localCalendarNotes.forEach(ln => {
-        if (ln && ln.dateStr && !mergedNotesMap.has(ln.dateStr)) {
-          mergedNotesMap.set(ln.dateStr, ln);
-          pushCalendarNoteToSupabase(ln);
-        }
-      });
-      const mergedCalendarNotes = Array.from(mergedNotesMap.values());
-
-      // Merge local reports with remote reports so newly added reports are never lost on refresh (respecting tombstones)
-      const localReports = (localInitial.reports || []).filter(r => r && r.id && !deletedReportsSet.has(r.id));
-      const mergedReportsMap = new Map();
-      filteredRemoteReports.forEach(r => mergedReportsMap.set(r.id, r));
-
-      localReports.forEach(lr => {
-        if (lr && lr.id && !mergedReportsMap.has(lr.id)) {
-          mergedReportsMap.set(lr.id, lr);
-          pushReportToSupabase(lr);
-        }
-      });
-
-      const mergedReports = Array.from(mergedReportsMap.values());
-      mergedReports.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
-
-      // Merge local inventory with remote inventory
-      const localInventory = localInitial.inventory || [];
-      const mergedInventoryMap = new Map();
-      mappedInventory.forEach(inv => mergedInventoryMap.set(inv.planId, inv));
-
-      localInventory.forEach(li => {
-        if (li && li.planId) {
-          if (!mergedInventoryMap.has(li.planId)) {
-            mergedInventoryMap.set(li.planId, li);
-            pushInventoryToSupabase(li);
-          } else {
-            const remoteInv = mergedInventoryMap.get(li.planId);
-            const remoteHistoryIds = new Set((remoteInv.history || []).map(h => h.id));
-            const localHistory = li.history || [];
-            let updated = false;
-            const mergedHistory = [...(remoteInv.history || [])];
-
-            localHistory.forEach(lh => {
-              if (lh && lh.id && !remoteHistoryIds.has(lh.id)) {
-                mergedHistory.push(lh);
-                updated = true;
-              }
-            });
-
-            if (updated) {
-              const updatedInvRecord = { ...remoteInv, history: mergedHistory };
-              mergedInventoryMap.set(li.planId, updatedInvRecord);
-              pushInventoryToSupabase(updatedInvRecord);
-            }
-          }
-        }
-      });
-      const mergedInventory = Array.from(mergedInventoryMap.values());
-
-      // Save merged datasets to local storage and react state
-      saveStorageItems('PRODUCTS', mergedProducts);
-      saveStorageItems('PLANS', mergedPlans);
-      saveStorageItems('INVENTORY', mergedInventory);
-      saveStorageItems('CALENDAR_NOTES', mergedCalendarNotes);
-      saveStorageItems('REPORTS', mergedReports);
-
-      setProducts(mergedProducts);
-      setPlans(mergedPlans);
-      setInventory(mergedInventory);
-      setCalendarNotes(mergedCalendarNotes);
-      setReports(mergedReports);
       setIsDbConnected(true);
       setDbError(null);
     } catch (e) {
-      console.error("Supabase Pull Failure (Using LocalStorage offline-first fallback):", e);
+      console.error("Failed to sync from Supabase:", e);
       setIsDbConnected(false);
-      setDbError(e.message || String(e));
+      setDbError(e.message || "Failed to sync with database");
     }
   }, []);
 

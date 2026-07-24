@@ -208,7 +208,7 @@ export const pushPlanToSupabase = async (plan) => {
       total_qty: plan.totalQty || 0,
       fermenter_type: plan.fermenterType || null,
       total_volume_l: plan.totalVolumeL || 0,
-      memo: plan.memo,
+      memo: plan.memo || '',
       items: plan.items || []
     };
     const { error } = await supabase.from('plans').upsert(dbPlan);
