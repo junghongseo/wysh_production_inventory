@@ -20,10 +20,17 @@ serve(async (req) => {
       throw new Error("GEMINI_API_KEY가 설정되지 않았습니다.");
     }
 
-    const { userMessage, type = "chat" } = await req.json();
+    const { userMessage, type = "chat", sessionId } = await req.json();
 
     // Supabase DB 클라이언트 생성
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+
+    // 세션별 대화 기록 쿼리 준비
+    let historyQuery = supabase.from('chat_history').select('*');
+    if (sessionId) {
+      historyQuery = historyQuery.eq('session_id', sessionId);
+    }
+    historyQuery = historyQuery.order('created_at', { ascending: true }).limit(10);
 
     // 현재 상태 조회를 위해 필요한 데이터들을 병렬로 수집 (레시피, 계획, 재고, 리포트, 메모)
     const [
@@ -41,7 +48,7 @@ serve(async (req) => {
       supabase.from('reports').select('*'),
       supabase.from('events').select('*'),
       supabase.from('calendar_notes').select('*'),
-      supabase.from('chat_history').select('*').order('created_at', { ascending: true }).limit(20)
+      historyQuery
     ]);
 
     // 데이터 수집 요약 텍스트 구성 (RAG / Context Injection)
@@ -51,22 +58,22 @@ serve(async (req) => {
 [현재 시스템 날짜: ${now}]
 
 [제품 목록 및 레시피/배합표]
-${JSON.stringify(products || [], null, 2)}
+${JSON.stringify(products || [])}
 
 [현재 생산 계획]
-${JSON.stringify(plans || [], null, 2)}
+${JSON.stringify(plans || [])}
 
 [현재 재고 상태 및 출고 이력]
-${JSON.stringify(inventory || [], null, 2)}
+${JSON.stringify(inventory || [])}
 
 [작업 리포트 (발효 및 유청분리 기록)]
-${JSON.stringify(reports || [], null, 2)}
+${JSON.stringify(reports || [])}
 
 [등록된 주요 이벤트/드랍 출시 일정]
-${JSON.stringify(events || [], null, 2)}
+${JSON.stringify(events || [])}
 
 [달력 메모 및 일정 노트]
-${JSON.stringify(calendarNotes || [], null, 2)}
+${JSON.stringify(calendarNotes || [])}
     `.trim();
 
     const systemInstruction = `
@@ -80,16 +87,16 @@ ${JSON.stringify(calendarNotes || [], null, 2)}
 4. 질문에 답할 때는 명확한 수치나 일정을 포함하여 추천 생산 계획을 제시하세요.
 5. 전달받은 [현재 상황 데이터]를 기반으로 정확하게 분석하여 답변하세요.
 
-[답변 서식 가이드라인]
+[답변 서식 및 완결성 가이드라인]
 1. 지저분한 특수기호(***, ###, ** 등)를 남발하지 말고, 카카오톡 메시지처럼 깨끗하고 가독성 높게 작성하세요.
 2. 문장이나 제품 항목을 나열할 때 절대 줄글로 이어붙이지 말고, 항목마다 엔터(줄바꿈)를 확실하게 두어 문단을 나누세요.
 3. 목록을 작성할 때는 깔끔한 불릿 기호(• )를 사용해 한 눈에 들어오도록 정리하세요.
+4. 답변이 중간에 잘리지 않도록 핵심 내용 위주로 끝까지 온전하고 완결된 문장으로 마무리지으세요. (문장이 끊긴 채로 응답을 끝내면 절대로 안 됩니다.)
     `.trim();
 
     // 과거 대화 내역 구성
     const contents = [];
 
-    // System context injection as first message or system_instruction
     if (chatHistory && chatHistory.length > 0) {
       chatHistory.forEach((h: any) => {
         contents.push({
@@ -121,7 +128,7 @@ ${JSON.stringify(calendarNotes || [], null, 2)}
         contents: contents,
         generationConfig: {
           temperature: 0.7,
-          maxOutputTokens: 4096,
+          maxOutputTokens: 8192,
         }
       })
     });
