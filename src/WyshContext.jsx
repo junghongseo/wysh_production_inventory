@@ -86,35 +86,32 @@ export const WyshProvider = ({ children }) => {
         mappedReports
       } = await fetchAllRemoteData();
 
-      const localInitial = loadInitialLocalStorageData();
-      const deletedNotesSet = new Set(localInitial.deletedNotes || []);
-      const deletedReportsSet = new Set(localInitial.deletedReports || []);
-      const deletedPlansSet = new Set(localInitial.deletedPlans || []);
+      // Clear local tombstone filters to prevent unintended auto-deletions
+      localStorage.removeItem('wysh_deleted_notes');
+      localStorage.removeItem('wysh_deleted_reports');
+      localStorage.removeItem('wysh_deleted_plans');
 
-      // Filter out any tombstoned items from remote data & clean up remote DB
-      const finalNotes = mappedCalendarNotes.filter(n => {
-        if (n && n.dateStr && deletedNotesSet.has(n.dateStr)) {
-          deleteCalendarNoteFromSupabase(n.dateStr);
-          return false;
-        }
-        return true;
-      });
+      const finalNotes = mappedCalendarNotes || [];
+      const finalReports = mappedReports || [];
+      let finalPlans = mappedPlans || [];
 
-      const finalReports = mappedReports.filter(r => {
-        if (r && r.id && deletedReportsSet.has(r.id)) {
-          deleteReportFromSupabase(r.id);
-          return false;
-        }
-        return true;
-      });
-
-      const finalPlans = mappedPlans.filter(p => {
-        if (p && p.id && deletedPlansSet.has(p.id)) {
-          deletePlanFromSupabase(p.id);
-          return false;
-        }
-        return true;
-      });
+      // Check if 7월 23일 부재료 생산일정 plan is present; if missing, restore it!
+      const july23SubPlanId = 'P-SUB-20260723-01';
+      if (!finalPlans.some(p => p.id === july23SubPlanId || (p.startDate === '2026-07-23' && p.planType === 'sub_ingredient'))) {
+        const restoredPlan = {
+          id: july23SubPlanId,
+          name: '[부재료] 아몬드초코페이스트(블랙카카오밀키웨이 용)',
+          planType: 'sub_ingredient',
+          subProductId: 'prod-sub-2',
+          targetYogurtProductId: 'prod-2',
+          targetYogurtQty: 2310,
+          startDate: '2026-07-23',
+          memo: '7월 2차 드랍 생산',
+          color: 'orange'
+        };
+        finalPlans = [...finalPlans, restoredPlan];
+        pushPlanToSupabase(restoredPlan);
+      }
 
       // Maintain products compatibility
       const localProducts = localInitial.products || [];
