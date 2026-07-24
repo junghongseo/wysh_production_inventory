@@ -95,61 +95,7 @@ export const WyshProvider = ({ children }) => {
 
       const finalNotes = mappedCalendarNotes || [];
       const finalReports = mappedReports || [];
-      let finalPlans = mappedPlans || [];
-
-      // Check & Restore 7월 23일 요거트 생산계획 ("7월 2차 드랍 생산계획") if missing
-      const july23YogurtPlanId = 'P-20260723-01';
-      if (!finalPlans.some(p => p.id === july23YogurtPlanId || (p.startDate === '2026-07-23' && (p.planType || 'yogurt') === 'yogurt'))) {
-        const restoredYogurtPlan = {
-          id: july23YogurtPlanId,
-          name: '7월 2차 드랍 생산계획',
-          planType: 'yogurt',
-          productId: 'prod-2',
-          startDate: '2026-07-23',
-          bottlingDate: '2026-07-25',
-          shippingLimit: '2026-08-01',
-          expiryDate: '2026-08-16',
-          expectedOrderQty: 300,
-          marketingQty: 20,
-          bufferQty: 30,
-          totalQty: 350,
-          fermenterType: 'small',
-          totalVolumeL: 162.5,
-          memo: '7월 2차 드랍 생산계획',
-          items: [
-            {
-              productId: 'prod-2',
-              expectedOrderQty: 300,
-              marketingQty: 20,
-              bufferQty: 30,
-              totalQty: 350,
-              bottlingDate: '2026-07-25',
-              shippingLimit: '2026-08-01',
-              expiryDate: '2026-08-16'
-            }
-          ]
-        };
-        finalPlans = [...finalPlans, restoredYogurtPlan];
-        pushPlanToSupabase(restoredYogurtPlan);
-      }
-
-      // Check & Restore 7월 23일 부재료 생산계획 if missing (적정 목표량 200개분 설정)
-      const july23SubPlanId = 'P-SUB-20260723-01';
-      if (!finalPlans.some(p => p.id === july23SubPlanId || (p.startDate === '2026-07-23' && p.planType === 'sub_ingredient'))) {
-        const restoredSubPlan = {
-          id: july23SubPlanId,
-          name: '[부재료] 아몬드초코페이스트(블랙카카오밀키웨이 용)',
-          planType: 'sub_ingredient',
-          subProductId: 'prod-sub-2',
-          targetYogurtProductId: 'prod-2',
-          targetYogurtQty: 200,
-          startDate: '2026-07-23',
-          memo: '7월 2차 드랍 부재료 생산',
-          color: 'orange'
-        };
-        finalPlans = [...finalPlans, restoredSubPlan];
-        pushPlanToSupabase(restoredSubPlan);
-      }
+      const finalPlans = mappedPlans || [];
 
       // Maintain products compatibility
       const localProducts = localInitial.products || [];
