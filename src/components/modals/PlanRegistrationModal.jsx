@@ -62,82 +62,92 @@ const PlanRegistrationModal = ({
     };
   };
 
+  // Track whether form has initialized for the current modal session
+  const [isInitialized, setIsInitialized] = useState(false);
+
   // Initialize form
   useEffect(() => {
-    if (isOpen) {
-      if (isEditMode) {
-        const plan = plans.find(p => p.id === editPlanId);
-        if (plan) {
-          const currentPlanType = plan.planType || 'yogurt';
-          setPlanType(currentPlanType);
-          setPlanName(plan.name);
-          setStartDate(plan.startDate);
-          setFermenterType(plan.fermenterType || '');
-          setPlanMemo(plan.memo || '');
+    if (!isOpen) {
+      setIsInitialized(false);
+      return;
+    }
+    
+    // If already initialized for this modal session, do not re-initialize on background updates
+    if (isInitialized) return;
 
-          if (currentPlanType === 'sub_ingredient') {
-            setSubProductId(plan.subProductId || '');
-            setTargetYogurtProductId(plan.targetYogurtProductId || '');
-            setTargetYogurtQty(plan.targetYogurtQty || '');
+    if (isEditMode) {
+      const plan = plans.find(p => p.id === editPlanId);
+      if (plan) {
+        const currentPlanType = plan.planType || 'yogurt';
+        setPlanType(currentPlanType);
+        setPlanName(plan.name);
+        setStartDate(plan.startDate);
+        setFermenterType(plan.fermenterType || '');
+        setPlanMemo(plan.memo || '');
+
+        if (currentPlanType === 'sub_ingredient') {
+          setSubProductId(plan.subProductId || '');
+          setTargetYogurtProductId(plan.targetYogurtProductId || '');
+          setTargetYogurtQty(plan.targetYogurtQty || '');
+        } else {
+          if (plan.items && Array.isArray(plan.items) && plan.items.length > 0) {
+            setItems(plan.items.map(it => {
+              const prod = yogurtProducts.find(p => p.id === it.productId);
+              const botDate = it.bottlingDate || plan.bottlingDate;
+              const sLimit = it.shippingLimit || plan.shippingLimit || (prod ? dateAddDays(botDate, prod.shippingLimitDays ?? 7) : '');
+              const eDate = it.expiryDate || plan.expiryDate || (prod ? dateAddDays(botDate, prod.expiryDays ?? 22) : '');
+              return {
+                productId: it.productId || '',
+                expectedOrderQty: it.expectedOrderQty ?? '',
+                marketingQty: it.marketingQty ?? '',
+                bufferQty: it.bufferQty ?? '',
+                bottlingDate: botDate,
+                shippingLimit: sLimit,
+                expiryDate: eDate
+              };
+            }));
           } else {
-            if (plan.items && Array.isArray(plan.items) && plan.items.length > 0) {
-              setItems(plan.items.map(it => {
-                const prod = yogurtProducts.find(p => p.id === it.productId);
-                const botDate = it.bottlingDate || plan.bottlingDate;
-                const sLimit = it.shippingLimit || plan.shippingLimit || (prod ? dateAddDays(botDate, prod.shippingLimitDays ?? 7) : '');
-                const eDate = it.expiryDate || plan.expiryDate || (prod ? dateAddDays(botDate, prod.expiryDays ?? 22) : '');
-                return {
-                  productId: it.productId || '',
-                  expectedOrderQty: it.expectedOrderQty ?? '',
-                  marketingQty: it.marketingQty ?? '',
-                  bufferQty: it.bufferQty ?? '',
-                  bottlingDate: botDate,
-                  shippingLimit: sLimit,
-                  expiryDate: eDate
-                };
-              }));
-            } else {
-              const prod = yogurtProducts.find(p => p.id === plan.productId);
-              setItems([{
-                productId: plan.productId || '',
-                expectedOrderQty: plan.expectedOrderQty ?? '',
-                marketingQty: plan.marketingQty ?? '',
-                bufferQty: plan.bufferQty ?? '',
-                bottlingDate: plan.bottlingDate,
-                shippingLimit: plan.shippingLimit || (prod ? dateAddDays(plan.bottlingDate, prod.shippingLimitDays ?? 7) : ''),
-                expiryDate: plan.expiryDate || (prod ? dateAddDays(plan.bottlingDate, prod.expiryDays ?? 22) : '')
-              }]);
-            }
+            const prod = yogurtProducts.find(p => p.id === plan.productId);
+            setItems([{
+              productId: plan.productId || '',
+              expectedOrderQty: plan.expectedOrderQty ?? '',
+              marketingQty: plan.marketingQty ?? '',
+              bufferQty: plan.bufferQty ?? '',
+              bottlingDate: plan.bottlingDate,
+              shippingLimit: plan.shippingLimit || (prod ? dateAddDays(plan.bottlingDate, prod.shippingLimitDays ?? 7) : ''),
+              expiryDate: plan.expiryDate || (prod ? dateAddDays(plan.bottlingDate, prod.expiryDays ?? 22) : '')
+            }]);
           }
         }
-      } else {
-        // New Plan
-        const start = initialStartDate || getTodayStr();
-        const defaultBot = dateAddDays(start, 2);
-        setPlanType(initialPlanType || 'yogurt');
-        setPlanName('');
-        setStartDate(start);
-        setFermenterType('');
-        setPlanMemo('');
-
-        setSubProductId(initialSubProductId || (subIngredients.length > 0 ? subIngredients[0].id : ''));
-        setTargetYogurtProductId(initialTargetYogurtProductId || (yogurtProducts.length > 0 ? yogurtProducts[0].id : ''));
-        setTargetYogurtQty(initialTargetYogurtQty || '');
-
-        const defaultProd = yogurtProducts.length > 0 ? yogurtProducts[0] : null;
-        const initialDerived = calculateItemDerivedDates(defaultBot, defaultProd);
-        setItems([{
-          productId: defaultProd ? defaultProd.id : '',
-          expectedOrderQty: '',
-          marketingQty: '',
-          bufferQty: '',
-          bottlingDate: defaultBot,
-          shippingLimit: initialDerived.shippingLimit,
-          expiryDate: initialDerived.expiryDate
-        }]);
       }
+    } else {
+      // New Plan
+      const start = initialStartDate || getTodayStr();
+      const defaultBot = dateAddDays(start, 2);
+      setPlanType(initialPlanType || 'yogurt');
+      setPlanName('');
+      setStartDate(start);
+      setFermenterType('');
+      setPlanMemo('');
+
+      setSubProductId(initialSubProductId || (subIngredients.length > 0 ? subIngredients[0].id : ''));
+      setTargetYogurtProductId(initialTargetYogurtProductId || (yogurtProducts.length > 0 ? yogurtProducts[0].id : ''));
+      setTargetYogurtQty(initialTargetYogurtQty || '');
+
+      const defaultProd = yogurtProducts.length > 0 ? yogurtProducts[0] : null;
+      const initialDerived = calculateItemDerivedDates(defaultBot, defaultProd);
+      setItems([{
+        productId: defaultProd ? defaultProd.id : '',
+        expectedOrderQty: '',
+        marketingQty: '',
+        bufferQty: '',
+        bottlingDate: defaultBot,
+        shippingLimit: initialDerived.shippingLimit,
+        expiryDate: initialDerived.expiryDate
+      }]);
     }
-  }, [isOpen, editPlanId, initialStartDate, initialPlanType, initialSubProductId, initialTargetYogurtProductId, initialTargetYogurtQty, plans, yogurtProducts, subIngredients]);
+    setIsInitialized(true);
+  }, [isOpen, editPlanId, isInitialized, initialStartDate, initialPlanType, initialSubProductId, initialTargetYogurtProductId, initialTargetYogurtQty, plans, yogurtProducts, subIngredients]);
 
   // Date trigger: Start date change
   const handleStartDateChange = (val) => {
