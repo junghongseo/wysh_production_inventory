@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from './supabaseClient';
-import { loadInitialLocalStorageData, saveStorageItems } from './services/storageService';
+import { loadInitialLocalStorageData, saveStorageItems, DEFAULT_PRODUCTS } from './services/storageService';
 import {
   fetchAllRemoteData,
   pushProductToSupabase,
@@ -97,12 +97,11 @@ export const WyshProvider = ({ children }) => {
       const finalReports = mappedReports || [];
       const finalPlans = mappedPlans || [];
 
-      // Maintain products compatibility
-      const localProducts = localInitial.products || [];
+      // Maintain products compatibility (only sync hardcoded defaults if missing)
       const mergedProductsMap = new Map();
       mappedProducts.forEach(p => mergedProductsMap.set(p.id, p));
 
-      localProducts.forEach(lp => {
+      (DEFAULT_PRODUCTS || []).forEach(lp => {
         const existsById = mergedProductsMap.has(lp.id);
         const existsByName = Array.from(mergedProductsMap.values()).some(p => p.name === lp.name);
         if (!existsById && !existsByName) {
