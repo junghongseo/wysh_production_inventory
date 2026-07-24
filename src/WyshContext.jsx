@@ -238,9 +238,6 @@ export const WyshProvider = ({ children }) => {
       id: newId
     };
 
-    const delPlans = (JSON.parse(localStorage.getItem('wysh_deleted_plans')) || []).filter(d => d !== newId);
-    localStorage.setItem('wysh_deleted_plans', JSON.stringify(delPlans));
-
     setPlans(prev => {
       const updatedPlans = [...prev, newPlan];
       saveStorageItems('PLANS', updatedPlans);
@@ -303,12 +300,6 @@ export const WyshProvider = ({ children }) => {
   }, []);
 
   const deletePlan = useCallback((id) => {
-    const delPlans = JSON.parse(localStorage.getItem('wysh_deleted_plans')) || [];
-    if (!delPlans.includes(id)) {
-      delPlans.push(id);
-      localStorage.setItem('wysh_deleted_plans', JSON.stringify(delPlans));
-    }
-
     setPlans(prev => {
       const updatedPlans = prev.filter(p => p.id !== id);
       saveStorageItems('PLANS', updatedPlans);
@@ -526,10 +517,6 @@ export const WyshProvider = ({ children }) => {
   // 4. Calendar Notes Actions
   const saveCalendarNote = useCallback((dateStr, title, content) => {
     const newNote = { dateStr, title, content };
-    // Clear tombstone if re-created/updated
-    const delNotes = (JSON.parse(localStorage.getItem('wysh_deleted_notes')) || []).filter(d => d !== dateStr);
-    localStorage.setItem('wysh_deleted_notes', JSON.stringify(delNotes));
-
     setCalendarNotes(prev => {
       const updatedNotes = [...prev];
       const existingIdx = updatedNotes.findIndex(n => n.dateStr === dateStr);
@@ -545,13 +532,6 @@ export const WyshProvider = ({ children }) => {
   }, []);
 
   const deleteCalendarNote = useCallback((dateStr) => {
-    // Record tombstone
-    const delNotes = JSON.parse(localStorage.getItem('wysh_deleted_notes')) || [];
-    if (!delNotes.includes(dateStr)) {
-      delNotes.push(dateStr);
-      localStorage.setItem('wysh_deleted_notes', JSON.stringify(delNotes));
-    }
-
     setCalendarNotes(prev => {
       const updatedNotes = prev.filter(n => n.dateStr !== dateStr);
       saveStorageItems('CALENDAR_NOTES', updatedNotes);
@@ -567,9 +547,6 @@ export const WyshProvider = ({ children }) => {
       id: 'rep-' + Date.now(),
       createdAt: new Date().toISOString()
     };
-    const delReps = (JSON.parse(localStorage.getItem('wysh_deleted_reports')) || []).filter(d => d !== newReport.id);
-    localStorage.setItem('wysh_deleted_reports', JSON.stringify(delReps));
-
     setReports(prev => {
       const updatedReports = [newReport, ...prev];
       saveStorageItems('REPORTS', updatedReports);
@@ -589,12 +566,6 @@ export const WyshProvider = ({ children }) => {
   }, []);
 
   const deleteReport = useCallback((id) => {
-    const delReps = JSON.parse(localStorage.getItem('wysh_deleted_reports')) || [];
-    if (!delReps.includes(id)) {
-      delReps.push(id);
-      localStorage.setItem('wysh_deleted_reports', JSON.stringify(delReps));
-    }
-
     setReports(prev => {
       const updatedReports = prev.filter(r => r.id !== id);
       saveStorageItems('REPORTS', updatedReports);
