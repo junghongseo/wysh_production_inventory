@@ -51,19 +51,33 @@ serve(async (req) => {
       historyQuery
     ]);
 
-    // 한국 표준시 (KST: UTC+9) 기준 날짜 및 어제 날짜 정밀 계산
-    const kstOffsetMs = 9 * 60 * 60 * 1000;
-    const nowKst = new Date(Date.now() + kstOffsetMs);
-    const todayStr = nowKst.toISOString().split('T')[0];
+    // 대한민국 표준시 (KST: UTC+9, Asia/Seoul) 정밀 시각 및 날짜 계산
+    const now = new Date();
+    const kstDateFormatter = new Intl.DateTimeFormat('sv-SE', { timeZone: 'Asia/Seoul' });
+    const todayStr = kstDateFormatter.format(now); // e.g. "2026-07-25"
 
-    const yesterdayKst = new Date(nowKst.getTime() - 24 * 60 * 60 * 1000);
-    const yesterdayStr = yesterdayKst.toISOString().split('T')[0];
+    const yesterdayObj = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const yesterdayStr = kstDateFormatter.format(yesterdayObj); // e.g. "2026-07-24"
 
-    const dayOfWeekNames = ['일', '월', '화', '수', '목', '금', '토'];
-    const dayOfWeek = dayOfWeekNames[nowKst.getUTCDay()];
+    const kstFullFormatter = new Intl.DateTimeFormat('ko-KR', {
+      timeZone: 'Asia/Seoul',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      weekday: 'long',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: true
+    });
+    const fullKstStr = kstFullFormatter.format(now); // e.g. "2026년 7월 25일 토요일 오전 12:38:17"
+
+    const dayOfWeekFormatter = new Intl.DateTimeFormat('ko-KR', { timeZone: 'Asia/Seoul', weekday: 'short' });
+    const dayOfWeek = dayOfWeekFormatter.format(now); // e.g. "토"
 
     const contextSummary = `
 [기준 시각: 대한민국 표준시 (KST, UTC+9)]
+- 현재 실시간 한국 시각: ${fullKstStr}
 - 오늘 날짜: ${todayStr} (${dayOfWeek}요일)
 - 어제 날짜: ${yesterdayStr}
 
@@ -90,10 +104,16 @@ ${JSON.stringify(calendarNotes || [])}
 당신은 프리미엄 수제 요거트 브랜드 'WYSH'의 스마트한 **AI 생산매니저**입니다.
 생산 관리자의 조력자로서 생산 일정, 출고/판매 추이, 드랍 제품 출시(월 2회 권장), 달력 이벤트를 종합적으로 분석하여 언제 어떤 제품을 얼마만큼 생산해야 할지 스마트하게 조언해야 합니다.
 
-[대한민국 표준시 (KST) 날짜 인식 지침]
-1. 현재 시스템의 한국 표준시(KST) 오늘 날짜는 **${todayStr} (${dayOfWeek}요일)** 이고, 어제 날짜는 **${yesterdayStr}** 입니다.
-2. 사용자가 "어제"에 대해 물어보면 반드시 어제 날짜인 **${yesterdayStr}** 에 입력된 출고(inventory 내 outflowHistory 항목)나 생산 리포트 기록을 기반으로 정확히 답변하세요.
-3. 사용자가 "오늘"에 대해 물어보면 오늘 날짜인 **${todayStr}** 의 기록을 분석하세요.
+[🚨 대한민국 표준시 (KST) 실시간 시각 절대 기준 - REAL-TIME CLOCK OVERRIDE]
+- **현재 실제 한국 시각 (KST)**: **${fullKstStr}**
+- **오늘 날짜 (KST)**: **${todayStr} (${dayOfWeek}요일)**
+- **어제 날짜 (KST)**: **${yesterdayStr}**
+
+⚠️ 날짜 및 시각 응답 필수 규칙:
+1. 사용자가 현재 시각, 날짜, "오늘", "어제"에 대해 질문하면, 이전 대화 기록에 남아있는 과거 일자나 예전 브리핑 텍스트(예: 7월 24일)에 절대로 영향을 받지 마세요.
+2. 오직 위 **[현재 실제 한국 시각: ${fullKstStr}]** 을 유일한 절대 기준시로 사용하여 답변해야 합니다.
+3. 자정이 지난 새벽 시각(00시~06시)이라면 이미 날짜가 바뀌어 **${todayStr} (${dayOfWeek}요일)** 이 되었음을 정확히 인지하여 답변하세요.
+4. 사용자가 "어제"에 대해 물어보면 반드시 KST 어제 날짜인 **${yesterdayStr}** 에 작성된 출고/리포트 기록을 기반으로 답변하세요.
 
 [작동 가이드라인]
 1. 말투는 친절하고 전문적인 생산 관리 전문가 톤을 유지하세요.
