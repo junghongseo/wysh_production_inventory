@@ -88,7 +88,7 @@ const PlanRegistrationModal = ({
         if (currentPlanType === 'sub_ingredient') {
           setSubProductId(plan.subProductId || '');
           setTargetYogurtProductId(plan.targetYogurtProductId || '');
-          setTargetYogurtQty(plan.targetYogurtQty || '');
+          setTargetYogurtQty(plan.targetYogurtQty ?? 0);
         } else {
           if (plan.items && Array.isArray(plan.items) && plan.items.length > 0) {
             setItems(plan.items.map(it => {
@@ -98,9 +98,9 @@ const PlanRegistrationModal = ({
               const eDate = it.expiryDate || plan.expiryDate || (prod ? dateAddDays(botDate, prod.expiryDays ?? 22) : '');
               return {
                 productId: it.productId || '',
-                expectedOrderQty: it.expectedOrderQty ?? '',
-                marketingQty: it.marketingQty ?? '',
-                bufferQty: it.bufferQty ?? '',
+                expectedOrderQty: it.expectedOrderQty ?? 0,
+                marketingQty: it.marketingQty ?? 0,
+                bufferQty: it.bufferQty ?? 0,
                 bottlingDate: botDate,
                 shippingLimit: sLimit,
                 expiryDate: eDate
@@ -110,9 +110,9 @@ const PlanRegistrationModal = ({
             const prod = yogurtProducts.find(p => p.id === plan.productId);
             setItems([{
               productId: plan.productId || '',
-              expectedOrderQty: plan.expectedOrderQty ?? '',
-              marketingQty: plan.marketingQty ?? '',
-              bufferQty: plan.bufferQty ?? '',
+              expectedOrderQty: plan.expectedOrderQty ?? 0,
+              marketingQty: plan.marketingQty ?? 0,
+              bufferQty: plan.bufferQty ?? 0,
               bottlingDate: plan.bottlingDate,
               shippingLimit: plan.shippingLimit || (prod ? dateAddDays(plan.bottlingDate, prod.shippingLimitDays ?? 7) : ''),
               expiryDate: plan.expiryDate || (prod ? dateAddDays(plan.bottlingDate, prod.expiryDays ?? 22) : '')
@@ -132,15 +132,15 @@ const PlanRegistrationModal = ({
 
       setSubProductId(initialSubProductId || (subIngredients.length > 0 ? subIngredients[0].id : ''));
       setTargetYogurtProductId(initialTargetYogurtProductId || (yogurtProducts.length > 0 ? yogurtProducts[0].id : ''));
-      setTargetYogurtQty(initialTargetYogurtQty || '');
+      setTargetYogurtQty(initialTargetYogurtQty || 0);
 
       const defaultProd = yogurtProducts.length > 0 ? yogurtProducts[0] : null;
       const initialDerived = calculateItemDerivedDates(defaultBot, defaultProd);
       setItems([{
         productId: defaultProd ? defaultProd.id : '',
-        expectedOrderQty: '',
-        marketingQty: '',
-        bufferQty: '',
+        expectedOrderQty: 0,
+        marketingQty: 0,
+        bufferQty: 0,
         bottlingDate: defaultBot,
         shippingLimit: initialDerived.shippingLimit,
         expiryDate: initialDerived.expiryDate
@@ -214,9 +214,9 @@ const PlanRegistrationModal = ({
     const defaultBot = dateAddDays(startDate || getTodayStr(), 2);
     setItems([...items, {
       productId: '',
-      expectedOrderQty: '',
-      marketingQty: '',
-      bufferQty: '',
+      expectedOrderQty: 0,
+      marketingQty: 0,
+      bufferQty: 0,
       bottlingDate: defaultBot,
       shippingLimit: '',
       expiryDate: ''
