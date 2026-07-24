@@ -298,7 +298,7 @@ export const deleteReportFromSupabase = async (id) => {
 };
 
 // AI Manager Edge Function Calling & Event Functions
-export const sendAIManagerMessage = async (userMessage, type = 'chat') => {
+export const sendAIManagerMessage = async (userMessage, type = 'chat', sessionId = null, sessionTitle = null) => {
   if (!supabase) {
     throw new Error("Supabase 클라이언트가 초기화되지 않았습니다.");
   }
@@ -306,11 +306,11 @@ export const sendAIManagerMessage = async (userMessage, type = 'chat') => {
   try {
     // Supabase Edge Function 'ai-manager' 호출
     const { data, error } = await supabase.functions.invoke('ai-manager', {
-      body: { userMessage, type }
+      body: { userMessage, type, sessionId, sessionTitle }
     });
 
     if (error) {
-      console.warn("Edge Function 호출 실패 (로컬/직접 Gemini API 데모 폴백 시도):", error);
+      console.warn("Edge Function 호출 실패 (Direct Client Insertion Fallback):", error);
       throw error;
     }
 
@@ -318,6 +318,77 @@ export const sendAIManagerMessage = async (userMessage, type = 'chat') => {
   } catch (err) {
     console.error("AI Manager Service Error:", err);
     throw err;
+  }
+};
+
+export const pushChatMessageToSupabase = async (role, content, sessionId, sessionTitle = null) => {
+  if (!supabase) return;
+  try {
+    const id = (role === 'user' ? 'msg-u-' : 'msg-a-') + Date.now() + '-' + Math.floor(Math.random() * 1000);
+    const { error } = await supabase.from('chat_history').insert([
+      {
+        id,
+        role,
+        content,
+        session_id: sessionId || ('sess-' + Date.now()),
+        session_title: sessionTitle || (content.substring(0, 30) + '...')
+      }
+    ]);
+    if (error) console.warn("Push chat message error:", error);
+  } catch (e) {
+    console.warn("Push chat message exception:", e);
+  }
+};
+
+export const fetchChatSessionsFromSupabase = async () => {
+  if (!supabase) return [];
+  try {
+    const { data, error } = await supabase
+      .from('chat_history')
+      .select('id, role, content, created_at, session_id, session_title')
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    if (!data) return [];
+
+    // Group rows by session_id
+    const sessionsMap = new Map();
+    data.forEach(row => {
+      const sessId = row.session_id || 'default_legacy_session';
+      if (!sessionsMap.has(sessId)) {
+        sessionsMap.set(sessId, {
+          sessionId: sessId,
+          sessionTitle: row.session_title || (row.content ? row.content.substring(0, 30) : '대화 기록'),
+          createdAt: row.created_at,
+          lastMessage: row.content,
+          messagesCount: 1
+        });
+      } else {
+        const existing = sessionsMap.get(sessId);
+        existing.messagesCount += 1;
+      }
+    });
+
+    return Array.from(sessionsMap.values());
+  } catch (e) {
+    console.warn("Chat sessions fetch warn:", e);
+    return [];
+  }
+};
+
+export const fetchChatMessagesBySession = async (sessionId) => {
+  if (!supabase) return [];
+  try {
+    let query = supabase.from('chat_history').select('*').order('created_at', { ascending: true });
+    if (sessionId) {
+      query = query.eq('session_id', sessionId);
+    }
+    const { data, error } = await query;
+    if (error) throw error;
+    return data || [];
+  } catch (e) {
+    console.warn("Chat messages by session fetch warn:", e);
+    return [];
   }
 };
 

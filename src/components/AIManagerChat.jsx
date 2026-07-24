@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useWysh } from '../WyshContext';
-import { sendAIManagerMessage, fetchChatHistoryFromSupabase } from '../services/supabaseService';
+import { 
+  sendAIManagerMessage, 
+  pushChatMessageToSupabase,
+  fetchChatSessionsFromSupabase, 
+  fetchChatMessagesBySession 
+} from '../services/supabaseService';
 
 export const AIManagerChat = () => {
   const { isAdminLoggedIn } = useWysh();
@@ -8,7 +13,14 @@ export const AIManagerChat = () => {
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [hasBriefed, setHasBriefed] = useState(false);
+  const [sessionId, setSessionId] = useState(() => 'sess-' + Date.now());
+
+  // Past History View States
+  const [showHistoryView, setShowHistoryView] = useState(false);
+  const [pastSessions, setPastSessions] = useState([]);
+  const [selectedPastSession, setSelectedPastSession] = useState(null);
+  const [pastMessages, setPastMessages] = useState([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   
   // Resizing state (Default: 390px x 560px, Limits: Min 350x450, Max 800x900)
   const [dimensions, setDimensions] = useState({ width: 390, height: 560 });
@@ -22,14 +34,10 @@ export const AIManagerChat = () => {
   };
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages, isLoading]);
-
-  useEffect(() => {
-    if (isAdminLoggedIn) {
-      loadHistory();
+    if (!showHistoryView) {
+      scrollToBottom();
     }
-  }, [isAdminLoggedIn]);
+  }, [messages, isLoading, showHistoryView]);
 
   // Handle Window Resize via Top-Left Corner Dragging
   const handleMouseDown = (e) => {
@@ -47,8 +55,8 @@ export const AIManagerChat = () => {
 
   const handleMouseMove = (e) => {
     if (!isResizingRef.current) return;
-    const deltaX = resizeStartRef.current.x - e.clientX; // Moving left increases width
-    const deltaY = resizeStartRef.current.y - e.clientY; // Moving up increases height
+    const deltaX = resizeStartRef.current.x - e.clientX;
+    const deltaY = resizeStartRef.current.y - e.clientY;
 
     const newWidth = Math.min(800, Math.max(350, resizeStartRef.current.width + deltaX));
     const newHeight = Math.min(900, Math.max(450, resizeStartRef.current.height + deltaY));
@@ -62,51 +70,42 @@ export const AIManagerChat = () => {
     document.removeEventListener('mouseup', handleMouseUp);
   };
 
-  const loadHistory = async () => {
-    try {
-      const history = await fetchChatHistoryFromSupabase();
-      if (history && history.length > 0) {
-        setMessages(history.map(h => ({
-          id: h.id,
-          sender: h.role === 'user' ? 'user' : 'ai',
-          text: h.content,
-          time: new Date(h.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        })));
-        setHasBriefed(true);
-      }
-    } catch (e) {
-      console.warn("Failed to load chat history", e);
-    }
+  // Start a fresh new chat session
+  const startNewChatSession = () => {
+    const newSessId = 'sess-' + Date.now();
+    setSessionId(newSessId);
+    setMessages([]);
+    setShowHistoryView(false);
+    setSelectedPastSession(null);
+    triggerBriefing(newSessId);
   };
 
   const handleOpenChat = () => {
     setIsOpen(true);
-    if (!hasBriefed && messages.length === 0) {
-      triggerBriefing();
+    if (messages.length === 0 && !showHistoryView) {
+      startNewChatSession();
     }
   };
 
-  const triggerBriefing = async () => {
+  const triggerBriefing = async (activeSessId) => {
     setIsLoading(true);
-    setHasBriefed(true);
+    const currentSessId = activeSessId || sessionId;
     try {
-      const reply = await sendAIManagerMessage('', 'briefing');
-      setMessages(prev => [
-        ...prev,
-        {
-          id: 'brief-' + Date.now(),
-          sender: 'ai',
-          text: reply,
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        }
-      ]);
+      const reply = await sendAIManagerMessage('', 'briefing', currentSessId);
+      const aiMsg = {
+        id: 'brief-' + Date.now(),
+        sender: 'ai',
+        text: reply,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+      setMessages([aiMsg]);
+      pushChatMessageToSupabase('assistant', reply, currentSessId, '생산 현황 및 일일 브리핑');
     } catch (err) {
-      setMessages(prev => [
-        ...prev,
+      setMessages([
         {
           id: 'err-' + Date.now(),
           sender: 'ai',
-          text: "⚠️ Supabase Edge Function 연동 중 문제가 발생했거나 API 키 설정이 필요한 상태입니다.",
+          text: "⚠️ 안녕하세요! WYSH AI 생산매니저입니다. 무엇을 도와드릴까요?",
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
       ]);
@@ -122,27 +121,29 @@ export const AIManagerChat = () => {
     const userMsgText = inputValue.trim();
     setInputValue('');
 
-    const newMsg = {
+    const userMsgObj = {
       id: 'usr-' + Date.now(),
       sender: 'user',
       text: userMsgText,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
-    setMessages(prev => [...prev, newMsg]);
+    setMessages(prev => [...prev, userMsgObj]);
     setIsLoading(true);
 
+    // Push user message to DB asynchronously
+    pushChatMessageToSupabase('user', userMsgText, sessionId, userMsgText.substring(0, 30));
+
     try {
-      const reply = await sendAIManagerMessage(userMsgText, 'chat');
-      setMessages(prev => [
-        ...prev,
-        {
-          id: 'ai-' + Date.now(),
-          sender: 'ai',
-          text: reply,
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        }
-      ]);
+      const reply = await sendAIManagerMessage(userMsgText, 'chat', sessionId);
+      const aiReplyObj = {
+        id: 'ai-' + Date.now(),
+        sender: 'ai',
+        text: reply,
+        time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+      setMessages(prev => [...prev, aiReplyObj]);
+      pushChatMessageToSupabase('assistant', reply, sessionId, userMsgText.substring(0, 30));
     } catch (err) {
       setMessages(prev => [
         ...prev,
@@ -158,12 +159,47 @@ export const AIManagerChat = () => {
     }
   };
 
+  // Load Past Sessions List
+  const handleOpenHistoryView = async () => {
+    setShowHistoryView(true);
+    setIsLoadingHistory(true);
+    setSelectedPastSession(null);
+    try {
+      const sessions = await fetchChatSessionsFromSupabase();
+      setPastSessions(sessions);
+    } catch (e) {
+      console.warn("Failed to load past sessions", e);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
+  // Select a specific past session to view messages
+  const handleSelectPastSession = async (session) => {
+    setSelectedPastSession(session);
+    setIsLoadingHistory(true);
+    try {
+      const rawMsgs = await fetchChatMessagesBySession(session.sessionId);
+      const formatted = rawMsgs.map(m => ({
+        id: m.id,
+        sender: m.role === 'user' ? 'user' : 'ai',
+        text: m.content,
+        time: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      }));
+      setPastMessages(formatted);
+    } catch (e) {
+      console.warn("Failed to load past session messages", e);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
   if (!isAdminLoggedIn) return null;
 
   return (
     <div style={{ position: 'fixed', bottom: '28px', right: '28px', zIndex: 9999, fontFamily: '"Pretendard", -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif' }}>
       {!isOpen ? (
-        /* WYSH 브랜드 시그니처 둥근 블랙 플로팅 챗 버튼 */
+        /* WYSH 브랜드 시그니처 둥근 플로팅 챗 버튼 */
         <button
           onClick={handleOpenChat}
           style={{
@@ -196,7 +232,6 @@ export const AIManagerChat = () => {
             style={{ width: '100%', height: '100%', objectFit: 'contain' }}
           />
           
-          {/* BETA Badge Indicator */}
           <span style={{
             position: 'absolute',
             top: '-4px',
@@ -229,7 +264,7 @@ export const AIManagerChat = () => {
           position: 'relative',
           transition: isResizingRef.current ? 'none' : 'width 0.1s ease, height 0.1s ease'
         }}>
-          {/* Top-Left Resize Handle (드래그 조절 영역) */}
+          {/* Top-Left Resize Handle */}
           <div
             onMouseDown={handleMouseDown}
             title="드래그하여 창 크기 조절 (최소 350x450 ~ 최대 800x900)"
@@ -257,7 +292,7 @@ export const AIManagerChat = () => {
 
           {/* WYSH Header */}
           <div style={{
-            padding: '18px 22px',
+            padding: '16px 20px',
             backgroundColor: '#000000',
             borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
             display: 'flex',
@@ -267,15 +302,14 @@ export const AIManagerChat = () => {
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <div style={{
-                width: '36px',
-                height: '36px',
+                width: '34px',
+                height: '34px',
                 borderRadius: '50%',
                 backgroundColor: '#FFFFFF',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                padding: '4px',
-                boxShadow: '0 2px 8px rgba(255,255,255,0.2)'
+                padding: '4px'
               }}>
                 <img
                   src="/WYSH2_로고_1772157440156.webp"
@@ -288,7 +322,6 @@ export const AIManagerChat = () => {
                   <h4 style={{ margin: 0, fontSize: '15px', fontWeight: '800', color: '#FFFFFF', letterSpacing: '-0.3px' }}>
                     AI 생산매니저
                   </h4>
-                  {/* BETA Badge */}
                   <span style={{
                     backgroundColor: 'rgba(255, 255, 255, 0.15)',
                     color: '#FFFFFF',
@@ -296,215 +329,308 @@ export const AIManagerChat = () => {
                     fontWeight: '800',
                     padding: '2px 6px',
                     borderRadius: '4px',
-                    letterSpacing: '0.5px',
                     border: '1px solid rgba(255,255,255,0.2)'
                   }}>
                     BETA
                   </span>
                 </div>
-                <span style={{ fontSize: '11px', color: '#888888', fontWeight: '500' }}>WYSH Production Advisor</span>
+                <div style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.5)', marginTop: '2px' }}>
+                  {showHistoryView ? '📜 지난 대화 이력 보기' : '⚡ 신규 세션 진행 중'}
+                </div>
               </div>
             </div>
 
+            {/* Header Control Buttons */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              {/* Preset Size Toggle Button */}
-              <button
-                onClick={() => {
-                  if (dimensions.width > 500) {
-                    setDimensions({ width: 390, height: 560 });
-                  } else {
-                    setDimensions({ width: 600, height: 750 });
-                  }
-                }}
-                title={dimensions.width > 500 ? "기본 크기로 축소" : "창 확대"}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#888888',
-                  fontSize: '14px',
-                  cursor: 'pointer',
-                  padding: '4px',
-                  transition: 'color 0.2s'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.color = '#FFFFFF'}
-                onMouseLeave={(e) => e.currentTarget.style.color = '#888888'}
-              >
-                {dimensions.width > 500 ? '🗗' : '🗖'}
-              </button>
+              {showHistoryView ? (
+                <button
+                  onClick={() => setShowHistoryView(false)}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.12)',
+                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    color: '#FFFFFF',
+                    borderRadius: '8px',
+                    padding: '5px 10px',
+                    fontSize: '12px',
+                    fontWeight: 600,
+                    cursor: 'pointer'
+                  }}
+                >
+                  💬 대화창으로
+                </button>
+              ) : (
+                <>
+                  <button
+                    onClick={startNewChatSession}
+                    title="새로운 채팅 세션 시작"
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.08)',
+                      border: '1px solid rgba(255, 255, 255, 0.15)',
+                      color: '#FFFFFF',
+                      borderRadius: '8px',
+                      padding: '5px 10px',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    ✨ 새 대화
+                  </button>
+                  <button
+                    onClick={handleOpenHistoryView}
+                    title="지난 대화 이력 보기"
+                    style={{
+                      background: 'rgba(255, 255, 255, 0.08)',
+                      border: '1px solid rgba(255, 255, 255, 0.15)',
+                      color: 'rgba(255, 255, 255, 0.8)',
+                      borderRadius: '8px',
+                      padding: '5px 10px',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    📜 기록
+                  </button>
+                </>
+              )}
 
               <button
                 onClick={() => setIsOpen(false)}
                 style={{
                   background: 'none',
                   border: 'none',
-                  color: '#888888',
-                  fontSize: '22px',
+                  color: 'rgba(255, 255, 255, 0.5)',
                   cursor: 'pointer',
+                  fontSize: '20px',
                   padding: '4px',
-                  lineHeight: 1,
-                  transition: 'color 0.2s'
+                  lineHeight: 1
                 }}
-                onMouseEnter={(e) => e.currentTarget.style.color = '#FFFFFF'}
-                onMouseLeave={(e) => e.currentTarget.style.color = '#888888'}
               >
                 ✕
               </button>
             </div>
           </div>
 
-          {/* Messages Area */}
-          <div style={{
-            flex: 1,
-            padding: '20px',
-            overflowY: 'auto',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '14px',
-            backgroundColor: '#0D0D0D'
-          }}>
-            {messages.length === 0 && !isLoading && (
-              <div style={{ textAlign: 'center', color: '#666666', marginTop: '60px', fontSize: '13px' }}>
-                <p style={{ margin: 0, fontWeight: '500' }}>WYSH 브랜드 생산 일정 & 재고 관리를 도와드립니다.</p>
-                <p style={{ fontSize: '11px', color: '#444444', marginTop: '6px' }}>궁금하신 생산 이슈를 자유롭게 질문해 보세요.</p>
-              </div>
-            )}
+          {/* MAIN CONTENT AREA */}
+          {showHistoryView ? (
+            /* PAST CHAT HISTORY VIEW PANEL */
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', background: '#121212' }}>
+              {selectedPastSession ? (
+                /* Selected Past Session Message Detail Viewer */
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                  <div style={{ padding: '12px 16px', background: '#1A1A1A', borderBottom: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <button
+                      onClick={() => setSelectedPastSession(null)}
+                      style={{ background: 'none', border: 'none', color: '#38BDF8', cursor: 'pointer', fontSize: '13px', fontWeight: 600 }}
+                    >
+                      ← 목록으로 돌아가기
+                    </button>
+                    <span style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)' }}>
+                      {new Date(selectedPastSession.createdAt).toLocaleDateString()} 이력
+                    </span>
+                  </div>
 
-            {messages.map((msg) => (
-              <div
-                key={msg.id}
+                  <div style={{ flex: 1, padding: '16px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                    {isLoadingHistory ? (
+                      <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.5)', padding: '20px' }}>대화 내용을 불러오는 중...</div>
+                    ) : pastMessages.length === 0 ? (
+                      <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.5)', padding: '20px' }}>저장된 메시지가 없습니다.</div>
+                    ) : (
+                      pastMessages.map((msg) => (
+                        <div
+                          key={msg.id}
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            alignItems: msg.sender === 'user' ? 'flex-end' : 'flex-start'
+                          }}
+                        >
+                          <div style={{
+                            maxWidth: '85%',
+                            padding: '12px 16px',
+                            borderRadius: '16px',
+                            backgroundColor: msg.sender === 'user' ? '#FFFFFF' : '#222222',
+                            color: msg.sender === 'user' ? '#000000' : '#FFFFFF',
+                            fontSize: '13.5px',
+                            lineHeight: '1.55',
+                            whiteSpace: 'pre-wrap',
+                            boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+                            border: msg.sender === 'user' ? 'none' : '1px solid rgba(255,255,255,0.1)'
+                          }}>
+                            {msg.text}
+                          </div>
+                          <span style={{ fontSize: '10px', color: 'rgba(255, 255, 255, 0.4)', marginTop: '4px', padding: '0 4px' }}>
+                            {msg.time}
+                          </span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              ) : (
+                /* Past Sessions List */
+                <div style={{ flex: 1, padding: '16px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: 'rgba(255,255,255,0.7)', marginBottom: '6px' }}>
+                    과거 대화 목록 ({pastSessions.length}건)
+                  </div>
+                  {isLoadingHistory ? (
+                    <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.5)', padding: '20px' }}>지난 기록을 가져오는 중...</div>
+                  ) : pastSessions.length === 0 ? (
+                    <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.5)', padding: '30px' }}>저장된 과거 대화 이력이 없습니다.</div>
+                  ) : (
+                    pastSessions.map((sess) => (
+                      <div
+                        key={sess.sessionId}
+                        onClick={() => handleSelectPastSession(sess)}
+                        style={{
+                          padding: '14px 16px',
+                          backgroundColor: '#1A1A1A',
+                          borderRadius: '14px',
+                          border: '1px solid rgba(255,255,255,0.08)',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.backgroundColor = '#262626';
+                          e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.backgroundColor = '#1A1A1A';
+                          e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                          <span style={{ fontSize: '13.5px', fontWeight: 700, color: '#FFFFFF' }}>
+                            {sess.sessionTitle || '생산 현황 질의'}
+                          </span>
+                          <span style={{ fontSize: '11px', color: 'rgba(255,255,255,0.4)' }}>
+                            {new Date(sess.createdAt).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.6)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {sess.lastMessage || '대화 내용 보기'}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          ) : (
+            /* ACTIVE CHAT WINDOW */
+            <>
+              {/* Chat Message History */}
+              <div style={{
+                flex: 1,
+                padding: '20px 18px',
+                overflowY: 'auto',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '16px'
+              }}>
+                {messages.map((msg) => (
+                  <div
+                    key={msg.id}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: msg.sender === 'user' ? 'flex-end' : 'flex-start'
+                    }}
+                  >
+                    <div style={{
+                      maxWidth: '85%',
+                      padding: '13px 18px',
+                      borderRadius: msg.sender === 'user' ? '20px 20px 4px 20px' : '20px 20px 20px 4px',
+                      backgroundColor: msg.sender === 'user' ? '#FFFFFF' : '#1A1A1A',
+                      color: msg.sender === 'user' ? '#000000' : '#FFFFFF',
+                      fontSize: '14px',
+                      lineHeight: '1.6',
+                      whiteSpace: 'pre-wrap',
+                      boxShadow: '0 4px 15px rgba(0,0,0,0.3)',
+                      border: msg.sender === 'user' ? 'none' : '1px solid rgba(255,255,255,0.1)'
+                    }}>
+                      {msg.text}
+                    </div>
+                    <span style={{
+                      fontSize: '10px',
+                      color: 'rgba(255, 255, 255, 0.4)',
+                      marginTop: '4px',
+                      padding: '0 4px'
+                    }}>
+                      {msg.time}
+                    </span>
+                  </div>
+                ))}
+
+                {isLoading && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'rgba(255, 255, 255, 0.6)', fontSize: '13px' }}>
+                    <div className="spinner" style={{
+                      width: '14px',
+                      height: '14px',
+                      border: '2px solid rgba(255,255,255,0.2)',
+                      borderTopColor: '#FFFFFF',
+                      borderRadius: '50%',
+                      animation: 'spin 1s linear infinite'
+                    }} />
+                    <span>AI가 생산 데이터를 분석 중입니다...</span>
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+
+              {/* Chat Input Form */}
+              <form
+                onSubmit={handleSendMessage}
                 style={{
-                  alignSelf: msg.sender === 'user' ? 'flex-end' : 'flex-start',
-                  maxWidth: '85%',
+                  padding: '14px 18px',
+                  backgroundColor: '#000000',
+                  borderTop: '1px solid rgba(255, 255, 255, 0.1)',
                   display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: msg.sender === 'user' ? 'flex-end' : 'flex-start'
+                  gap: '10px'
                 }}
               >
-                <div style={{
-                  padding: '13px 17px',
-                  borderRadius: msg.sender === 'user' ? '18px 18px 4px 18px' : '18px 18px 18px 4px',
-                  backgroundColor: msg.sender === 'user' ? '#222222' : '#161616',
-                  color: '#FFFFFF',
-                  fontSize: '13.5px',
-                  lineHeight: '1.6',
-                  whiteSpace: 'pre-wrap',
-                  border: msg.sender === 'user' ? '1px solid rgba(255,255,255,0.15)' : '1px solid rgba(255,255,255,0.08)',
-                  boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
-                }}>
-                  {msg.text}
-                </div>
-                <span style={{ fontSize: '10px', color: '#555555', marginTop: '5px', fontWeight: '500' }}>
-                  {msg.time}
-                </span>
-              </div>
-            ))}
-
-            {isLoading && (
-              <div style={{
-                alignSelf: 'flex-start',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '12px 16px',
-                backgroundColor: '#161616',
-                borderRadius: '18px',
-                color: '#888888',
-                fontSize: '13px',
-                border: '1px solid rgba(255,255,255,0.08)'
-              }}>
-                <span className="spinner" style={{
-                  width: '12px',
-                  height: '12px',
-                  border: '2px solid rgba(255,255,255,0.2)',
-                  borderTopColor: '#FFFFFF',
-                  borderRadius: '50%',
-                  display: 'inline-block',
-                  animation: 'spin 0.8s linear infinite'
-                }}></span>
-                <span>WYSH AI 분석 및 조언 정리 중...</span>
-              </div>
-            )}
-            <div ref={messagesEndRef} />
-          </div>
-
-          {/* Quick Action Button */}
-          <div style={{
-            padding: '10px 14px',
-            backgroundColor: '#000000',
-            borderTop: '1px solid rgba(255,255,255,0.06)',
-            display: 'flex',
-            gap: '8px'
-          }}>
-            <button
-              onClick={triggerBriefing}
-              disabled={isLoading}
-              style={{
-                flex: 1,
-                padding: '8px 12px',
-                fontSize: '12px',
-                fontWeight: '600',
-                backgroundColor: '#181818',
-                color: '#DDDDDD',
-                border: '1px solid rgba(255,255,255,0.12)',
-                borderRadius: '10px',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px'
-              }}
-              onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#252525'}
-              onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#181818'}
-            >
-              <span>🔄</span>
-              <span>실시간 일일 브리핑 업데이트</span>
-            </button>
-          </div>
-
-          {/* Input Area */}
-          <form onSubmit={handleSendMessage} style={{
-            padding: '14px',
-            backgroundColor: '#000000',
-            borderTop: '1px solid rgba(255,255,255,0.1)',
-            display: 'flex',
-            gap: '10px'
-          }}>
-            <input
-              type="text"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              placeholder="생산 일정, 드랍 출시 관련 질문..."
-              disabled={isLoading}
-              style={{
-                flex: 1,
-                padding: '12px 16px',
-                borderRadius: '12px',
-                border: '1px solid rgba(255,255,255,0.15)',
-                backgroundColor: '#111111',
-                color: '#FFFFFF',
-                fontSize: '13px',
-                outline: 'none'
-              }}
-            />
-            <button
-              type="submit"
-              disabled={isLoading || !inputValue.trim()}
-              style={{
-                padding: '12px 18px',
-                backgroundColor: inputValue.trim() && !isLoading ? '#FFFFFF' : '#222222',
-                color: inputValue.trim() && !isLoading ? '#000000' : '#666666',
-                border: 'none',
-                borderRadius: '12px',
-                fontWeight: '800',
-                cursor: inputValue.trim() && !isLoading ? 'pointer' : 'default',
-                fontSize: '13px',
-                transition: 'all 0.2s'
-              }}
-            >
-              전송
-            </button>
-          </form>
+                <input
+                  type="text"
+                  value={inputValue}
+                  onChange={(e) => setInputValue(e.target.value)}
+                  placeholder="예: 오늘 발효 리포트 현황 알려줘"
+                  disabled={isLoading}
+                  style={{
+                    flex: 1,
+                    backgroundColor: '#1A1A1A',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                    borderRadius: '14px',
+                    padding: '12px 16px',
+                    color: '#FFFFFF',
+                    fontSize: '14px',
+                    outline: 'none',
+                    transition: 'border-color 0.2s'
+                  }}
+                  onFocus={(e) => e.target.style.borderColor = '#FFFFFF'}
+                  onBlur={(e) => e.target.style.borderColor = 'rgba(255, 255, 255, 0.15)'}
+                />
+                <button
+                  type="submit"
+                  disabled={isLoading || !inputValue.trim()}
+                  style={{
+                    backgroundColor: '#FFFFFF',
+                    color: '#000000',
+                    border: 'none',
+                    borderRadius: '14px',
+                    padding: '0 18px',
+                    fontWeight: '700',
+                    fontSize: '14px',
+                    cursor: isLoading || !inputValue.trim() ? 'not-allowed' : 'pointer',
+                    opacity: isLoading || !inputValue.trim() ? 0.4 : 1,
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  전송
+                </button>
+              </form>
+            </>
+          )}
         </div>
       )}
     </div>
