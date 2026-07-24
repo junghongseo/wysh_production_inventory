@@ -25,11 +25,12 @@ serve(async (req) => {
     // Supabase DB 클라이언트 생성
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
-    // 현재 상태 조회를 위해 필요한 데이터들을 병렬로 수집
+    // 현재 상태 조회를 위해 필요한 데이터들을 병렬로 수집 (레시피, 계획, 재고, 리포트, 메모)
     const [
       { data: products },
       { data: plans },
       { data: inventory },
+      { data: reports },
       { data: events },
       { data: calendarNotes },
       { data: chatHistory }
@@ -37,6 +38,7 @@ serve(async (req) => {
       supabase.from('products').select('*'),
       supabase.from('plans').select('*'),
       supabase.from('inventory').select('*'),
+      supabase.from('reports').select('*'),
       supabase.from('events').select('*'),
       supabase.from('calendar_notes').select('*'),
       supabase.from('chat_history').select('*').order('created_at', { ascending: true }).limit(20)
@@ -48,14 +50,17 @@ serve(async (req) => {
     const contextSummary = `
 [현재 시스템 날짜: ${now}]
 
-[제품 목록]
+[제품 목록 및 레시피/배합표]
 ${JSON.stringify(products || [], null, 2)}
 
 [현재 생산 계획]
 ${JSON.stringify(plans || [], null, 2)}
 
-[현재 재고 상태]
+[현재 재고 상태 및 출고 이력]
 ${JSON.stringify(inventory || [], null, 2)}
+
+[작업 리포트 (발효 및 유청분리 기록)]
+${JSON.stringify(reports || [], null, 2)}
 
 [등록된 주요 이벤트/드랍 출시 일정]
 ${JSON.stringify(events || [], null, 2)}
