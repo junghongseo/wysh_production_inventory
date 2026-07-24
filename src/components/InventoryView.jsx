@@ -128,17 +128,22 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal,
     return rows;
   }, [plans, products, inventory]);
 
-  // Active sub-plans for outflow dropdown
+  // Active sub-plans for outflow dropdown (재고가 0 초과인 품목만 출고 등록 가능)
   const activeSubPlans = useMemo(() => {
     return allInventoryData.filter(item => {
-      return item.shippingLimit >= todayStr && todayStr >= item.plan.bottlingDate;
+      return item.shippingLimit >= todayStr && todayStr >= item.plan.bottlingDate && item.currentStock > 0;
     });
   }, [allInventoryData, todayStr]);
 
   // Apply filters on allInventoryData
   const filteredInventoryData = useMemo(() => {
     return allInventoryData.filter(item => {
-      const { plan, subName, prodName, shippingLimit } = item;
+      const { plan, subName, prodName, shippingLimit, currentStock } = item;
+
+      // 현재 재고가 0 이하인 항목은 리스트에서 배제 (출고 가능 계획이 아니므로)
+      if (currentStock <= 0) {
+        return false;
+      }
 
       // Status filter
       if (statusFilter === 'active') {
