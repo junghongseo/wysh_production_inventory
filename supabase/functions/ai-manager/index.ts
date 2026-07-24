@@ -31,12 +31,14 @@ serve(async (req) => {
       { data: plans },
       { data: inventory },
       { data: events },
+      { data: calendarNotes },
       { data: chatHistory }
     ] = await Promise.all([
       supabase.from('products').select('*'),
       supabase.from('plans').select('*'),
       supabase.from('inventory').select('*'),
       supabase.from('events').select('*'),
+      supabase.from('calendar_notes').select('*'),
       supabase.from('chat_history').select('*').order('created_at', { ascending: true }).limit(20)
     ]);
 
@@ -57,6 +59,9 @@ ${JSON.stringify(inventory || [], null, 2)}
 
 [등록된 주요 이벤트/드랍 출시 일정]
 ${JSON.stringify(events || [], null, 2)}
+
+[달력 메모 및 일정 노트]
+${JSON.stringify(calendarNotes || [], null, 2)}
     `.trim();
 
     const systemInstruction = `
