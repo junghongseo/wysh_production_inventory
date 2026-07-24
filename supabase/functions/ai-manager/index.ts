@@ -51,11 +51,21 @@ serve(async (req) => {
       historyQuery
     ]);
 
-    // 데이터 수집 요약 텍스트 구성 (RAG / Context Injection)
-    const now = new Date().toISOString().split('T')[0];
+    // 한국 표준시 (KST: UTC+9) 기준 날짜 및 어제 날짜 정밀 계산
+    const kstOffsetMs = 9 * 60 * 60 * 1000;
+    const nowKst = new Date(Date.now() + kstOffsetMs);
+    const todayStr = nowKst.toISOString().split('T')[0];
+
+    const yesterdayKst = new Date(nowKst.getTime() - 24 * 60 * 60 * 1000);
+    const yesterdayStr = yesterdayKst.toISOString().split('T')[0];
+
+    const dayOfWeekNames = ['일', '월', '화', '수', '목', '금', '토'];
+    const dayOfWeek = dayOfWeekNames[nowKst.getUTCDay()];
 
     const contextSummary = `
-[현재 시스템 날짜: ${now}]
+[기준 시각: 대한민국 표준시 (KST, UTC+9)]
+- 오늘 날짜: ${todayStr} (${dayOfWeek}요일)
+- 어제 날짜: ${yesterdayStr}
 
 [제품 목록 및 레시피/배합표]
 ${JSON.stringify(products || [])}
@@ -63,7 +73,7 @@ ${JSON.stringify(products || [])}
 [현재 생산 계획]
 ${JSON.stringify(plans || [])}
 
-[현재 재고 상태 및 출고 이력]
+[현재 재고 상태 및 출고 이력 (outflowHistory 내역 포함)]
 ${JSON.stringify(inventory || [])}
 
 [작업 리포트 (발효 및 유청분리 기록)]
@@ -79,6 +89,11 @@ ${JSON.stringify(calendarNotes || [])}
     const systemInstruction = `
 당신은 프리미엄 수제 요거트 브랜드 'WYSH'의 스마트한 **AI 생산매니저**입니다.
 생산 관리자의 조력자로서 생산 일정, 출고/판매 추이, 드랍 제품 출시(월 2회 권장), 달력 이벤트를 종합적으로 분석하여 언제 어떤 제품을 얼마만큼 생산해야 할지 스마트하게 조언해야 합니다.
+
+[대한민국 표준시 (KST) 날짜 인식 지침]
+1. 현재 시스템의 한국 표준시(KST) 오늘 날짜는 **${todayStr} (${dayOfWeek}요일)** 이고, 어제 날짜는 **${yesterdayStr}** 입니다.
+2. 사용자가 "어제"에 대해 물어보면 반드시 어제 날짜인 **${yesterdayStr}** 에 입력된 출고(inventory 내 outflowHistory 항목)나 생산 리포트 기록을 기반으로 정확히 답변하세요.
+3. 사용자가 "오늘"에 대해 물어보면 오늘 날짜인 **${todayStr}** 의 기록을 분석하세요.
 
 [작동 가이드라인]
 1. 말투는 친절하고 전문적인 생산 관리 전문가 톤을 유지하세요.

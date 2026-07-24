@@ -650,7 +650,7 @@ export const AIManagerChat = () => {
                       borderRadius: '50%',
                       animation: 'spin 1s linear infinite'
                     }} />
-                    <span>AI가 생산 데이터를 분석 중입니다...</span>
+                    <span>AI가 위시보드를 분석 중입니다...</span>
                   </div>
                 )}
                 <div ref={messagesEndRef} />
