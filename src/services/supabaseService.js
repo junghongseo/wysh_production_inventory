@@ -296,3 +296,69 @@ export const deleteReportFromSupabase = async (id) => {
     console.error("Supabase Push Error (Delete Report):", e);
   }
 };
+
+// AI Manager Edge Function Calling & Event Functions
+export const sendAIManagerMessage = async (userMessage, type = 'chat') => {
+  if (!supabase) {
+    throw new Error("Supabase 클라이언트가 초기화되지 않았습니다.");
+  }
+  
+  try {
+    // Supabase Edge Function 'ai-manager' 호출
+    const { data, error } = await supabase.functions.invoke('ai-manager', {
+      body: { userMessage, type }
+    });
+
+    if (error) {
+      console.warn("Edge Function 호출 실패 (로컬/직접 Gemini API 데모 폴백 시도):", error);
+      throw error;
+    }
+
+    return data.reply;
+  } catch (err) {
+    console.error("AI Manager Service Error:", err);
+    throw err;
+  }
+};
+
+export const fetchChatHistoryFromSupabase = async () => {
+  if (!supabase) return [];
+  try {
+    const { data, error } = await supabase.from('chat_history').select('*').order('created_at', { ascending: true });
+    if (error) throw error;
+    return data || [];
+  } catch (e) {
+    console.warn("Chat history fetch warn:", e);
+    return [];
+  }
+};
+
+export const fetchEventsFromSupabase = async () => {
+  if (!supabase) return [];
+  try {
+    const { data, error } = await supabase.from('events').select('*').order('event_date', { ascending: true });
+    if (error) throw error;
+    return data || [];
+  } catch (e) {
+    console.warn("Events fetch warn:", e);
+    return [];
+  }
+};
+
+export const pushEventToSupabase = async (eventData) => {
+  if (!supabase) return;
+  try {
+    const { error } = await supabase.from('events').upsert({
+      id: eventData.id || 'evt-' + Date.now(),
+      title: eventData.title,
+      event_date: eventData.eventDate,
+      product_id: eventData.productId || null,
+      target_qty: eventData.targetQty || 0,
+      memo: eventData.memo || ''
+    });
+    if (error) throw error;
+  } catch (e) {
+    console.error("Event Push Error:", e);
+  }
+};
+

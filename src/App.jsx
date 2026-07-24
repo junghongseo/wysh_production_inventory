@@ -10,6 +10,7 @@ import ConfirmModal from './components/modals/ConfirmModal';
 import MemoModal from './components/modals/MemoModal';
 import CalendarNoteModal from './components/modals/CalendarNoteModal';
 import AdminLoginModal from './components/modals/AdminLoginModal';
+import { AIManagerChat } from './components/AIManagerChat';
 
 // Code-split tabs using React.lazy for lightweight bundle and faster initial load
 const CalendarView = lazy(() => import('./components/CalendarView'));
@@ -450,6 +451,9 @@ const App = () => {
         onClose={() => setAdminLoginModalOpen(false)}
         onLogin={loginAdmin}
       />
+
+      {/* Floating AI Production Manager Chat Widget */}
+      <AIManagerChat />
     </div>
   );
 };
