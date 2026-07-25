@@ -14,7 +14,7 @@ const MUD_GREEK_SEED_PH_DATA = [
 ];
 
 const ReportsView = () => {
-  const { plans, products, reports, addReport, updateReport, deleteReport } = useWysh();
+  const { plans, products, reports, addReport, updateReport, deleteReport, updateActualQty, isAdminLoggedIn } = useWysh();
 
   const lastInitializedPlanIdRef = useRef(null);
 
@@ -651,10 +651,13 @@ const ReportsView = () => {
         }
       }
 
+      const isConfirmed = isEditing ? (reports.find(r => r.id === selectedReportId)?.confirmed || false) : false;
+
       const reportData = {
         planId: selectedPlanId,
         type: 'bottling',
         workerName: workerName.trim(),
+        confirmed: isConfirmed,
         checkedItems: [],
         details: {
           productId: selectedPlanDetails?.product?.id,
@@ -688,7 +691,7 @@ const ReportsView = () => {
         alert('병입 리포트가 성공적으로 수정되었습니다.');
       } else {
         addReport(reportData);
-        alert('병입 리포트가 성공적으로 등록되었습니다.');
+        alert('병입 리포트가 성공적으로 등록되었습니다. (관리자 승인 대기 상태)');
       }
 
       handleResetForm();
@@ -711,11 +714,13 @@ const ReportsView = () => {
       }
 
       const config = productPhConfig;
+      const isConfirmed = isEditing ? (reports.find(r => r.id === selectedReportId)?.confirmed || false) : false;
 
       const reportData = {
         planId: selectedPlanId,
         type: 'whey_separation',
         workerName: workerName.trim(),
+        confirmed: isConfirmed,
         checkedItems: [],
         details: {
           productId: selectedPlanDetails?.product?.id,
@@ -747,7 +752,7 @@ const ReportsView = () => {
         alert('유청분리 리포트가 성공적으로 수정되었습니다.');
       } else {
         addReport(reportData);
-        alert('유청분리 리포트가 성공적으로 등록되었습니다.');
+        alert('유청분리 리포트가 성공적으로 등록되었습니다. (관리자 승인 대기 상태)');
       }
 
       handleResetForm();
@@ -765,18 +770,23 @@ const ReportsView = () => {
     if (checkedHeaterLow) checkedItems.push('heater_low');
     if (checkedAgitator) checkedItems.push('agitator');
 
+    const isConfirmed = isEditing ? (reports.find(r => r.id === selectedReportId)?.confirmed || false) : false;
+
     const reportData = {
       planId: selectedPlanId,
       type: 'fermentation',
       workerName: workerName.trim(),
+      confirmed: isConfirmed,
       checkedItems,
       details: {
-        sterilizationTemp: parseFloat(sterilizationTemp),
-        sterilizationTime: parseInt(sterilizationTime),
-        coolingTemp: parseFloat(coolingTemp),
-        inoculationTemp: parseFloat(inoculationTemp),
-        heatingTemp: parseFloat(heatingTemp),
-        heaterTemp: parseFloat(heaterTemp)
+        productId: selectedPlanDetails?.product?.id,
+        productName: selectedPlanDetails?.product?.name,
+        sterilizationTemp: parseFloat(sterilizationTemp) || 85,
+        sterilizationTime: parseInt(sterilizationTime) || 30,
+        coolingTemp: parseFloat(coolingTemp) || 40,
+        inoculationTemp: parseFloat(inoculationTemp) || 42,
+        heatingTemp: parseFloat(heatingTemp) || 43,
+        heaterTemp: parseFloat(heaterTemp) || 44
       }
     };
 
@@ -794,6 +804,43 @@ const ReportsView = () => {
 
     handleResetForm();
     setMobileSubTab('history');
+  };
+
+  // Admin report confirmation handler
+  const handleConfirmReport = (report, e) => {
+    if (e) e.stopPropagation();
+    if (!isAdminLoggedIn) {
+      alert('관리자 로그인 후에 확인 처리를 진행할 수 있습니다.');
+      return;
+    }
+
+    if (window.confirm('이 리포트를 승인/확인 완료 처리하시겠습니까?')) {
+      const updated = {
+        ...report,
+        confirmed: true,
+        confirmedAt: new Date().toISOString()
+      };
+
+      updateReport(updated);
+
+      // If it's a Bottling Report, update actual stock in inventory automatically!
+      if (report.type === 'bottling' && report.details) {
+        const d = report.details;
+        if (d.isMultiItem) {
+          if (d.item1 && d.item1.productId) {
+            updateActualQty(report.planId, d.item1.stockedQty || 0, d.item1.productId);
+          }
+          if (d.item2 && d.item2.productId) {
+            updateActualQty(report.planId, d.item2.stockedQty || 0, d.item2.productId);
+          }
+        } else {
+          updateActualQty(report.planId, d.actualStockedQty || 0, d.productId || null);
+        }
+        alert('리포트 확인 완료! 병입 리포트의 실제 입고 수량이 차수별 재고에 자동 반영되었습니다.');
+      } else {
+        alert('리포트가 승인/확인 완료 처리되었습니다.');
+      }
+    }
   };
 
   // Handle delete report
@@ -1163,8 +1210,12 @@ const ReportsView = () => {
                       cursor: 'pointer', 
                       padding: '16px', 
                       borderRadius: '12px', 
-                      borderLeft: `5px solid var(--color-${getProductColor(rep.planId)})`,
-                      background: selectedReportId === rep.id ? 'var(--bg-tertiary)' : 'var(--bg-secondary)',
+                      borderLeft: rep.confirmed 
+                        ? `5px solid var(--color-${getProductColor(rep.planId)})` 
+                        : '5px solid #f59e0b',
+                      background: selectedReportId === rep.id 
+                        ? 'var(--bg-tertiary)' 
+                        : (rep.confirmed ? 'var(--bg-secondary)' : 'rgba(245, 158, 11, 0.08)'),
                       boxShadow: '0 2px 8px rgba(0,0,0,0.02)',
                       transition: 'var(--transition-smooth)',
                       display: 'flex',
@@ -1172,20 +1223,42 @@ const ReportsView = () => {
                       gap: '10px'
                     }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <span style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--text-primary)' }}>
-                        {getPlanName(rep.planId)}
-                      </span>
-                      <button 
-                        className="btn-delete-tiny" 
-                        onClick={(e) => handleDelete(rep.id, e)}
-                        style={{ padding: '4px', opacity: 0.7 }}
-                      >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                          <polyline points="3 6 5 6 21 6"></polyline>
-                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                        </svg>
-                      </button>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <span style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--text-primary)' }}>
+                          {getPlanName(rep.planId)}
+                        </span>
+                        {rep.confirmed ? (
+                          <span style={{ fontSize: '0.72rem', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', padding: '2px 7px', borderRadius: '6px', fontWeight: 700 }}>
+                            ✓ 확인완료
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: '0.72rem', background: 'rgba(245, 158, 11, 0.2)', color: '#b45309', padding: '2px 7px', borderRadius: '6px', fontWeight: 700 }}>
+                            ⚠️ 미확인
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        {isAdminLoggedIn && !rep.confirmed && (
+                          <button 
+                            className="btn-primary"
+                            onClick={(e) => handleConfirmReport(rep, e)}
+                            style={{ padding: '3px 8px', fontSize: '0.75rem', borderRadius: '6px', fontWeight: 700, background: 'linear-gradient(135deg, #10b981, #059669)', border: 'none' }}
+                          >
+                            ✓ 확인 처리
+                          </button>
+                        )}
+                        <button 
+                          className="btn-delete-tiny" 
+                          onClick={(e) => handleDelete(rep.id, e)}
+                          style={{ padding: '4px', opacity: 0.7 }}
+                        >
+                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                            <polyline points="3 6 5 6 21 6"></polyline>
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                          </svg>
+                        </button>
+                      </div>
                     </div>
 
                     {/* Whey separation summary badges */}

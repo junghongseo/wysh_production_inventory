@@ -346,7 +346,6 @@ const App = () => {
         <section className={`tab-content ${activeTab === 'inventory-view' ? 'active' : ''}`} id="inventory-view">
           {activeTab === 'inventory-view' && (
             <InventoryView
-              onOpenModifyQtyModal={handleOpenModifyQty}
               onDeleteHistory={handleDeleteHistory}
               onOpenMemoModal={(planId, historyId, memo) => setMemoModal({ isOpen: true, planId, historyId, memo })}
               isAdminLoggedIn={isAdminLoggedIn}

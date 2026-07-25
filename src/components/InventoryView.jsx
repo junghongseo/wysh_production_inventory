@@ -1,8 +1,8 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { useWysh } from '../WyshContext';
 
-const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal, isAdminLoggedIn }) => {
-  const { plans, products, inventory, addOutflow, updateOutflow, verifyOutflow, getInventoryRecord } = useWysh();
+const InventoryView = ({ onDeleteHistory, onOpenMemoModal, isAdminLoggedIn }) => {
+  const { plans, products, inventory, reports, addOutflow, updateOutflow, verifyOutflow, getInventoryRecord } = useWysh();
 
   const [outflowPlanId, setOutflowPlanId] = useState('');
   const [outflowQty, setOutflowQty] = useState('');
@@ -395,23 +395,14 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal,
                         {currentStock.toLocaleString()}
                       </td>
                       <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
-                        {isAdminLoggedIn ? (
-                          <button 
-                            className="btn-secondary modify-qty-btn" 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onOpenModifyQtyModal(planId, productId);
-                            }}
-                            style={{ padding: '4px 8px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}
-                          >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                              <path d="M12 20h9"></path>
-                              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path>
-                            </svg>
-                            실제 입고량 수정
-                          </button>
+                        {reports && reports.some(r => r.type === 'bottling' && r.planId === planId && r.confirmed) ? (
+                          <span style={{ fontSize: '0.78rem', background: 'rgba(16, 185, 129, 0.12)', color: '#10b981', padding: '3px 8px', borderRadius: '6px', fontWeight: 700 }}>
+                            ✓ 병입 입고 연동완료
+                          </span>
                         ) : (
-                          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>-</span>
+                          <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                            리포트 승인 대기
+                          </span>
                         )}
                       </td>
                     </tr>
