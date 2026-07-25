@@ -1745,6 +1745,13 @@ button svg * {
     }
 }
 
+/* User Manual Responsive Styling */
+@media (max-width: 900px) {
+  .manual-grid-container {
+    grid-template-columns: 1fr !important;
+  }
+}
+
 
 
 
