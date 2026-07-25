@@ -757,6 +757,7 @@ button, input, select, textarea {
     width: 100%;
     max-width: 100%;
     overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
     border: 1px solid var(--border-color);
     border-radius: 8px;
     background: var(--bg-secondary);
@@ -768,11 +769,14 @@ button, input, select, textarea {
     border-collapse: collapse;
     text-align: left;
     font-size: 0.9rem;
+    word-break: keep-all; /* Prevent CJK mid-word breaking (생산계획명 -> 생/산/계/획/명 방지) */
+    overflow-wrap: break-word;
 }
 
 .wysh-table th, .wysh-table td {
     padding: 12px 16px;
     border-bottom: 1px solid var(--border-color);
+    word-break: keep-all;
 }
 
 .wysh-table th {
@@ -782,6 +786,7 @@ button, input, select, textarea {
     font-size: 0.8rem;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+    white-space: nowrap; /* Keep table headers strictly horizontal */
 }
 
 .wysh-table tr:last-child td {
@@ -1485,15 +1490,20 @@ button svg * {
     }
     
     /* Table Responsive Wrapper */
-    .inventory-table-container, .table-responsive {
+    .wysh-table-wrapper, .inventory-table-container, .table-responsive {
         width: 100%;
+        max-width: 100%;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
         margin-bottom: 16px;
     }
     
     .wysh-table {
-        min-width: 650px; /* Prevent table text wrapping */
+        min-width: max-content; /* Ensure table keeps natural content width */
+    }
+
+    #inventory-table {
+        min-width: 820px; /* Guarantee enough width for 9-column inventory table on mobile */
     }
 
     /* Modal dialogs & Drawers */

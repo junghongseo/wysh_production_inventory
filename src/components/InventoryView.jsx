@@ -357,15 +357,15 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal,
           <table className="wysh-table" id="inventory-table">
             <thead>
               <tr>
-                <th>차수 ID</th>
-                <th>생산 계획명</th>
-                <th>출고기한</th>
-                <th>소비기한</th>
-                <th>생산 품목</th>
-                <th style={{ textAlign: 'right' }}>계획 수량(개)</th>
-                <th style={{ textAlign: 'right' }}>실제 입고(개)</th>
-                <th style={{ textAlign: 'right' }}>현재 재고(개)</th>
-                <th style={{ textAlign: 'center' }}>작업</th>
+                <th style={{ whiteSpace: 'nowrap', minWidth: '120px' }}>차수 ID</th>
+                <th style={{ whiteSpace: 'nowrap', minWidth: '130px' }}>생산 계획명</th>
+                <th style={{ whiteSpace: 'nowrap', minWidth: '95px' }}>출고기한</th>
+                <th style={{ whiteSpace: 'nowrap', minWidth: '95px' }}>소비기한</th>
+                <th style={{ whiteSpace: 'nowrap', minWidth: '110px' }}>생산 품목</th>
+                <th style={{ textAlign: 'right', whiteSpace: 'nowrap', minWidth: '95px' }}>계획 수량(개)</th>
+                <th style={{ textAlign: 'right', whiteSpace: 'nowrap', minWidth: '95px' }}>실제 입고(개)</th>
+                <th style={{ textAlign: 'right', whiteSpace: 'nowrap', minWidth: '95px' }}>현재 재고(개)</th>
+                <th style={{ textAlign: 'center', whiteSpace: 'nowrap', minWidth: '125px' }}>작업</th>
               </tr>
             </thead>
             <tbody id="inventory-table-body">
@@ -384,17 +384,17 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal,
                       className={`clickable-row ${isSelected ? 'selected-row' : ''}`}
                       onClick={() => setSelectedInventoryPlanId(isSelected ? null : subKey)}
                     >
-                      <td style={{ fontFamily: 'var(--font-outfit)', fontWeight: 600, color: 'var(--color-primary)' }}>{planId}</td>
-                      <td style={{ fontWeight: 600 }}>{subName}</td>
-                      <td style={{ fontFamily: 'var(--font-outfit)', color: 'var(--text-secondary)' }}>{shippingLimit}</td>
-                      <td style={{ fontFamily: 'var(--font-outfit)', color: 'var(--text-secondary)' }}>{expiryDate}</td>
-                      <td>{prodName}</td>
-                      <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)' }}>{plannedQty.toLocaleString()}</td>
-                      <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', fontWeight: 600, color: 'var(--color-success)' }}>{actualQty.toLocaleString()}</td>
-                      <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', fontWeight: 700, color: currentStock < 100 ? 'var(--color-danger)' : 'var(--color-primary)' }}>
+                      <td style={{ fontFamily: 'var(--font-outfit)', fontWeight: 600, color: 'var(--color-primary)', whiteSpace: 'nowrap' }}>{planId}</td>
+                      <td style={{ fontWeight: 600, wordBreak: 'keep-all' }}>{subName}</td>
+                      <td style={{ fontFamily: 'var(--font-outfit)', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{shippingLimit}</td>
+                      <td style={{ fontFamily: 'var(--font-outfit)', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{expiryDate}</td>
+                      <td style={{ wordBreak: 'keep-all' }}>{prodName}</td>
+                      <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', whiteSpace: 'nowrap' }}>{plannedQty.toLocaleString()}</td>
+                      <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', fontWeight: 600, color: 'var(--color-success)', whiteSpace: 'nowrap' }}>{actualQty.toLocaleString()}</td>
+                      <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', fontWeight: 700, color: currentStock < 100 ? 'var(--color-danger)' : 'var(--color-primary)', whiteSpace: 'nowrap' }}>
                         {currentStock.toLocaleString()}
                       </td>
-                      <td style={{ textAlign: 'center' }}>
+                      <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
                         {isAdminLoggedIn ? (
                           <button 
                             className="btn-secondary modify-qty-btn" 
@@ -402,7 +402,7 @@ const InventoryView = ({ onOpenModifyQtyModal, onDeleteHistory, onOpenMemoModal,
                               e.stopPropagation();
                               onOpenModifyQtyModal(planId, productId);
                             }}
-                            style={{ padding: '4px 8px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                            style={{ padding: '4px 8px', fontSize: '0.8rem', display: 'inline-flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap' }}
                           >
                             <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                               <path d="M12 20h9"></path>
