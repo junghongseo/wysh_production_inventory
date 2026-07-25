@@ -59,34 +59,84 @@ const ReportsView = () => {
   const [wheyTempLower, setWheyTempLower] = useState('');
   const [wheyPh, setWheyPh] = useState('');
 
-  // 1. Filtered plans for dropdown (Only those starting in the current week)
-  const currentWeekPlans = useMemo(() => {
-    const today = new Date();
-    const day = today.getDay(); // 0 is Sunday, 1 is Monday...
-    const diff = today.getDate() - day + (day === 0 ? -6 : 1);
-    const monday = new Date(today.setDate(diff));
-    monday.setHours(0, 0, 0, 0);
+  // Form states (Bottling Report - Single Item)
+  const [bottlingCount, setBottlingCount] = useState('');
+  const [bottlingRemainsG, setBottlingRemainsG] = useState('');
+  const [bottlingDeductionQty, setBottlingDeductionQty] = useState('');
+  const [bottlingMemo, setBottlingMemo] = useState('');
 
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
-    sunday.setHours(23, 59, 59, 999);
+  // Form states (Bottling Report - 2-Item Parallel Production)
+  const [item1BottlingCount, setItem1BottlingCount] = useState('');
+  const [item1BottlingRemainsG, setItem1BottlingRemainsG] = useState('');
+  const [item1DeductionQty, setItem1DeductionQty] = useState('');
 
-    const format = (d) => {
-      const y = d.getFullYear();
-      const m = String(d.getMonth() + 1).padStart(2, '0');
-      const dayStr = String(d.getDate()).padStart(2, '0');
-      return `${y}-${m}-${dayStr}`;
-    };
+  const [item2BottlingCount, setItem2BottlingCount] = useState('');
+  const [item2BottlingRemainsG, setItem2BottlingRemainsG] = useState('');
+  const [item2DeductionQty, setItem2DeductionQty] = useState('');
 
-    const startStr = format(monday);
-    const endStr = format(sunday);
+  // 1. Filtered plans for dropdown according to production pipeline stages
+  const availablePlans = useMemo(() => {
+    const basePlans = plans.filter(p => p.planType !== 'sub_ingredient');
 
-    return plans.filter(p => {
-      if (p.planType === 'sub_ingredient') return false;
-      if (isEditing && p.id === selectedPlanId) return true;
-      return p.startDate >= startStr && p.startDate <= endStr;
-    });
-  }, [plans, isEditing, selectedPlanId]);
+    if (activeReportType === 'fermentation') {
+      const today = new Date();
+      const day = today.getDay(); // 0 is Sunday, 1 is Monday...
+      const diff = today.getDate() - day + (day === 0 ? -6 : 1);
+      const monday = new Date(today.setDate(diff));
+      monday.setHours(0, 0, 0, 0);
+
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+      sunday.setHours(23, 59, 59, 999);
+
+      const format = (d) => {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const dayStr = String(d.getDate()).padStart(2, '0');
+        return `${y}-${m}-${dayStr}`;
+      };
+
+      const startStr = format(monday);
+      const endStr = format(sunday);
+
+      return basePlans.filter(p => {
+        if (isEditing && p.id === selectedPlanId) return true;
+        return p.startDate >= startStr && p.startDate <= endStr;
+      });
+    }
+
+    if (activeReportType === 'whey_separation') {
+      // Show ONLY plans that HAVE a completed Fermentation report AND DO NOT HAVE a Whey Separation report yet
+      const fermentationPlanIds = new Set(
+        reports.filter(r => r.type === 'fermentation').map(r => r.planId)
+      );
+      const wheySeparationPlanIds = new Set(
+        reports.filter(r => r.type === 'whey_separation').map(r => r.planId)
+      );
+
+      return basePlans.filter(p => {
+        if (isEditing && p.id === selectedPlanId) return true;
+        return fermentationPlanIds.has(p.id) && !wheySeparationPlanIds.has(p.id);
+      });
+    }
+
+    if (activeReportType === 'bottling') {
+      // Show ONLY plans that HAVE a completed Whey Separation report AND DO NOT HAVE a Bottling report yet
+      const wheySeparationPlanIds = new Set(
+        reports.filter(r => r.type === 'whey_separation').map(r => r.planId)
+      );
+      const bottlingPlanIds = new Set(
+        reports.filter(r => r.type === 'bottling').map(r => r.planId)
+      );
+
+      return basePlans.filter(p => {
+        if (isEditing && p.id === selectedPlanId) return true;
+        return wheySeparationPlanIds.has(p.id) && !bottlingPlanIds.has(p.id);
+      });
+    }
+
+    return basePlans;
+  }, [plans, reports, activeReportType, isEditing, selectedPlanId]);
 
   // Selected plan and product details
   const selectedPlanDetails = useMemo(() => {
@@ -280,6 +330,118 @@ const ReportsView = () => {
     };
   }, [wheyBattCount, wheyLastBattWeightG, selectedPlanDetails]);
 
+  // Real-time calculations for Bottling Report (Single & 2-Item Parallel Plans)
+  const bottlingCalculations = useMemo(() => {
+    if (!selectedPlanDetails) return null;
+    const { planItems, product, baseProduct, totalWeightSumG, totalInputWeightG, plan } = selectedPlanDetails;
+    const isMultiItem = planItems && planItems.length > 1;
+    const rawMaterialTotalG = totalWeightSumG || totalInputWeightG || 0;
+
+    if (!isMultiItem) {
+      // Single Item Production Plan
+      const count = parseInt(bottlingCount) || 0;
+      const remainsG = parseInt(bottlingRemainsG) || 0;
+      const deduct = parseInt(bottlingDeductionQty) || 0;
+      const unitWeightG = product?.weight || 300;
+
+      const totalBottledWeightG = (count * unitWeightG) + remainsG;
+      const targetYield = product?.yield || 28;
+      const actualYield = rawMaterialTotalG > 0 ? (totalBottledWeightG / rawMaterialTotalG) * 100 : 0;
+      const actualStockedQty = Math.max(0, count - deduct);
+      const expiryDate = plan?.shippingLimit || plan?.expiryDate || '-';
+
+      return {
+        isMultiItem: false,
+        count,
+        remainsG,
+        deduct,
+        unitWeightG,
+        totalBottledWeightG,
+        targetYield,
+        actualYield: Number(actualYield.toFixed(2)),
+        actualStockedQty,
+        expiryDate
+      };
+    } else {
+      // 2-Item Parallel Production Plan
+      const item1 = planItems[0];
+      const item2 = planItems[1];
+
+      const prod1 = products.find(p => p.id === item1?.productId) || {};
+      const prod2 = products.find(p => p.id === item2?.productId) || {};
+
+      const count1 = parseInt(item1BottlingCount) || 0;
+      const remains1G = parseInt(item1BottlingRemainsG) || 0;
+      const deduct1 = parseInt(item1DeductionQty) || 0;
+      const unitWeight1G = prod1.weight || 300;
+
+      const count2 = parseInt(item2BottlingCount) || 0;
+      const remains2G = parseInt(item2BottlingRemainsG) || 0;
+      const deduct2 = parseInt(item2DeductionQty) || 0;
+      const unitWeight2G = prod2.weight || 300;
+
+      const item1TotalG = (count1 * unitWeight1G) + remains1G;
+      const item2TotalG = (count2 * unitWeight2G) + remains2G;
+
+      // Base Yogurt weight calculation for Item 1 (flavor yogurt converted to base ratio)
+      let item1BaseYogurtG = item1TotalG;
+      if (prod1.isFlavor) {
+        const baseIng = prod1.ingredients?.find(ing => ing.name.includes('위시그릭') || ing.name.includes('플레인')) || prod1.ingredients?.[0];
+        const baseRatio = baseIng ? baseIng.ratio : 70;
+        item1BaseYogurtG = item1TotalG * (baseRatio / 100);
+      }
+
+      // Base Yogurt weight calculation for Item 2
+      let item2BaseYogurtG = item2TotalG;
+      if (prod2.isFlavor) {
+        const baseIng = prod2.ingredients?.find(ing => ing.name.includes('위시그릭') || ing.name.includes('플레인')) || prod2.ingredients?.[0];
+        const baseRatio = baseIng ? baseIng.ratio : 70;
+        item2BaseYogurtG = item2TotalG * (baseRatio / 100);
+      }
+
+      const totalCombinedBaseYogurtG = item1BaseYogurtG + item2BaseYogurtG;
+      const targetYield = baseProduct?.yield || 28;
+      const actualYield = rawMaterialTotalG > 0 ? (totalCombinedBaseYogurtG / rawMaterialTotalG) * 100 : 0;
+
+      const item1StockedQty = Math.max(0, count1 - deduct1);
+      const item2StockedQty = Math.max(0, count2 - deduct2);
+
+      const expiryDate1 = plan?.shippingLimit || plan?.expiryDate || '-';
+      const expiryDate2 = plan?.shippingLimit || plan?.expiryDate || '-';
+
+      return {
+        isMultiItem: true,
+        item1: {
+          productId: prod1.id,
+          productName: prod1.name || '품목 1',
+          count: count1,
+          remainsG: remains1G,
+          deduct: deduct1,
+          unitWeightG: unitWeight1G,
+          totalProducedG: item1TotalG,
+          baseYogurtG: item1BaseYogurtG,
+          stockedQty: item1StockedQty,
+          expiryDate: expiryDate1
+        },
+        item2: {
+          productId: prod2.id,
+          productName: prod2.name || '품목 2',
+          count: count2,
+          remainsG: remains2G,
+          deduct: deduct2,
+          unitWeightG: unitWeight2G,
+          totalProducedG: item2TotalG,
+          baseYogurtG: item2BaseYogurtG,
+          stockedQty: item2StockedQty,
+          expiryDate: expiryDate2
+        },
+        targetYield,
+        actualYield: Number(actualYield.toFixed(2)),
+        totalCombinedBaseYogurtG
+      };
+    }
+  }, [selectedPlanDetails, products, bottlingCount, bottlingRemainsG, bottlingDeductionQty, item1BottlingCount, item1BottlingRemainsG, item1DeductionQty, item2BottlingCount, item2BottlingRemainsG, item2DeductionQty]);
+
   // When plan changes, initialize details with product default settings (for fermentation)
   useEffect(() => {
     if (selectedPlanDetails && !isEditing && activeReportType === 'fermentation') {
@@ -318,7 +480,23 @@ const ReportsView = () => {
     setWorkerName(report.workerName);
     setMobileSubTab('form');
 
-    if (report.type === 'whey_separation') {
+    if (report.type === 'bottling') {
+      const d = report.details || {};
+      setBottlingMemo(d.bottlingMemo || '');
+      if (d.isMultiItem) {
+        setItem1BottlingCount(d.item1?.count !== undefined ? d.item1.count : '');
+        setItem1BottlingRemainsG(d.item1?.remainsG !== undefined ? d.item1.remainsG : '');
+        setItem1DeductionQty(d.item1?.deduct !== undefined ? d.item1.deduct : '');
+
+        setItem2BottlingCount(d.item2?.count !== undefined ? d.item2.count : '');
+        setItem2BottlingRemainsG(d.item2?.remainsG !== undefined ? d.item2.remainsG : '');
+        setItem2DeductionQty(d.item2?.deduct !== undefined ? d.item2.deduct : '');
+      } else {
+        setBottlingCount(d.count !== undefined ? d.count : '');
+        setBottlingRemainsG(d.remainsG !== undefined ? d.remainsG : '');
+        setBottlingDeductionQty(d.deduct !== undefined ? d.deduct : '');
+      }
+    } else if (report.type === 'whey_separation') {
       const d = report.details || {};
       setWheyConsistency(d.consistency || '되직함');
       setWheyConsistencyMemo(d.consistencyMemo || '');
@@ -390,6 +568,18 @@ const ReportsView = () => {
     setWheyTempUpper('');
     setWheyTempLower('');
     setWheyPh('');
+
+    // Bottling resets
+    setBottlingCount('');
+    setBottlingRemainsG('');
+    setBottlingDeductionQty('');
+    setBottlingMemo('');
+    setItem1BottlingCount('');
+    setItem1BottlingRemainsG('');
+    setItem1DeductionQty('');
+    setItem2BottlingCount('');
+    setItem2BottlingRemainsG('');
+    setItem2DeductionQty('');
   };
 
   // Handle form submit (save or update)
@@ -401,6 +591,64 @@ const ReportsView = () => {
     }
     if (!workerName.trim()) {
       alert('확인자 서명을 작성해주세요.');
+      return;
+    }
+
+    if (activeReportType === 'bottling') {
+      if (bottlingCalculations?.isMultiItem) {
+        if (item1BottlingCount === '' || item2BottlingCount === '') {
+          alert('두 품목의 병입 수량을 모두 입력해주세요.');
+          return;
+        }
+      } else {
+        if (bottlingCount === '') {
+          alert('병입 완제품 수량을 입력해주세요.');
+          return;
+        }
+      }
+
+      const reportData = {
+        planId: selectedPlanId,
+        type: 'bottling',
+        workerName: workerName.trim(),
+        checkedItems: [],
+        details: {
+          productId: selectedPlanDetails?.product?.id,
+          productName: selectedPlanDetails?.product?.name,
+          isMultiItem: bottlingCalculations?.isMultiItem,
+          bottlingMemo: bottlingMemo.trim(),
+          targetYield: bottlingCalculations?.targetYield,
+          actualYield: bottlingCalculations?.actualYield,
+          ...(bottlingCalculations?.isMultiItem ? {
+            item1: bottlingCalculations.item1,
+            item2: bottlingCalculations.item2,
+            totalCombinedBaseYogurtG: bottlingCalculations.totalCombinedBaseYogurtG
+          } : {
+            count: bottlingCalculations.count,
+            remainsG: bottlingCalculations.remainsG,
+            deduct: bottlingCalculations.deduct,
+            unitWeightG: bottlingCalculations.unitWeightG,
+            totalBottledWeightG: bottlingCalculations.totalBottledWeightG,
+            actualStockedQty: bottlingCalculations.actualStockedQty,
+            expiryDate: bottlingCalculations.expiryDate
+          })
+        }
+      };
+
+      if (isEditing && selectedReportId) {
+        const existing = reports.find(r => r.id === selectedReportId);
+        updateReport({
+          ...existing,
+          ...reportData
+        });
+        alert('병입 리포트가 성공적으로 수정되었습니다.');
+      } else {
+        addReport(reportData);
+        alert('병입 리포트가 성공적으로 등록되었습니다.');
+      }
+
+      handleResetForm();
+      setMobileSubTab('history');
       return;
     }
 
@@ -683,16 +931,26 @@ const ReportsView = () => {
               borderColor: activeReportType === 'whey_separation' ? 'var(--color-primary)' : ''
             }}
           >
-            💧 유청분리
+            💧 유청분리 리포트
           </button>
           
           <button 
-            className="btn-secondary" 
-            disabled 
-            style={{ flex: 1, justifyBox: 'center', padding: '12px', borderRadius: '10px', opacity: 0.6, cursor: 'not-allowed', fontSize: '0.92rem', fontWeight: 600 }}
-            title="병입 리포트는 추후 지원 예정입니다."
+            className={`btn-secondary ${activeReportType === 'bottling' ? 'active' : ''}`}
+            onClick={() => { setActiveReportType('bottling'); handleResetForm(); }}
+            style={{ 
+              flex: 1, 
+              justifyContent: 'center', 
+              padding: '12px', 
+              borderRadius: '10px', 
+              fontWeight: 700,
+              fontSize: '0.92rem',
+              letterSpacing: '-0.01em',
+              background: activeReportType === 'bottling' ? 'var(--color-primary)' : '',
+              color: activeReportType === 'bottling' ? '#fff' : '',
+              borderColor: activeReportType === 'bottling' ? 'var(--color-primary)' : ''
+            }}
           >
-            🍾 병입 (준비 중)
+            🍾 병입 리포트
           </button>
         </div>
       </div>
@@ -800,37 +1058,38 @@ const ReportsView = () => {
           }
 
           .chip-button {
-            padding: 8px 14px;
-            border-radius: 8px;
-            border: 1px solid var(--border-color);
             background: var(--bg-secondary);
-            color: var(--text-primary);
-            font-size: 0.85rem;
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.82rem;
             font-weight: 600;
             cursor: pointer;
-            transition: all 0.2s ease;
+            transition: var(--transition-smooth);
           }
           .chip-button.active {
             background: var(--color-primary);
-            color: white;
+            color: #fff;
             border-color: var(--color-primary);
-            box-shadow: 0 2px 8px rgba(2, 132, 199, 0.25);
           }
         `}} />
 
-        {/* Left: Report History List */}
-        <div className={`glass-card report-history-card ${mobileSubTab === 'history' ? 'mobile-active' : 'mobile-inactive'}`} style={{ display: 'flex', flexDirection: 'column', height: 'fit-content' }}>
-          <h3 style={{ fontSize: '1.15rem', fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text-primary)', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span>{activeReportType === 'whey_separation' ? '작성된 유청분리 리포트 이력' : '작성된 발효 리포트 이력'}</span>
-            <span style={{ fontSize: '0.75rem', fontFamily: 'var(--font-outfit)', fontWeight: 600, color: 'var(--text-secondary)', background: 'var(--bg-tertiary)', padding: '2px 8px', borderRadius: '12px' }}>
-              TOTAL {filteredReports.length}
+        {/* Left: History list */}
+        <div className={`glass-card ${mobileSubTab === 'history' ? 'mobile-active' : 'mobile-inactive'}`}>
+          <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
+              {activeReportType === 'bottling' ? '🍾 병입 리포트 작성 이력' : (activeReportType === 'whey_separation' ? '💧 유청분리 리포트 작성 이력' : '🥛 발효 리포트 작성 이력')}
+            </h3>
+            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', background: 'var(--bg-tertiary)', padding: '2px 10px', borderRadius: '12px', fontWeight: 600, fontFamily: 'var(--font-outfit)' }}>
+              {filteredReports.length} 건
             </span>
-          </h3>
+          </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '650px', overflowY: 'auto', paddingRight: '4px' }}>
+          <div className="report-history-list" style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '720px', overflowY: 'auto' }}>
             {filteredReports.length === 0 ? (
               <div className="empty-state" style={{ padding: '40px 20px' }}>
-                <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>작성된 {activeReportType === 'whey_separation' ? '유청분리' : '발효'} 리포트가 없습니다.</p>
+                <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>작성된 {activeReportType === 'bottling' ? '병입' : (activeReportType === 'whey_separation' ? '유청분리' : '발효')} 리포트가 없습니다.</p>
               </div>
             ) : (
               filteredReports.map(rep => {
@@ -866,12 +1125,11 @@ const ReportsView = () => {
                       transition: 'var(--transition-smooth)',
                       display: 'flex',
                       flexDirection: 'column',
-                      alignItems: 'stretch',
                       gap: '10px'
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <span style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--text-primary)', lineHeight: '1.4' }}>
+                      <span style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--text-primary)' }}>
                         {getPlanName(rep.planId)}
                       </span>
                       <button 
@@ -898,9 +1156,6 @@ const ReportsView = () => {
                         <span style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', padding: '2px 8px', borderRadius: '6px', fontWeight: 600, fontFamily: 'var(--font-outfit)' }}>
                           추출량: {((rep.details.totalYieldG || 0) / 1000).toFixed(1)}kg ({rep.details.lossRatePercent || 0}% 로스)
                         </span>
-                        <span style={{ background: 'var(--bg-tertiary)', color: 'var(--text-secondary)', padding: '2px 8px', borderRadius: '6px', fontWeight: 500, fontFamily: 'var(--font-outfit)' }}>
-                          온도: {rep.details.tempUpper}°C / {rep.details.tempLower}°C
-                        </span>
                         <span style={{ 
                           background: phBadgeBg, 
                           color: phBadgeColor, 
@@ -911,6 +1166,32 @@ const ReportsView = () => {
                         }}>
                           pH {rep.details.phValue}
                         </span>
+                      </div>
+                    )}
+
+                    {/* Bottling summary badges */}
+                    {rep.type === 'bottling' && rep.details && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', fontSize: '0.76rem' }}>
+                        <span style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', padding: '2px 8px', borderRadius: '6px', fontWeight: 700 }}>
+                          🍾 병입 완료
+                        </span>
+                        <span style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', padding: '2px 8px', borderRadius: '6px', fontWeight: 600, fontFamily: 'var(--font-outfit)' }}>
+                          수율: {rep.details.actualYield}% (목표 {rep.details.targetYield}%)
+                        </span>
+                        {!rep.details.isMultiItem ? (
+                          <span style={{ background: 'var(--bg-tertiary)', color: 'var(--color-primary)', padding: '2px 8px', borderRadius: '6px', fontWeight: 700, fontFamily: 'var(--font-outfit)' }}>
+                            입고량: {rep.details.actualStockedQty}개 {rep.details.remainsG ? `(+남은 ${rep.details.remainsG}g)` : ''}
+                          </span>
+                        ) : (
+                          <span style={{ background: 'var(--bg-tertiary)', color: 'var(--color-primary)', padding: '2px 8px', borderRadius: '6px', fontWeight: 700, fontFamily: 'var(--font-outfit)' }}>
+                            입고량: {rep.details.item1?.productName} {rep.details.item1?.stockedQty}개 / {rep.details.item2?.productName} {rep.details.item2?.stockedQty}개
+                          </span>
+                        )}
+                        {rep.details.bottlingMemo && (
+                          <span style={{ background: 'rgba(234, 179, 8, 0.1)', color: '#ca8a04', padding: '2px 8px', borderRadius: '6px', fontWeight: 600 }}>
+                            📝 {rep.details.bottlingMemo}
+                          </span>
+                        )}
                       </div>
                     )}
 
@@ -930,8 +1211,8 @@ const ReportsView = () => {
           <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 style={{ fontSize: '1.2rem', fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
               {isEditing 
-                ? (activeReportType === 'whey_separation' ? '유청분리 리포트 수정 / 상세조회' : '발효 리포트 수정 / 상세조회')
-                : (activeReportType === 'whey_separation' ? '신규 유청분리 리포트 작성' : '신규 발효 리포트 작성')}
+                ? (activeReportType === 'bottling' ? '병입 리포트 수정 / 상세조회' : (activeReportType === 'whey_separation' ? '유청분리 리포트 수정 / 상세조회' : '발효 리포트 수정 / 상세조회'))
+                : (activeReportType === 'bottling' ? '신규 병입 리포트 작성' : (activeReportType === 'whey_separation' ? '신규 유청분리 리포트 작성' : '신규 발효 리포트 작성'))}
             </h3>
             {isEditing && (
               <button 
@@ -951,7 +1232,11 @@ const ReportsView = () => {
             <div className="form-group">
               <label htmlFor="report-plan-select" style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', display: 'block', marginBottom: '6px' }}>
                 1. 작업한 생산 계획 선택
-                <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--color-primary)', marginLeft: '8px' }}>(이번 주 생산 계획만 표출됩니다)</span>
+                <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--color-primary)', marginLeft: '8px' }}>
+                  {activeReportType === 'fermentation' && '(이번 주 생산 계획만 표출됩니다)'}
+                  {activeReportType === 'whey_separation' && '(발효 완료 & 유청분리 미작성 계획만 표출됩니다)'}
+                  {activeReportType === 'bottling' && '(유청분리 완료 & 병입 미작성 계획만 표출됩니다)'}
+                </span>
               </label>
               <select 
                 className="form-control" 
@@ -963,15 +1248,254 @@ const ReportsView = () => {
                 style={{ height: '42px', fontSize: '0.88rem' }}
               >
                 <option value="">-- 생산 계획을 선택하세요 --</option>
-                {currentWeekPlans.length === 0 ? (
-                  <option disabled value="">이번 주 예정된 생산 계획이 없습니다.</option>
+                {availablePlans.length === 0 ? (
+                  <option disabled value="">
+                    {activeReportType === 'fermentation' && '이번 주 예정된 생산 계획이 없습니다.'}
+                    {activeReportType === 'whey_separation' && '유청분리 작성 대상 생산 계획이 없습니다.'}
+                    {activeReportType === 'bottling' && '병입 작성 대상 생산 계획이 없습니다.'}
+                  </option>
                 ) : (
-                  currentWeekPlans.map(p => (
+                  availablePlans.map(p => (
                     <option key={p.id} value={p.id}>{p.name} ({p.startDate})</option>
                   ))
                 )}
               </select>
             </div>
+
+            {/* BOTTLING REPORT FORM BODY */}
+            {activeReportType === 'bottling' && (
+              <>
+                {selectedPlanDetails && bottlingCalculations && (
+                  <div style={{ padding: '16px', background: 'var(--bg-tertiary)', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                    
+                    {/* Single Item vs 2-Item Form Input */}
+                    {!bottlingCalculations.isMultiItem ? (
+                      <div>
+                        <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '12px' }}>
+                          2. 병입 수량 및 남은 양 입력 (단종 생산)
+                        </h4>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                          <div className="form-group">
+                            <label style={{ fontSize: '0.84rem', fontWeight: 600 }}>병입 완제품 수량 (개)</label>
+                            <input 
+                              type="number" 
+                              className="form-control" 
+                              placeholder="예: 112"
+                              value={bottlingCount}
+                              onChange={(e) => setBottlingCount(e.target.value)}
+                              required
+                              min="0"
+                              style={{ height: '40px', fontSize: '0.88rem' }}
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label style={{ fontSize: '0.84rem', fontWeight: 600 }}>미달 남은 양 (g)</label>
+                            <input 
+                              type="number" 
+                              className="form-control" 
+                              placeholder="예: 215"
+                              value={bottlingRemainsG}
+                              onChange={(e) => setBottlingRemainsG(e.target.value)}
+                              min="0"
+                              style={{ height: '40px', fontSize: '0.88rem' }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '12px' }}>
+                          2. 2종 동시 생산 병입 수량 입력
+                        </h4>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                          {/* Item 1 */}
+                          <div style={{ padding: '12px', background: 'var(--bg-secondary)', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+                            <div style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--color-primary)', marginBottom: '8px' }}>
+                              품목 1: {bottlingCalculations.item1.productName}
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                              <div className="form-group">
+                                <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>병입 수량 (개)</label>
+                                <input 
+                                  type="number" 
+                                  className="form-control" 
+                                  placeholder="예: 112"
+                                  value={item1BottlingCount}
+                                  onChange={(e) => setItem1BottlingCount(e.target.value)}
+                                  required
+                                  min="0"
+                                  style={{ height: '38px', fontSize: '0.86rem' }}
+                                />
+                              </div>
+                              <div className="form-group">
+                                <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>미달 남은 양 (g)</label>
+                                <input 
+                                  type="number" 
+                                  className="form-control" 
+                                  placeholder="예: 215"
+                                  value={item1BottlingRemainsG}
+                                  onChange={(e) => setItem1BottlingRemainsG(e.target.value)}
+                                  min="0"
+                                  style={{ height: '38px', fontSize: '0.86rem' }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Item 2 */}
+                          <div style={{ padding: '12px', background: 'var(--bg-secondary)', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+                            <div style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--color-primary)', marginBottom: '8px' }}>
+                              품목 2: {bottlingCalculations.item2.productName}
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                              <div className="form-group">
+                                <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>병입 수량 (개)</label>
+                                <input 
+                                  type="number" 
+                                  className="form-control" 
+                                  placeholder="예: 96"
+                                  value={item2BottlingCount}
+                                  onChange={(e) => setItem2BottlingCount(e.target.value)}
+                                  required
+                                  min="0"
+                                  style={{ height: '38px', fontSize: '0.86rem' }}
+                                />
+                              </div>
+                              <div className="form-group">
+                                <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>미달 남은 양 (g)</label>
+                                <input 
+                                  type="number" 
+                                  className="form-control" 
+                                  placeholder="예: 180"
+                                  value={item2BottlingRemainsG}
+                                  onChange={(e) => setItem2BottlingRemainsG(e.target.value)}
+                                  min="0"
+                                  style={{ height: '38px', fontSize: '0.86rem' }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Real-time Yield Display */}
+                    <div style={{ padding: '12px 16px', background: 'rgba(2, 132, 199, 0.08)', borderRadius: '10px', border: '1px solid rgba(56, 189, 248, 0.3)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                          🎯 목표 수율: <strong style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-outfit)' }}>{bottlingCalculations.targetYield}%</strong>
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                          {bottlingCalculations.isMultiItem ? '두 제품 베이스 요거트 환산 총량 기준' : '원재료 총량 대비 계산된 수율'}
+                        </div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>실제 수율</span>
+                        <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--color-primary)', fontFamily: 'var(--font-outfit)' }}>
+                          {bottlingCalculations.actualYield || 0}%
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Special Notes & Deductions */}
+                    <div>
+                      <h4 style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '8px' }}>
+                        3. 특이사항 및 실제 입고 수량
+                      </h4>
+                      <div className="form-group" style={{ marginBottom: '10px' }}>
+                        <label style={{ fontSize: '0.82rem', fontWeight: 600 }}>특이사항 (예: 질감 확인용 1개 4층 쇼케이스 냉장고에 보관)</label>
+                        <input 
+                          type="text" 
+                          className="form-control" 
+                          placeholder="특이사항이 있을 경우 입력하세요"
+                          value={bottlingMemo}
+                          onChange={(e) => setBottlingMemo(e.target.value)}
+                          style={{ height: '38px', fontSize: '0.86rem' }}
+                        />
+                      </div>
+
+                      {!bottlingCalculations.isMultiItem ? (
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', alignItems: 'center', background: 'var(--bg-secondary)', padding: '12px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
+                          <div className="form-group" style={{ marginBottom: 0 }}>
+                            <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>제외/샘플 수량 (개)</label>
+                            <input 
+                              type="number" 
+                              className="form-control" 
+                              placeholder="0"
+                              value={bottlingDeductionQty}
+                              onChange={(e) => setBottlingDeductionQty(e.target.value)}
+                              min="0"
+                              style={{ height: '38px', fontSize: '0.86rem' }}
+                            />
+                          </div>
+                          <div>
+                            <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>실제 입고 수량</div>
+                            <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--color-success)', fontFamily: 'var(--font-outfit)' }}>
+                              {bottlingCalculations.actualStockedQty || 0} 개
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', alignItems: 'center', background: 'var(--bg-secondary)', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                            <div className="form-group" style={{ marginBottom: 0 }}>
+                              <label style={{ fontSize: '0.78rem', fontWeight: 600 }}>{bottlingCalculations.item1.productName} 제외 수량</label>
+                              <input 
+                                type="number" 
+                                className="form-control" 
+                                placeholder="0"
+                                value={item1DeductionQty}
+                                onChange={(e) => setItem1DeductionQty(e.target.value)}
+                                min="0"
+                                style={{ height: '36px', fontSize: '0.84rem' }}
+                              />
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>실제 입고 수량</div>
+                              <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--color-success)', fontFamily: 'var(--font-outfit)' }}>
+                                {bottlingCalculations.item1.stockedQty || 0} 개
+                              </div>
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', alignItems: 'center', background: 'var(--bg-secondary)', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                            <div className="form-group" style={{ marginBottom: 0 }}>
+                              <label style={{ fontSize: '0.78rem', fontWeight: 600 }}>{bottlingCalculations.item2.productName} 제외 수량</label>
+                              <input 
+                                type="number" 
+                                className="form-control" 
+                                placeholder="0"
+                                value={item2DeductionQty}
+                                onChange={(e) => setItem2DeductionQty(e.target.value)}
+                                min="0"
+                                style={{ height: '36px', fontSize: '0.84rem' }}
+                              />
+                            </div>
+                            <div>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>실제 입고 수량</div>
+                              <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--color-success)', fontFamily: 'var(--font-outfit)' }}>
+                                {bottlingCalculations.item2.stockedQty || 0} 개
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Expiration Date Display */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: '10px', fontSize: '0.84rem' }}>
+                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>📅 자동 지정 소비기한</span>
+                      <strong style={{ color: 'var(--color-primary)', fontFamily: 'var(--font-outfit)' }}>
+                        {!bottlingCalculations.isMultiItem 
+                          ? bottlingCalculations.expiryDate 
+                          : `${bottlingCalculations.item1.productName}: ${bottlingCalculations.item1.expiryDate} / ${bottlingCalculations.item2.productName}: ${bottlingCalculations.item2.expiryDate}`}
+                      </strong>
+                    </div>
+
+                  </div>
+                )}
+              </>
+            )}
 
             {/* WHEY SEPARATION FORM BODY */}
             {activeReportType === 'whey_separation' && (
@@ -1436,7 +1960,7 @@ const ReportsView = () => {
             {/* Signature name */}
             <div className="form-group" style={{ marginTop: '8px' }}>
               <label htmlFor="report-worker-name" style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', display: 'block', marginBottom: '6px' }}>
-                {activeReportType === 'whey_separation' ? '7. 확인자 서명' : '3. 확인자 서명'}
+                {activeReportType === 'bottling' ? '4. 작업 확인자 서명' : (activeReportType === 'whey_separation' ? '7. 확인자 서명' : '3. 확인자 서명')}
               </label>
               <input 
                 type="text" 
