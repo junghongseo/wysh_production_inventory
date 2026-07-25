@@ -984,6 +984,10 @@ const ReportsView = () => {
     );
   };
 
+  const unconfirmedFermentationCount = reports.filter(r => r.type === 'fermentation' && !r.confirmed).length;
+  const unconfirmedWheyCount = reports.filter(r => r.type === 'whey_separation' && !r.confirmed).length;
+  const unconfirmedBottlingCount = reports.filter(r => r.type === 'bottling' && !r.confirmed).length;
+
   return (
     <div className="recipe-split" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }}>
       
@@ -1003,10 +1007,30 @@ const ReportsView = () => {
               letterSpacing: '-0.01em',
               background: activeReportType === 'fermentation' ? 'var(--color-primary)' : '',
               color: activeReportType === 'fermentation' ? '#fff' : '',
-              borderColor: activeReportType === 'fermentation' ? 'var(--color-primary)' : ''
+              borderColor: activeReportType === 'fermentation' ? 'var(--color-primary)' : '',
+              display: 'inline-flex',
+              alignItems: 'center'
             }}
           >
-            🥛 발효 리포트
+            <span>🥛 발효 리포트</span>
+            {isAdminLoggedIn && unconfirmedFermentationCount > 0 && (
+              <span style={{
+                backgroundColor: '#ef4444',
+                color: '#ffffff',
+                fontSize: '0.7rem',
+                padding: '2px 6px',
+                borderRadius: '10px',
+                fontWeight: 'bold',
+                marginLeft: '6px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 2px 4px rgba(239, 68, 68, 0.2)',
+                lineHeight: '1'
+              }}>
+                미확인 {unconfirmedFermentationCount}
+              </span>
+            )}
           </button>
           
           <button 
@@ -1022,10 +1046,30 @@ const ReportsView = () => {
               letterSpacing: '-0.01em',
               background: activeReportType === 'whey_separation' ? 'var(--color-primary)' : '',
               color: activeReportType === 'whey_separation' ? '#fff' : '',
-              borderColor: activeReportType === 'whey_separation' ? 'var(--color-primary)' : ''
+              borderColor: activeReportType === 'whey_separation' ? 'var(--color-primary)' : '',
+              display: 'inline-flex',
+              alignItems: 'center'
             }}
           >
-            💧 유청분리 리포트
+            <span>💧 유청분리 리포트</span>
+            {isAdminLoggedIn && unconfirmedWheyCount > 0 && (
+              <span style={{
+                backgroundColor: '#ef4444',
+                color: '#ffffff',
+                fontSize: '0.7rem',
+                padding: '2px 6px',
+                borderRadius: '10px',
+                fontWeight: 'bold',
+                marginLeft: '6px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 2px 4px rgba(239, 68, 68, 0.2)',
+                lineHeight: '1'
+              }}>
+                미확인 {unconfirmedWheyCount}
+              </span>
+            )}
           </button>
           
           <button 
@@ -1041,10 +1085,30 @@ const ReportsView = () => {
               letterSpacing: '-0.01em',
               background: activeReportType === 'bottling' ? 'var(--color-primary)' : '',
               color: activeReportType === 'bottling' ? '#fff' : '',
-              borderColor: activeReportType === 'bottling' ? 'var(--color-primary)' : ''
+              borderColor: activeReportType === 'bottling' ? 'var(--color-primary)' : '',
+              display: 'inline-flex',
+              alignItems: 'center'
             }}
           >
-            🍾 병입 리포트
+            <span>🍾 병입 리포트</span>
+            {isAdminLoggedIn && unconfirmedBottlingCount > 0 && (
+              <span style={{
+                backgroundColor: '#ef4444',
+                color: '#ffffff',
+                fontSize: '0.7rem',
+                padding: '2px 6px',
+                borderRadius: '10px',
+                fontWeight: 'bold',
+                marginLeft: '6px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 2px 4px rgba(239, 68, 68, 0.2)',
+                lineHeight: '1'
+              }}>
+                미확인 {unconfirmedBottlingCount}
+              </span>
+            )}
           </button>
         </div>
       </div>

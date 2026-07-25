@@ -1,6 +1,15 @@
 import React from 'react';
+import { useWysh } from '../WyshContext';
 
 const Navbar = ({ activeTab, setActiveTab, isAdminLoggedIn }) => {
+  const { reports, inventory } = useWysh();
+
+  const unconfirmedReportsCount = reports.filter(r => !r.confirmed).length;
+  const unverifiedInventoryCount = inventory.reduce(
+    (acc, inv) => acc + (inv.history ? inv.history.filter(h => h.verified === false).length : 0),
+    0
+  );
+
   return (
     <nav className="app-nav">
       <button 
@@ -26,7 +35,25 @@ const Navbar = ({ activeTab, setActiveTab, isAdminLoggedIn }) => {
           <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
           <line x1="12" y1="22.08" x2="12" y2="12"></line>
         </svg>
-        차수별 재고 관리
+        <span>차수별 재고 관리</span>
+        {isAdminLoggedIn && unverifiedInventoryCount > 0 && (
+          <span style={{
+            backgroundColor: '#ef4444',
+            color: '#ffffff',
+            fontSize: '0.7rem',
+            padding: '2px 6px',
+            borderRadius: '10px',
+            fontWeight: 'bold',
+            marginLeft: '6px',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 2px 4px rgba(239, 68, 68, 0.2)',
+            lineHeight: '1'
+          }}>
+            미확인 {unverifiedInventoryCount}
+          </span>
+        )}
       </button>
       <button 
         className={`nav-tab ${activeTab === 'reports-view' ? 'active' : ''}`} 
@@ -40,7 +67,25 @@ const Navbar = ({ activeTab, setActiveTab, isAdminLoggedIn }) => {
           <line x1="16" y1="17" x2="8" y2="17"></line>
           <polyline points="10 9 9 9 8 9"></polyline>
         </svg>
-        리포트
+        <span>리포트</span>
+        {isAdminLoggedIn && unconfirmedReportsCount > 0 && (
+          <span style={{
+            backgroundColor: '#ef4444',
+            color: '#ffffff',
+            fontSize: '0.7rem',
+            padding: '2px 6px',
+            borderRadius: '10px',
+            fontWeight: 'bold',
+            marginLeft: '6px',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 2px 4px rgba(239, 68, 68, 0.2)',
+            lineHeight: '1'
+          }}>
+            미확인 {unconfirmedReportsCount}
+          </span>
+        )}
       </button>
       <button 
         className={`nav-tab ${activeTab === 'order-view' ? 'active' : ''}`} 
