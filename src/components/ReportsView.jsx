@@ -1883,7 +1883,7 @@ const ReportsView = () => {
             {/* FERMENTATION REPORT FORM BODY */}
             {activeReportType === 'fermentation' && (
               <>
-                {/* Step 2: Recipe Display */}
+                {/* Step 2: Selected Plan Summary (Recipe details hidden for security) */}
                 {selectedPlanDetails && (
                   <div style={{ background: 'var(--bg-tertiary)', borderRadius: '12px', padding: '16px', border: '1px solid var(--border-color)' }}>
                     <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
@@ -1894,46 +1894,18 @@ const ReportsView = () => {
                         <line x1="16" y1="17" x2="8" y2="17"></line>
                         <polyline points="10 9 9 9 8 9"></polyline>
                       </svg>
-                      <span>선택된 생산 계획의 배합표 (레시피 정보)</span>
+                      <span>선택된 생산 계획 기본 정보</span>
                     </h4>
-                    <div className="recipe-summary-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px', fontSize: '0.82rem', marginBottom: '12px', color: 'var(--text-secondary)', borderBottom: '1px dashed var(--border-color)', paddingBottom: '10px' }}>
+                    <div className="recipe-summary-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px 12px', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
                       <div>
-                        기준 베이스 제품: <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{selectedPlanDetails.product?.name || '베이스 제품'}</strong>
-                        <span style={{ fontSize: '0.72rem', background: 'rgba(2, 132, 199, 0.1)', color: 'var(--color-primary)', padding: '1px 6px', borderRadius: '4px', marginLeft: '6px', fontWeight: 600 }}>
-                          발효 공정 기준
-                        </span>
+                        기준 베이스 제품: <strong style={{ color: 'var(--text-primary)', fontWeight: 600, display: 'block', marginTop: '2px' }}>{selectedPlanDetails.product?.name || '베이스 제품'}</strong>
                       </div>
-                      <div>수량: <strong style={{ color: 'var(--text-primary)', fontWeight: 600, fontFamily: 'var(--font-outfit)' }}>{(selectedPlanDetails.plan?.totalQty || 0).toLocaleString()} 개</strong></div>
-                      <div>필요 베이스 총량: <strong style={{ color: 'var(--text-primary)', fontWeight: 600, fontFamily: 'var(--font-outfit)' }}>{((selectedPlanDetails.totalWeightG || 0) / 1000).toFixed(2)} kg</strong></div>
-                      <div>가동 발효기: <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{selectedPlanDetails.plan?.fermenterType === 'large' ? '대형 발효기' : '소형 발효기'}</strong></div>
-                    </div>
-
-                    <div className="wysh-table-wrapper" style={{ overflowX: 'auto', background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                      <table className="wysh-table" style={{ width: '100%', fontSize: '0.8rem' }}>
-                        <thead>
-                          <tr>
-                            <th style={{ padding: '8px', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)' }}>원재료명</th>
-                            <th style={{ padding: '8px', textAlign: 'right', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)' }}>비율</th>
-                            <th style={{ padding: '8px', textAlign: 'right', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)' }}>필요량(g)</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {selectedPlanDetails.computedIngredients.map((ing, idx) => (
-                            <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                              <td style={{ padding: '8px', fontWeight: 500, color: 'var(--text-primary)' }}>{ing.name}</td>
-                              <td style={{ padding: '8px', textAlign: 'right', fontFamily: 'var(--font-outfit)', color: 'var(--text-secondary)' }}>{ing.ratio}%</td>
-                              <td style={{ padding: '8px', textAlign: 'right', fontWeight: 600, fontFamily: 'var(--font-outfit)', color: 'var(--text-primary)' }}>{ing.displayG} g</td>
-                            </tr>
-                          ))}
-                          <tr style={{ borderTop: '2px solid var(--border-color)', background: 'rgba(2, 132, 199, 0.05)', fontWeight: 700 }}>
-                            <td style={{ padding: '9px 8px', color: 'var(--color-primary)' }}>합계 (전체 원재료 총량)</td>
-                            <td style={{ padding: '9px 8px', textAlign: 'right', fontFamily: 'var(--font-outfit)', color: 'var(--color-primary)' }}>{(selectedPlanDetails.totalRatioSum || 0).toFixed(2)}%</td>
-                            <td style={{ padding: '9px 8px', textAlign: 'right', fontFamily: 'var(--font-outfit)', color: 'var(--color-primary)', fontSize: '0.86rem' }}>
-                              {Math.round(selectedPlanDetails.totalWeightSumG || 0).toLocaleString()} g <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 500 }}>({((selectedPlanDetails.totalWeightSumG || 0) / 1000).toFixed(2)} kg)</span>
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
+                      <div>
+                        생산 수량: <strong style={{ color: 'var(--text-primary)', fontWeight: 600, fontFamily: 'var(--font-outfit)', display: 'block', marginTop: '2px' }}>{(selectedPlanDetails.plan?.totalQty || 0).toLocaleString()} 개</strong>
+                      </div>
+                      <div>
+                        가동 발효기: <strong style={{ color: 'var(--text-primary)', fontWeight: 600, display: 'block', marginTop: '2px' }}>{selectedPlanDetails.plan?.fermenterType === 'large' ? '대형 발효기' : (selectedPlanDetails.plan?.fermenterType === 'small' ? '소형 발효기' : (selectedPlanDetails.plan?.fermenterType || '발효조'))}</strong>
+                      </div>
                     </div>
                   </div>
                 )}
