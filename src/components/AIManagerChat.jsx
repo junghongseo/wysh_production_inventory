@@ -65,6 +65,17 @@ export const AIManagerChat = () => {
   const isResizingRef = useRef(false);
   const resizeStartRef = useRef({ x: 0, y: 0, width: 440, height: 580 });
 
+  // Mobile Screen Detection (Threshold: <= 768px)
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth <= 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -244,221 +255,272 @@ export const AIManagerChat = () => {
   if (!isAdminLoggedIn) return null;
 
   return (
-    <div style={{ position: 'fixed', bottom: '28px', right: '28px', zIndex: 9999, fontFamily: '"Pretendard", -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif' }}>
+    <>
       {!isOpen ? (
         /* WYSH 브랜드 시그니처 둥근 플로팅 챗 버튼 */
-        <button
-          onClick={handleOpenChat}
-          style={{
-            width: '64px',
-            height: '64px',
-            borderRadius: '50%',
-            backgroundColor: '#FFFFFF',
-            border: '2px solid #000000',
-            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.3)',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '10px',
-            transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-            position: 'relative'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'scale(1.08)';
-            e.currentTarget.style.boxShadow = '0 12px 36px rgba(0, 0, 0, 0.5)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'scale(1)';
-            e.currentTarget.style.boxShadow = '0 8px 30px rgba(0, 0, 0, 0.3)';
-          }}
-        >
-          <img
-            src="/WYSH2_로고_1772157440156.webp"
-            alt="WYSH Logo"
-            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-          />
-          
-          <span style={{
-            position: 'absolute',
-            top: '-4px',
-            right: '-4px',
-            backgroundColor: '#000000',
-            color: '#FFFFFF',
-            fontSize: '9px',
-            fontWeight: '900',
-            padding: '2px 6px',
-            borderRadius: '6px',
-            letterSpacing: '0.5px',
-            boxShadow: '0 2px 6px rgba(0,0,0,0.3)'
-          }}>
-            BETA
-          </span>
-        </button>
-      ) : (
-        /* WYSH 모던 블랙 컨셉 AI 생산매니저 모달 (가변 크기 적용) */
         <div style={{
-          width: `${dimensions.width}px`,
-          height: `${dimensions.height}px`,
-          backgroundColor: '#0D0D0D',
-          color: '#FFFFFF',
-          borderRadius: '24px',
-          boxShadow: '0 20px 50px rgba(0,0,0,0.7)',
-          display: 'flex',
-          flexDirection: 'column',
-          overflow: 'hidden',
-          border: '1px solid rgba(255, 255, 255, 0.12)',
-          position: 'relative',
-          transition: isResizingRef.current ? 'none' : 'width 0.1s ease, height 0.1s ease'
+          position: 'fixed',
+          bottom: isMobile ? '16px' : '28px',
+          right: isMobile ? '16px' : '28px',
+          zIndex: 9999,
+          fontFamily: '"Pretendard", -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif'
         }}>
-          {/* Top-Left Resize Handle */}
-          <div
-            onMouseDown={handleMouseDown}
-            title="드래그하여 창 크기 조절"
+          <button
+            onClick={handleOpenChat}
             style={{
-              position: 'absolute',
-              top: '0',
-              left: '0',
-              width: '20px',
-              height: '20px',
-              cursor: 'nwse-resize',
-              zIndex: 10,
+              width: isMobile ? '56px' : '64px',
+              height: isMobile ? '56px' : '64px',
+              borderRadius: '50%',
+              backgroundColor: '#FFFFFF',
+              border: '2px solid #000000',
+              boxShadow: '0 8px 30px rgba(0, 0, 0, 0.3)',
+              cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              opacity: 0.5,
-              transition: 'opacity 0.2s'
+              padding: isMobile ? '8px' : '10px',
+              transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+              position: 'relative'
             }}
-            onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
-            onMouseLeave={(e) => e.currentTarget.style.opacity = '0.5'}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'scale(1.08)';
+              e.currentTarget.style.boxShadow = '0 12px 36px rgba(0, 0, 0, 0.5)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.boxShadow = '0 8px 30px rgba(0, 0, 0, 0.3)';
+            }}
           >
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#FFFFFF" strokeWidth="1.5">
-              <path d="M 0 10 L 10 0 M 0 5 L 5 0 M 0 10 L 0 0 L 10 0" />
-            </svg>
-          </div>
+            <img
+              src="/WYSH2_로고_1772157440156.webp"
+              alt="WYSH Logo"
+              style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+            />
+            
+            <span style={{
+              position: 'absolute',
+              top: '-4px',
+              right: '-4px',
+              backgroundColor: '#000000',
+              color: '#FFFFFF',
+              fontSize: '9px',
+              fontWeight: '900',
+              padding: '2px 6px',
+              borderRadius: '6px',
+              letterSpacing: '0.5px',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.3)'
+            }}>
+              BETA
+            </span>
+          </button>
+        </div>
+      ) : (
+        /* OPEN CHAT MODAL / BOTTOM SHEET */
+        <>
+          {/* Mobile Overlay Backdrop */}
+          {isMobile && (
+            <div
+              onClick={() => setIsOpen(false)}
+              style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                backgroundColor: 'rgba(0, 0, 0, 0.65)',
+                backdropFilter: 'blur(4px)',
+                WebkitBackdropFilter: 'blur(4px)',
+                zIndex: 9998
+              }}
+            />
+          )}
 
-          {/* WYSH Header - Clean single line, no wrapping */}
           <div style={{
-            padding: '14px 18px',
-            backgroundColor: '#000000',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+            position: 'fixed',
+            ...(isMobile ? {
+              bottom: 0,
+              left: 0,
+              right: 0,
+              width: '100%',
+              height: '88dvh',
+              maxHeight: '100dvh',
+              borderRadius: '24px 24px 0 0',
+              borderBottom: 'none'
+            } : {
+              bottom: '28px',
+              right: '28px',
+              width: `${dimensions.width}px`,
+              height: `${dimensions.height}px`,
+              borderRadius: '24px'
+            }),
+            backgroundColor: '#0D0D0D',
+            color: '#FFFFFF',
+            boxShadow: isMobile ? '0 -10px 40px rgba(0,0,0,0.8)' : '0 20px 50px rgba(0,0,0,0.7)',
             display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            userSelect: 'none',
-            gap: '10px'
+            flexDirection: 'column',
+            overflow: 'hidden',
+            border: '1px solid rgba(255, 255, 255, 0.12)',
+            zIndex: 9999,
+            fontFamily: '"Pretendard", -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif',
+            transition: (isMobile || isResizingRef.current) ? 'none' : 'width 0.1s ease, height 0.1s ease'
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0 }}>
-              <div style={{
-                width: '32px',
-                height: '32px',
-                borderRadius: '50%',
-                backgroundColor: '#FFFFFF',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '4px',
-                flexShrink: 0
-              }}>
-                <img
-                  src="/WYSH2_로고_1772157440156.webp"
-                  alt="WYSH Logo"
-                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                />
+            {/* Top Drag Indicator for Mobile Bottom Sheet */}
+            {isMobile && (
+              <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '8px', paddingBottom: '2px', backgroundColor: '#000000' }}>
+                <div style={{ width: '36px', height: '4px', borderRadius: '2px', backgroundColor: 'rgba(255, 255, 255, 0.3)' }} />
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden' }}>
-                <h4 style={{ margin: 0, fontSize: '14px', fontWeight: '800', color: '#FFFFFF', whiteSpace: 'nowrap' }}>
-                  AI 생산매니저
-                </h4>
-                <span style={{
-                  backgroundColor: 'rgba(255, 255, 255, 0.15)',
-                  color: '#FFFFFF',
-                  fontSize: '9px',
-                  fontWeight: '800',
-                  padding: '2px 5px',
-                  borderRadius: '4px',
+            )}
+
+            {/* Desktop Top-Left Resize Handle */}
+            {!isMobile && (
+              <div
+                onMouseDown={handleMouseDown}
+                title="드래그하여 창 크기 조절"
+                style={{
+                  position: 'absolute',
+                  top: '0',
+                  left: '0',
+                  width: '20px',
+                  height: '20px',
+                  cursor: 'nwse-resize',
+                  zIndex: 10,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  opacity: 0.5,
+                  transition: 'opacity 0.2s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+                onMouseLeave={(e) => e.currentTarget.style.opacity = '0.5'}
+              >
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="#FFFFFF" strokeWidth="1.5">
+                  <path d="M 0 10 L 10 0 M 0 5 L 5 0 M 0 10 L 0 0 L 10 0" />
+                </svg>
+              </div>
+            )}
+
+            {/* WYSH Header */}
+            <div style={{
+              padding: isMobile ? '10px 14px' : '14px 18px',
+              backgroundColor: '#000000',
+              borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              userSelect: 'none',
+              gap: '6px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '6px' : '8px', minWidth: 0 }}>
+                <div style={{
+                  width: isMobile ? '28px' : '32px',
+                  height: isMobile ? '28px' : '32px',
+                  borderRadius: '50%',
+                  backgroundColor: '#FFFFFF',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  padding: '4px',
                   flexShrink: 0
                 }}>
-                  BETA
-                </span>
-              </div>
-            </div>
-
-            {/* Header Control Buttons - Fixed fit */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-              {showHistoryView ? (
-                <button
-                  onClick={() => setShowHistoryView(false)}
-                  style={{
-                    background: 'rgba(255, 255, 255, 0.12)',
-                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                  <img
+                    src="/WYSH2_로고_1772157440156.webp"
+                    alt="WYSH Logo"
+                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                  />
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', overflow: 'hidden' }}>
+                  <h4 style={{ margin: 0, fontSize: isMobile ? '13px' : '14px', fontWeight: '800', color: '#FFFFFF', whiteSpace: 'nowrap' }}>
+                    AI 생산매니저
+                  </h4>
+                  <span style={{
+                    backgroundColor: 'rgba(255, 255, 255, 0.15)',
                     color: '#FFFFFF',
-                    borderRadius: '8px',
-                    padding: '5px 9px',
-                    fontSize: '11.5px',
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap'
-                  }}
-                >
-                  💬 대화창으로
-                </button>
-              ) : (
-                <>
+                    fontSize: isMobile ? '8px' : '9px',
+                    fontWeight: '800',
+                    padding: '1px 4px',
+                    borderRadius: '4px',
+                    flexShrink: 0
+                  }}>
+                    BETA
+                  </span>
+                </div>
+              </div>
+
+              {/* Header Control Buttons */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '4px' : '6px', flexShrink: 0 }}>
+                {showHistoryView ? (
                   <button
-                    onClick={startNewChatSession}
-                    title="새로운 채팅 세션 시작"
+                    onClick={() => setShowHistoryView(false)}
                     style={{
-                      background: 'rgba(255, 255, 255, 0.08)',
-                      border: '1px solid rgba(255, 255, 255, 0.15)',
+                      background: 'rgba(255, 255, 255, 0.12)',
+                      border: '1px solid rgba(255, 255, 255, 0.2)',
                       color: '#FFFFFF',
                       borderRadius: '8px',
-                      padding: '5px 9px',
-                      fontSize: '11.5px',
+                      padding: isMobile ? '4px 8px' : '5px 9px',
+                      fontSize: isMobile ? '11px' : '11.5px',
                       fontWeight: 600,
                       cursor: 'pointer',
                       whiteSpace: 'nowrap'
                     }}
                   >
-                    ✨ 새 대화
+                    💬 대화창으로
                   </button>
-                  <button
-                    onClick={handleOpenHistoryView}
-                    title="지난 대화 이력 보기"
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.08)',
-                      border: '1px solid rgba(255, 255, 255, 0.15)',
-                      color: 'rgba(255, 255, 255, 0.8)',
-                      borderRadius: '8px',
-                      padding: '5px 9px',
-                      fontSize: '11.5px',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      whiteSpace: 'nowrap'
-                    }}
-                  >
-                    📜 기록
-                  </button>
-                </>
-              )}
+                ) : (
+                  <>
+                    <button
+                      onClick={startNewChatSession}
+                      title="새로운 채팅 세션 시작"
+                      style={{
+                        background: 'rgba(255, 255, 255, 0.08)',
+                        border: '1px solid rgba(255, 255, 255, 0.15)',
+                        color: '#FFFFFF',
+                        borderRadius: '8px',
+                        padding: isMobile ? '4px 8px' : '5px 9px',
+                        fontSize: isMobile ? '11px' : '11.5px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      ✨ 새 대화
+                    </button>
+                    <button
+                      onClick={handleOpenHistoryView}
+                      title="지난 대화 이력 보기"
+                      style={{
+                        background: 'rgba(255, 255, 255, 0.08)',
+                        border: '1px solid rgba(255, 255, 255, 0.15)',
+                        color: 'rgba(255, 255, 255, 0.8)',
+                        borderRadius: '8px',
+                        padding: isMobile ? '4px 8px' : '5px 9px',
+                        fontSize: isMobile ? '11px' : '11.5px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        whiteSpace: 'nowrap'
+                      }}
+                    >
+                      📜 기록
+                    </button>
+                  </>
+                )}
 
-              <button
-                onClick={() => setIsOpen(false)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: 'rgba(255, 255, 255, 0.5)',
-                  cursor: 'pointer',
-                  fontSize: '18px',
-                  padding: '2px 4px',
-                  lineHeight: 1,
-                  flexShrink: 0
-                }}
-              >
-                ✕
-              </button>
+                <button
+                  onClick={() => setIsOpen(false)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'rgba(255, 255, 255, 0.5)',
+                    cursor: 'pointer',
+                    fontSize: isMobile ? '20px' : '18px',
+                    padding: '2px 4px',
+                    lineHeight: 1,
+                    flexShrink: 0
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
             </div>
-          </div>
 
           {/* MAIN CONTENT AREA */}
           {showHistoryView ? (
@@ -709,7 +771,8 @@ export const AIManagerChat = () => {
             </>
           )}
         </div>
-      )}
-    </div>
+      </>
+    )}
+    </>
   );
 };
