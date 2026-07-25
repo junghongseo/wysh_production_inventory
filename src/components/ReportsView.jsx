@@ -815,10 +815,16 @@ const ReportsView = () => {
     }
 
     if (window.confirm('이 리포트를 승인/확인 완료 처리하시겠습니까?')) {
+      const confirmedTime = new Date().toISOString();
       const updated = {
         ...report,
         confirmed: true,
-        confirmedAt: new Date().toISOString()
+        confirmedAt: confirmedTime,
+        details: {
+          ...(report.details || {}),
+          confirmed: true,
+          confirmedAt: confirmedTime
+        }
       };
 
       updateReport(updated);
@@ -836,9 +842,6 @@ const ReportsView = () => {
         } else {
           updateActualQty(report.planId, d.actualStockedQty || 0, d.productId || null);
         }
-        alert('리포트 확인 완료! 병입 리포트의 실제 입고 수량이 차수별 재고에 자동 반영되었습니다.');
-      } else {
-        alert('리포트가 승인/확인 완료 처리되었습니다.');
       }
     }
   };

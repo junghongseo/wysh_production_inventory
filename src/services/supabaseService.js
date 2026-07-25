@@ -38,15 +38,24 @@ export const fetchAllRemoteData = async () => {
     if (errReports) {
       console.warn("Supabase Fetch Warn: reports query failed, maybe table is not created yet.", errReports);
     } else if (remoteReports) {
-      mappedReports = remoteReports.map(r => ({
-        id: r.id,
-        planId: r.plan_id,
-        type: r.type,
-        workerName: r.worker_name,
-        checkedItems: r.checked_items,
-        details: r.details,
-        createdAt: r.created_at
-      }));
+      mappedReports = remoteReports.map(r => {
+        const isConfirmed = r.confirmed !== undefined && r.confirmed !== null 
+          ? !!r.confirmed 
+          : (r.details && r.details.confirmed !== undefined ? !!r.details.confirmed : false);
+        const confirmedAt = r.confirmed_at || r.details?.confirmedAt || null;
+
+        return {
+          id: r.id,
+          planId: r.plan_id,
+          type: r.type,
+          workerName: r.worker_name,
+          confirmed: isConfirmed,
+          confirmedAt: confirmedAt,
+          checkedItems: r.checked_items,
+          details: r.details,
+          createdAt: r.created_at
+        };
+      });
     }
   } catch (errReportsFetch) {
     console.warn("Supabase Fetch Warning (reports):", errReportsFetch);
@@ -271,17 +280,32 @@ export const deleteCalendarNoteFromSupabase = async (dateStr) => {
 export const pushReportToSupabase = async (report) => {
   if (!supabase) return;
   try {
+    const reportDetails = {
+      ...(report.details || {}),
+      confirmed: !!report.confirmed,
+      confirmedAt: report.confirmedAt || null
+    };
+
     const dbReport = {
       id: report.id,
       plan_id: report.planId,
       type: report.type,
       worker_name: report.workerName,
+      confirmed: !!report.confirmed,
+      confirmed_at: report.confirmedAt || null,
       checked_items: report.checkedItems,
-      details: report.details,
+      details: reportDetails,
       created_at: report.createdAt
     };
+    
     const { error } = await supabase.from('reports').upsert(dbReport);
-    if (error) throw error;
+    if (error) {
+      // If confirmed column doesn't exist on remote table schema, fallback without top-level confirmed columns
+      delete dbReport.confirmed;
+      delete dbReport.confirmed_at;
+      const { error: fallbackErr } = await supabase.from('reports').upsert(dbReport);
+      if (fallbackErr) throw fallbackErr;
+    }
   } catch (e) {
     console.error("Supabase Push Error (Report):", e);
   }
