@@ -330,6 +330,34 @@ const ReportsView = () => {
     };
   }, [wheyBattCount, wheyLastBattWeightG, selectedPlanDetails]);
 
+  // Helper to compute exact expiry date for a product item in a plan
+  const getItemExpiryDate = (item, plan, prod) => {
+    if (item && item.expiryDate) return item.expiryDate;
+    
+    let botDate = item?.bottlingDate || plan?.bottlingDate;
+    if (!botDate && plan?.startDate) {
+      const d = new Date(plan.startDate + 'T00:00:00');
+      if (!isNaN(d.getTime())) {
+        d.setDate(d.getDate() + 2);
+        botDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      }
+    }
+
+    const expiryDays = (prod && prod.expiryDays !== undefined) ? prod.expiryDays : 22;
+
+    if (botDate) {
+      const bd = new Date(botDate + 'T00:00:00');
+      if (!isNaN(bd.getTime())) {
+        bd.setDate(bd.getDate() + expiryDays);
+        return `${bd.getFullYear()}-${String(bd.getMonth() + 1).padStart(2, '0')}-${String(bd.getDate()).padStart(2, '0')}`;
+      }
+    }
+
+    if (plan?.expiryDate) return plan.expiryDate;
+
+    return '-';
+  };
+
   // Real-time calculations for Bottling Report (Single & 2-Item Parallel Plans)
   const bottlingCalculations = useMemo(() => {
     if (!selectedPlanDetails) return null;
@@ -362,7 +390,7 @@ const ReportsView = () => {
       // Actual yield is Base Yogurt weight divided by Raw Material total weight
       const actualYield = rawMaterialTotalG > 0 ? (baseYogurtWeightG / rawMaterialTotalG) * 100 : 0;
       const actualStockedQty = Math.max(0, count - deduct);
-      const expiryDate = plan?.shippingLimit || plan?.expiryDate || '-';
+      const expiryDate = getItemExpiryDate(item0, plan, actualProd);
 
       return {
         isMultiItem: false,
@@ -422,8 +450,8 @@ const ReportsView = () => {
       const item1StockedQty = Math.max(0, count1 - deduct1);
       const item2StockedQty = Math.max(0, count2 - deduct2);
 
-      const expiryDate1 = plan?.shippingLimit || plan?.expiryDate || '-';
-      const expiryDate2 = plan?.shippingLimit || plan?.expiryDate || '-';
+      const expiryDate1 = getItemExpiryDate(item1, plan, prod1);
+      const expiryDate2 = getItemExpiryDate(item2, plan, prod2);
 
       return {
         isMultiItem: true,
@@ -1187,26 +1215,46 @@ const ReportsView = () => {
 
                     {/* Bottling summary badges */}
                     {rep.type === 'bottling' && rep.details && (
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', fontSize: '0.76rem' }}>
-                        <span style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', padding: '2px 8px', borderRadius: '6px', fontWeight: 700 }}>
-                          🍾 병입 완료
-                        </span>
-                        <span style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', padding: '2px 8px', borderRadius: '6px', fontWeight: 600, fontFamily: 'var(--font-outfit)' }}>
-                          수율: {rep.details.actualYield}% (목표 {rep.details.targetYield}%)
-                        </span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.76rem' }}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                          <span style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', padding: '2px 8px', borderRadius: '6px', fontWeight: 700 }}>
+                            🍾 병입 완료
+                          </span>
+                          <span style={{ background: 'var(--bg-tertiary)', color: 'var(--text-primary)', padding: '2px 8px', borderRadius: '6px', fontWeight: 600, fontFamily: 'var(--font-outfit)' }}>
+                            수율: {rep.details.actualYield}% (목표 {rep.details.targetYield}%)
+                          </span>
+                        </div>
+
                         {!rep.details.isMultiItem ? (
-                          <span style={{ background: 'var(--bg-tertiary)', color: 'var(--color-primary)', padding: '2px 8px', borderRadius: '6px', fontWeight: 700, fontFamily: 'var(--font-outfit)' }}>
-                            입고량: {rep.details.actualStockedQty}개 {rep.details.remainsG ? `(+남은 ${rep.details.remainsG}g)` : ''}
-                          </span>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                            <span style={{ background: 'var(--bg-tertiary)', color: 'var(--color-primary)', padding: '2px 8px', borderRadius: '6px', fontWeight: 700, fontFamily: 'var(--font-outfit)' }}>
+                              입고량: {rep.details.actualStockedQty}개 {rep.details.remainsG ? `(+남은 ${rep.details.remainsG}g)` : ''}
+                            </span>
+                            {rep.details.expiryDate && (
+                              <span style={{ background: 'rgba(2, 132, 199, 0.1)', color: 'var(--color-primary)', padding: '2px 8px', borderRadius: '6px', fontWeight: 600, fontFamily: 'var(--font-outfit)' }}>
+                                📅 소비기한: {rep.details.expiryDate}
+                              </span>
+                            )}
+                          </div>
                         ) : (
-                          <span style={{ background: 'var(--bg-tertiary)', color: 'var(--color-primary)', padding: '2px 8px', borderRadius: '6px', fontWeight: 700, fontFamily: 'var(--font-outfit)' }}>
-                            입고량: {rep.details.item1?.productName} {rep.details.item1?.stockedQty}개 / {rep.details.item2?.productName} {rep.details.item2?.stockedQty}개
-                          </span>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: 'var(--bg-tertiary)', padding: '6px 10px', borderRadius: '8px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-primary)', fontWeight: 600 }}>
+                              <span>{rep.details.item1?.productName} ({rep.details.item1?.stockedQty}개 입고)</span>
+                              <span style={{ color: 'var(--color-primary)', fontFamily: 'var(--font-outfit)', fontWeight: 700 }}>📅 소비기한: {rep.details.item1?.expiryDate}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-primary)', fontWeight: 600 }}>
+                              <span>{rep.details.item2?.productName} ({rep.details.item2?.stockedQty}개 입고)</span>
+                              <span style={{ color: 'var(--color-primary)', fontFamily: 'var(--font-outfit)', fontWeight: 700 }}>📅 소비기한: {rep.details.item2?.expiryDate}</span>
+                            </div>
+                          </div>
                         )}
+
                         {rep.details.bottlingMemo && (
-                          <span style={{ background: 'rgba(234, 179, 8, 0.1)', color: '#ca8a04', padding: '2px 8px', borderRadius: '6px', fontWeight: 600 }}>
-                            📝 {rep.details.bottlingMemo}
-                          </span>
+                          <div>
+                            <span style={{ background: 'rgba(234, 179, 8, 0.1)', color: '#ca8a04', padding: '2px 8px', borderRadius: '6px', fontWeight: 600 }}>
+                              📝 {rep.details.bottlingMemo}
+                            </span>
+                          </div>
                         )}
                       </div>
                     )}
@@ -1499,13 +1547,34 @@ const ReportsView = () => {
                     </div>
 
                     {/* Expiration Date Display */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: '10px', fontSize: '0.84rem' }}>
-                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>📅 자동 지정 소비기한</span>
-                      <strong style={{ color: 'var(--color-primary)', fontFamily: 'var(--font-outfit)' }}>
-                        {!bottlingCalculations.isMultiItem 
-                          ? bottlingCalculations.expiryDate 
-                          : `${bottlingCalculations.item1.productName}: ${bottlingCalculations.item1.expiryDate} / ${bottlingCalculations.item2.productName}: ${bottlingCalculations.item2.expiryDate}`}
-                      </strong>
+                    <div style={{ padding: '12px 14px', background: 'var(--bg-secondary)', borderRadius: '10px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <div style={{ fontSize: '0.86rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span>📅</span>
+                        <span>자동 지정 소비기한</span>
+                      </div>
+                      {!bottlingCalculations.isMultiItem ? (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'var(--bg-tertiary)', borderRadius: '8px', fontSize: '0.84rem' }}>
+                          <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{bottlingCalculations.productName}</span>
+                          <strong style={{ color: 'var(--color-primary)', fontFamily: 'var(--font-outfit)', fontSize: '0.92rem' }}>
+                            {bottlingCalculations.expiryDate}
+                          </strong>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'var(--bg-tertiary)', borderRadius: '8px', fontSize: '0.84rem' }}>
+                            <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>품목 1: {bottlingCalculations.item1.productName}</span>
+                            <strong style={{ color: 'var(--color-primary)', fontFamily: 'var(--font-outfit)', fontSize: '0.92rem' }}>
+                              {bottlingCalculations.item1.expiryDate}
+                            </strong>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'var(--bg-tertiary)', borderRadius: '8px', fontSize: '0.84rem' }}>
+                            <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>품목 2: {bottlingCalculations.item2.productName}</span>
+                            <strong style={{ color: 'var(--color-primary)', fontFamily: 'var(--font-outfit)', fontSize: '0.92rem' }}>
+                              {bottlingCalculations.item2.expiryDate}
+                            </strong>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                   </div>
