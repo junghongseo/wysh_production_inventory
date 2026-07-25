@@ -339,24 +339,40 @@ const ReportsView = () => {
 
     if (!isMultiItem) {
       // Single Item Production Plan
+      const item0 = planItems && planItems[0];
+      const actualProd = products.find(p => p.id === item0?.productId) || product || {};
+
       const count = parseInt(bottlingCount) || 0;
       const remainsG = parseInt(bottlingRemainsG) || 0;
       const deduct = parseInt(bottlingDeductionQty) || 0;
-      const unitWeightG = product?.weight || 300;
+      const unitWeightG = actualProd.weight || 300;
 
       const totalBottledWeightG = (count * unitWeightG) + remainsG;
-      const targetYield = product?.yield || 28;
-      const actualYield = rawMaterialTotalG > 0 ? (totalBottledWeightG / rawMaterialTotalG) * 100 : 0;
+
+      // Base Yogurt weight calculation if actualProd is a flavor product
+      let baseYogurtWeightG = totalBottledWeightG;
+      if (actualProd.isFlavor) {
+        const baseIng = actualProd.ingredients?.find(ing => ing.name.includes('위시그릭') || ing.name.includes('플레인')) || actualProd.ingredients?.[0];
+        const baseRatio = baseIng ? baseIng.ratio : 70;
+        baseYogurtWeightG = totalBottledWeightG * (baseRatio / 100);
+      }
+
+      // Target yield is ALWAYS the base product target yield
+      const targetYield = baseProduct?.yield || product?.yield || 28;
+      // Actual yield is Base Yogurt weight divided by Raw Material total weight
+      const actualYield = rawMaterialTotalG > 0 ? (baseYogurtWeightG / rawMaterialTotalG) * 100 : 0;
       const actualStockedQty = Math.max(0, count - deduct);
       const expiryDate = plan?.shippingLimit || plan?.expiryDate || '-';
 
       return {
         isMultiItem: false,
+        productName: actualProd.name || product?.name,
         count,
         remainsG,
         deduct,
         unitWeightG,
         totalBottledWeightG,
+        baseYogurtWeightG,
         targetYield,
         actualYield: Number(actualYield.toFixed(2)),
         actualStockedQty,
