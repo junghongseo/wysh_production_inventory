@@ -68,6 +68,11 @@ export const AIManagerChat = () => {
   // Mobile Screen Detection (Threshold: <= 768px)
   const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 768);
 
+  // Mobile Drag-to-Dismiss State & Touch Handlers
+  const [dragTranslateY, setDragTranslateY] = useState(0);
+  const [isDraggingSheet, setIsDraggingSheet] = useState(false);
+  const touchStartRef = useRef({ y: 0, time: 0 });
+
   useEffect(() => {
     const handleResize = () => {
       setIsMobile(window.innerWidth <= 768);
@@ -75,6 +80,48 @@ export const AIManagerChat = () => {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  const handleTouchStart = (e) => {
+    if (!isMobile) return;
+    // Don't start drag if touch originated from button elements inside header
+    if (e.target.closest('button')) return;
+
+    const touch = e.touches[0];
+    touchStartRef.current = { y: touch.clientY, time: Date.now() };
+    setIsDraggingSheet(true);
+  };
+
+  const handleTouchMove = (e) => {
+    if (!isMobile || !isDraggingSheet) return;
+    const touch = e.touches[0];
+    const deltaY = touch.clientY - touchStartRef.current.y;
+
+    if (deltaY > 0) {
+      setDragTranslateY(deltaY);
+    } else {
+      setDragTranslateY(0);
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (!isMobile || !isDraggingSheet) return;
+    setIsDraggingSheet(false);
+
+    const dragDistance = dragTranslateY;
+    const dragTime = Date.now() - touchStartRef.current.time;
+    const velocity = dragTime > 0 ? dragDistance / dragTime : 0;
+
+    // Threshold: 100px or quick downward flick (velocity > 0.5)
+    if (dragDistance >= 100 || velocity > 0.5) {
+      setDragTranslateY(window.innerHeight || 800);
+      setTimeout(() => {
+        setIsOpen(false);
+        setDragTranslateY(0);
+      }, 200);
+    } else {
+      setDragTranslateY(0);
+    }
+  };
 
   const messagesEndRef = useRef(null);
 
@@ -328,9 +375,11 @@ export const AIManagerChat = () => {
                 right: 0,
                 bottom: 0,
                 backgroundColor: 'rgba(0, 0, 0, 0.65)',
+                opacity: Math.max(0, 1 - dragTranslateY / 300),
                 backdropFilter: 'blur(4px)',
                 WebkitBackdropFilter: 'blur(4px)',
-                zIndex: 9998
+                zIndex: 9998,
+                transition: isDraggingSheet ? 'none' : 'opacity 0.2s ease'
               }}
             />
           )}
@@ -345,13 +394,16 @@ export const AIManagerChat = () => {
               height: '88dvh',
               maxHeight: '100dvh',
               borderRadius: '24px 24px 0 0',
-              borderBottom: 'none'
+              borderBottom: 'none',
+              transform: `translateY(${dragTranslateY}px)`,
+              transition: isDraggingSheet ? 'none' : 'transform 0.25s cubic-bezier(0.16, 1, 0.3, 1)'
             } : {
               bottom: '28px',
               right: '28px',
               width: `${dimensions.width}px`,
               height: `${dimensions.height}px`,
-              borderRadius: '24px'
+              borderRadius: '24px',
+              transition: isResizingRef.current ? 'none' : 'width 0.1s ease, height 0.1s ease'
             }),
             backgroundColor: '#0D0D0D',
             color: '#FFFFFF',
@@ -361,16 +413,8 @@ export const AIManagerChat = () => {
             overflow: 'hidden',
             border: '1px solid rgba(255, 255, 255, 0.12)',
             zIndex: 9999,
-            fontFamily: '"Pretendard", -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif',
-            transition: (isMobile || isResizingRef.current) ? 'none' : 'width 0.1s ease, height 0.1s ease'
+            fontFamily: '"Pretendard", -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif'
           }}>
-            {/* Top Drag Indicator for Mobile Bottom Sheet */}
-            {isMobile && (
-              <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '8px', paddingBottom: '2px', backgroundColor: '#000000' }}>
-                <div style={{ width: '36px', height: '4px', borderRadius: '2px', backgroundColor: 'rgba(255, 255, 255, 0.3)' }} />
-              </div>
-            )}
-
             {/* Desktop Top-Left Resize Handle */}
             {!isMobile && (
               <div
@@ -399,80 +443,78 @@ export const AIManagerChat = () => {
               </div>
             )}
 
-            {/* WYSH Header */}
-            <div style={{
-              padding: isMobile ? '10px 14px' : '14px 18px',
-              backgroundColor: '#000000',
-              borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              userSelect: 'none',
-              gap: '6px'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '6px' : '8px', minWidth: 0 }}>
-                <div style={{
-                  width: isMobile ? '28px' : '32px',
-                  height: isMobile ? '28px' : '32px',
-                  borderRadius: '50%',
-                  backgroundColor: '#FFFFFF',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  padding: '4px',
-                  flexShrink: 0
-                }}>
-                  <img
-                    src="/WYSH2_로고_1772157440156.webp"
-                    alt="WYSH Logo"
-                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                  />
+            {/* Mobile Drag Header Zone (Handle Bar + Header Area) */}
+            <div
+              onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
+              onTouchEnd={handleTouchEnd}
+              style={{
+                cursor: isMobile ? (isDraggingSheet ? 'grabbing' : 'grab') : 'default',
+                userSelect: 'none',
+                touchAction: 'none',
+                backgroundColor: '#000000',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.1)'
+              }}
+            >
+              {/* Top Drag Indicator for Mobile Bottom Sheet */}
+              {isMobile && (
+                <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '10px', paddingBottom: '4px' }}>
+                  <div style={{ width: '40px', height: '4px', borderRadius: '2px', backgroundColor: 'rgba(255, 255, 255, 0.4)' }} />
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', overflow: 'hidden' }}>
-                  <h4 style={{ margin: 0, fontSize: isMobile ? '13px' : '14px', fontWeight: '800', color: '#FFFFFF', whiteSpace: 'nowrap' }}>
-                    AI 생산매니저
-                  </h4>
-                  <span style={{
-                    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-                    color: '#FFFFFF',
-                    fontSize: isMobile ? '8px' : '9px',
-                    fontWeight: '800',
-                    padding: '1px 4px',
-                    borderRadius: '4px',
+              )}
+
+              {/* WYSH Header */}
+              <div style={{
+                padding: isMobile ? '8px 14px 12px 14px' : '14px 18px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: '6px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '6px' : '8px', minWidth: 0 }}>
+                  <div style={{
+                    width: isMobile ? '28px' : '32px',
+                    height: isMobile ? '28px' : '32px',
+                    borderRadius: '50%',
+                    backgroundColor: '#FFFFFF',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '4px',
                     flexShrink: 0
                   }}>
-                    BETA
-                  </span>
-                </div>
-              </div>
-
-              {/* Header Control Buttons */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '4px' : '6px', flexShrink: 0 }}>
-                {showHistoryView ? (
-                  <button
-                    onClick={() => setShowHistoryView(false)}
-                    style={{
-                      background: 'rgba(255, 255, 255, 0.12)',
-                      border: '1px solid rgba(255, 255, 255, 0.2)',
+                    <img
+                      src="/WYSH2_로고_1772157440156.webp"
+                      alt="WYSH Logo"
+                      style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                    />
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px', overflow: 'hidden' }}>
+                    <h4 style={{ margin: 0, fontSize: isMobile ? '13px' : '14px', fontWeight: '800', color: '#FFFFFF', whiteSpace: 'nowrap' }}>
+                      AI 생산매니저
+                    </h4>
+                    <span style={{
+                      backgroundColor: 'rgba(255, 255, 255, 0.15)',
                       color: '#FFFFFF',
-                      borderRadius: '8px',
-                      padding: isMobile ? '4px 8px' : '5px 9px',
-                      fontSize: isMobile ? '11px' : '11.5px',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      whiteSpace: 'nowrap'
-                    }}
-                  >
-                    💬 대화창으로
-                  </button>
-                ) : (
-                  <>
+                      fontSize: isMobile ? '8px' : '9px',
+                      fontWeight: '800',
+                      padding: '1px 4px',
+                      borderRadius: '4px',
+                      flexShrink: 0
+                    }}>
+                      BETA
+                    </span>
+                  </div>
+                </div>
+
+                {/* Header Control Buttons */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '4px' : '6px', flexShrink: 0 }}>
+                  {showHistoryView ? (
                     <button
-                      onClick={startNewChatSession}
-                      title="새로운 채팅 세션 시작"
+                      onClick={() => setShowHistoryView(false)}
                       style={{
-                        background: 'rgba(255, 255, 255, 0.08)',
-                        border: '1px solid rgba(255, 255, 255, 0.15)',
+                        background: 'rgba(255, 255, 255, 0.12)',
+                        border: '1px solid rgba(255, 255, 255, 0.2)',
                         color: '#FFFFFF',
                         borderRadius: '8px',
                         padding: isMobile ? '4px 8px' : '5px 9px',
@@ -482,43 +524,63 @@ export const AIManagerChat = () => {
                         whiteSpace: 'nowrap'
                       }}
                     >
-                      ✨ 새 대화
+                      💬 대화창으로
                     </button>
-                    <button
-                      onClick={handleOpenHistoryView}
-                      title="지난 대화 이력 보기"
-                      style={{
-                        background: 'rgba(255, 255, 255, 0.08)',
-                        border: '1px solid rgba(255, 255, 255, 0.15)',
-                        color: 'rgba(255, 255, 255, 0.8)',
-                        borderRadius: '8px',
-                        padding: isMobile ? '4px 8px' : '5px 9px',
-                        fontSize: isMobile ? '11px' : '11.5px',
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        whiteSpace: 'nowrap'
-                      }}
-                    >
-                      📜 기록
-                    </button>
-                  </>
-                )}
+                  ) : (
+                    <>
+                      <button
+                        onClick={startNewChatSession}
+                        title="새로운 채팅 세션 시작"
+                        style={{
+                          background: 'rgba(255, 255, 255, 0.08)',
+                          border: '1px solid rgba(255, 255, 255, 0.15)',
+                          color: '#FFFFFF',
+                          borderRadius: '8px',
+                          padding: isMobile ? '4px 8px' : '5px 9px',
+                          fontSize: isMobile ? '11px' : '11.5px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        ✨ 새 대화
+                      </button>
+                      <button
+                        onClick={handleOpenHistoryView}
+                        title="지난 대화 이력 보기"
+                        style={{
+                          background: 'rgba(255, 255, 255, 0.08)',
+                          border: '1px solid rgba(255, 255, 255, 0.15)',
+                          color: 'rgba(255, 255, 255, 0.8)',
+                          borderRadius: '8px',
+                          padding: isMobile ? '4px 8px' : '5px 9px',
+                          fontSize: isMobile ? '11px' : '11.5px',
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        📜 기록
+                      </button>
+                    </>
+                  )}
 
-                <button
-                  onClick={() => setIsOpen(false)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: 'rgba(255, 255, 255, 0.5)',
-                    cursor: 'pointer',
-                    fontSize: isMobile ? '20px' : '18px',
-                    padding: '2px 4px',
-                    lineHeight: 1,
-                    flexShrink: 0
-                  }}
-                >
-                  ✕
-                </button>
+                  <button
+                    onClick={() => setIsOpen(false)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: 'rgba(255, 255, 255, 0.5)',
+                      cursor: 'pointer',
+                      fontSize: isMobile ? '20px' : '18px',
+                      padding: '2px 4px',
+                      lineHeight: 1,
+                      flexShrink: 0
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
               </div>
             </div>
 
