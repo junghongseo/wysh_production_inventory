@@ -993,23 +993,26 @@ const ReportsView = () => {
       
       {/* Category selector */}
       <div className="glass-card" style={{ padding: '16px' }}>
-        <div className="report-category-grid" style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+        <div className="report-category-grid" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           <button 
             className={`btn-secondary ${activeReportType === 'fermentation' ? 'active' : ''}`}
             onClick={() => { setActiveReportType('fermentation'); handleResetForm(); }}
             style={{ 
-              flex: 1, 
+              flex: '1 1 130px', 
+              minWidth: '120px',
               justifyContent: 'center', 
-              padding: '12px', 
+              padding: '10px 8px', 
               borderRadius: '10px', 
               fontWeight: 700,
-              fontSize: '0.92rem',
+              fontSize: '0.88rem',
               letterSpacing: '-0.01em',
               background: activeReportType === 'fermentation' ? 'var(--color-primary)' : '',
               color: activeReportType === 'fermentation' ? '#fff' : '',
               borderColor: activeReportType === 'fermentation' ? 'var(--color-primary)' : '',
               display: 'inline-flex',
-              alignItems: 'center'
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '4px'
             }}
           >
             <span>🥛 발효 리포트</span>
@@ -1021,12 +1024,14 @@ const ReportsView = () => {
                 padding: '2px 6px',
                 borderRadius: '10px',
                 fontWeight: 'bold',
-                marginLeft: '6px',
+                marginLeft: '4px',
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 boxShadow: '0 2px 4px rgba(239, 68, 68, 0.2)',
-                lineHeight: '1'
+                lineHeight: '1',
+                flexShrink: 0,
+                whiteSpace: 'nowrap'
               }}>
                 미확인 {unconfirmedFermentationCount}
               </span>
@@ -1037,18 +1042,21 @@ const ReportsView = () => {
             className={`btn-secondary ${activeReportType === 'whey_separation' ? 'active' : ''}`}
             onClick={() => { setActiveReportType('whey_separation'); handleResetForm(); }}
             style={{ 
-              flex: 1, 
+              flex: '1 1 130px', 
+              minWidth: '120px',
               justifyContent: 'center', 
-              padding: '12px', 
+              padding: '10px 8px', 
               borderRadius: '10px', 
               fontWeight: 700,
-              fontSize: '0.92rem',
+              fontSize: '0.88rem',
               letterSpacing: '-0.01em',
               background: activeReportType === 'whey_separation' ? 'var(--color-primary)' : '',
               color: activeReportType === 'whey_separation' ? '#fff' : '',
               borderColor: activeReportType === 'whey_separation' ? 'var(--color-primary)' : '',
               display: 'inline-flex',
-              alignItems: 'center'
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '4px'
             }}
           >
             <span>💧 유청분리 리포트</span>
@@ -1060,12 +1068,14 @@ const ReportsView = () => {
                 padding: '2px 6px',
                 borderRadius: '10px',
                 fontWeight: 'bold',
-                marginLeft: '6px',
+                marginLeft: '4px',
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 boxShadow: '0 2px 4px rgba(239, 68, 68, 0.2)',
-                lineHeight: '1'
+                lineHeight: '1',
+                flexShrink: 0,
+                whiteSpace: 'nowrap'
               }}>
                 미확인 {unconfirmedWheyCount}
               </span>
@@ -1076,18 +1086,21 @@ const ReportsView = () => {
             className={`btn-secondary ${activeReportType === 'bottling' ? 'active' : ''}`}
             onClick={() => { setActiveReportType('bottling'); handleResetForm(); }}
             style={{ 
-              flex: 1, 
+              flex: '1 1 130px', 
+              minWidth: '120px',
               justifyContent: 'center', 
-              padding: '12px', 
+              padding: '10px 8px', 
               borderRadius: '10px', 
               fontWeight: 700,
-              fontSize: '0.92rem',
+              fontSize: '0.88rem',
               letterSpacing: '-0.01em',
               background: activeReportType === 'bottling' ? 'var(--color-primary)' : '',
               color: activeReportType === 'bottling' ? '#fff' : '',
               borderColor: activeReportType === 'bottling' ? 'var(--color-primary)' : '',
               display: 'inline-flex',
-              alignItems: 'center'
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '4px'
             }}
           >
             <span>🍾 병입 리포트</span>
@@ -1099,12 +1112,14 @@ const ReportsView = () => {
                 padding: '2px 6px',
                 borderRadius: '10px',
                 fontWeight: 'bold',
-                marginLeft: '6px',
+                marginLeft: '4px',
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 boxShadow: '0 2px 4px rgba(239, 68, 68, 0.2)',
-                lineHeight: '1'
+                lineHeight: '1',
+                flexShrink: 0,
+                whiteSpace: 'nowrap'
               }}>
                 미확인 {unconfirmedBottlingCount}
               </span>
