@@ -1290,27 +1290,38 @@ const ReportsView = () => {
                       gap: '10px'
                     }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                        <span style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--text-primary)' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px 12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', minWidth: '0', flex: '1 1 auto' }}>
+                        <span 
+                          style={{ 
+                            fontWeight: 700, 
+                            fontSize: '0.92rem', 
+                            color: 'var(--text-primary)',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            maxWidth: '140px'
+                          }}
+                          title={getPlanName(rep.planId)}
+                        >
                           {getPlanName(rep.planId)}
                         </span>
                         {rep.confirmed ? (
-                          <span style={{ fontSize: '0.72rem', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', padding: '2px 7px', borderRadius: '6px', fontWeight: 700 }}>
+                          <span style={{ fontSize: '0.72rem', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', padding: '2px 7px', borderRadius: '6px', fontWeight: 700, flexShrink: 0 }}>
                             ✓ 확인완료
                           </span>
                         ) : (
-                          <span style={{ fontSize: '0.72rem', background: 'rgba(245, 158, 11, 0.2)', color: '#b45309', padding: '2px 7px', borderRadius: '6px', fontWeight: 700 }}>
+                          <span style={{ fontSize: '0.72rem', background: 'rgba(245, 158, 11, 0.2)', color: '#b45309', padding: '2px 7px', borderRadius: '6px', fontWeight: 700, flexShrink: 0 }}>
                             ⚠️ 미확인
                           </span>
                         )}
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                         {isAdminLoggedIn && !rep.confirmed && (
                           <button 
                             className="btn-primary"
                             onClick={(e) => handleConfirmReport(rep, e)}
-                            style={{ padding: '3px 8px', fontSize: '0.75rem', borderRadius: '6px', fontWeight: 700, background: 'linear-gradient(135deg, #10b981, #059669)', border: 'none' }}
+                            style={{ padding: '3px 8px', fontSize: '0.75rem', borderRadius: '6px', fontWeight: 700, background: 'linear-gradient(135deg, #10b981, #059669)', border: 'none', whiteSpace: 'nowrap' }}
                           >
                             ✓ 확인 처리
                           </button>
