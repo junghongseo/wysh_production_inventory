@@ -613,16 +613,16 @@ const InventoryView = ({ onDeleteHistory, onOpenMemoModal, isAdminLoggedIn }) =>
                     }}
                     onClick={() => handleStartEdit(item)}
                   >
-                    <div className="timeline-item-meta" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span className="date">{(item.date || '').split(' ')[0]}</span>
+                    <div className="timeline-item-meta" style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: '1 1 auto', minWidth: '0', wordBreak: 'keep-all' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                        <span className="date" style={{ fontFamily: 'var(--font-outfit)', fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 500 }}>{(item.date || '').split(' ')[0]}</span>
                         {isUnverified ? (
-                          <span style={{ background: '#f59e0b', color: '#fff', fontSize: '0.72rem', padding: '1px 6px', borderRadius: '4px', fontWeight: 700 }}>
+                          <span style={{ background: 'rgba(245, 158, 11, 0.2)', color: '#b45309', fontSize: '0.72rem', padding: '2px 7px', borderRadius: '6px', fontWeight: 700, flexShrink: 0, whiteSpace: 'nowrap' }}>
                             ⚠️ 미확인
                           </span>
                         ) : (
-                          <span style={{ color: 'var(--color-success)', fontSize: '0.72rem', fontWeight: 600 }}>
-                            ✅ 확인완료
+                          <span style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', fontSize: '0.72rem', padding: '2px 7px', borderRadius: '6px', fontWeight: 700, flexShrink: 0, whiteSpace: 'nowrap' }}>
+                            ✓ 확인완료
                           </span>
                         )}
                         {isAdminLoggedIn && isUnverified && (
@@ -633,21 +633,33 @@ const InventoryView = ({ onDeleteHistory, onOpenMemoModal, isAdminLoggedIn }) =>
                               e.stopPropagation();
                               verifyOutflow(item.planId, item.id);
                             }}
-                            style={{ padding: '2px 8px', fontSize: '0.72rem', borderRadius: '4px', fontWeight: 700, background: '#10b981', border: 'none' }}
+                            style={{ 
+                              padding: '3px 9px', 
+                              fontSize: '0.75rem', 
+                              borderRadius: '6px', 
+                              fontWeight: 700, 
+                              background: 'linear-gradient(135deg, #10b981, #059669)', 
+                              border: 'none',
+                              color: '#ffffff',
+                              whiteSpace: 'nowrap',
+                              boxShadow: '0 2px 4px rgba(16, 185, 129, 0.2)',
+                              cursor: 'pointer',
+                              flexShrink: 0
+                            }}
                           >
-                            ✔️ 확인
+                            ✓ 확인
                           </button>
                         )}
                       </div>
-                      <span className="purpose" style={{ fontSize: '0.86rem' }}>
-                        <strong style={{ color: 'var(--color-primary)' }}>{item.planId}</strong>{' '}
+                      <span className="purpose" style={{ fontSize: '0.86rem', wordBreak: 'keep-all', overflowWrap: 'break-word', lineHeight: '1.35' }}>
+                        <strong style={{ color: 'var(--color-primary)', fontFamily: 'var(--font-outfit)' }}>{item.planId}</strong>{' '}
                         ({item.purpose}) - {item.planName}
                       </span>
                       <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'flex', gap: '8px', alignItems: 'center', marginTop: '2px' }}>
                         <span>🖋️ 서명: <strong>{item.signer || '미입력'}</strong></span>
                       </div>
                     </div>
-                    <div className="timeline-item-values" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div className="timeline-item-values" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                       {item.memo && (
                         <button 
                           type="button" 

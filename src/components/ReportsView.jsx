@@ -1315,18 +1315,19 @@ const ReportsView = () => {
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
-                            maxWidth: '140px'
+                            maxWidth: '140px',
+                            wordBreak: 'keep-all'
                           }}
                           title={getPlanName(rep.planId)}
                         >
                           {getPlanName(rep.planId)}
                         </span>
                         {rep.confirmed ? (
-                          <span style={{ fontSize: '0.72rem', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', padding: '2px 7px', borderRadius: '6px', fontWeight: 700, flexShrink: 0 }}>
+                          <span style={{ fontSize: '0.72rem', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', padding: '2px 7px', borderRadius: '6px', fontWeight: 700, flexShrink: 0, whiteSpace: 'nowrap' }}>
                             ✓ 확인완료
                           </span>
                         ) : (
-                          <span style={{ fontSize: '0.72rem', background: 'rgba(245, 158, 11, 0.2)', color: '#b45309', padding: '2px 7px', borderRadius: '6px', fontWeight: 700, flexShrink: 0 }}>
+                          <span style={{ fontSize: '0.72rem', background: 'rgba(245, 158, 11, 0.2)', color: '#b45309', padding: '2px 7px', borderRadius: '6px', fontWeight: 700, flexShrink: 0, whiteSpace: 'nowrap' }}>
                             ⚠️ 미확인
                           </span>
                         )}
@@ -1336,9 +1337,19 @@ const ReportsView = () => {
                           <button 
                             className="btn-primary"
                             onClick={(e) => handleConfirmReport(rep, e)}
-                            style={{ padding: '3px 8px', fontSize: '0.75rem', borderRadius: '6px', fontWeight: 700, background: 'linear-gradient(135deg, #10b981, #059669)', border: 'none', whiteSpace: 'nowrap' }}
+                            style={{ 
+                              padding: '3px 9px', 
+                              fontSize: '0.75rem', 
+                              borderRadius: '6px', 
+                              fontWeight: 700, 
+                              background: 'linear-gradient(135deg, #10b981, #059669)', 
+                              border: 'none', 
+                              whiteSpace: 'nowrap',
+                              boxShadow: '0 2px 4px rgba(16, 185, 129, 0.2)',
+                              cursor: 'pointer'
+                            }}
                           >
-                            ✓ 확인 처리
+                            ✓ 확인
                           </button>
                         )}
                         <button 
@@ -1356,7 +1367,7 @@ const ReportsView = () => {
 
                     {/* Whey separation summary badges */}
                     {rep.type === 'whey_separation' && rep.details && (
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', fontSize: '0.76rem' }}>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', fontSize: '0.76rem', wordBreak: 'keep-all' }}>
                         <span style={{ background: 'rgba(2, 132, 199, 0.1)', color: 'var(--color-primary)', padding: '2px 8px', borderRadius: '6px', fontWeight: 600 }}>
                           묽기: {rep.details.consistency}
                         </span>
@@ -1381,7 +1392,7 @@ const ReportsView = () => {
 
                     {/* Bottling summary badges */}
                     {rep.type === 'bottling' && rep.details && (
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.76rem' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.76rem', wordBreak: 'keep-all' }}>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
                           <span style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981', padding: '2px 8px', borderRadius: '6px', fontWeight: 700 }}>
                             🍾 병입 완료
@@ -1404,20 +1415,20 @@ const ReportsView = () => {
                           </div>
                         ) : (
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', background: 'var(--bg-tertiary)', padding: '6px 10px', borderRadius: '8px' }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-primary)', fontWeight: 600 }}>
-                              <span>{rep.details.item1?.productName} ({rep.details.item1?.stockedQty}개 입고)</span>
-                              <span style={{ color: 'var(--color-primary)', fontFamily: 'var(--font-outfit)', fontWeight: 700 }}>📅 소비기한: {rep.details.item1?.expiryDate}</span>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-primary)', fontWeight: 600, flexWrap: 'wrap', gap: '4px' }}>
+                              <span style={{ wordBreak: 'keep-all' }}>{rep.details.item1?.productName} ({rep.details.item1?.stockedQty}개 입고)</span>
+                              <span style={{ color: 'var(--color-primary)', fontFamily: 'var(--font-outfit)', fontWeight: 700, whiteSpace: 'nowrap' }}>📅 소비기한: {rep.details.item1?.expiryDate}</span>
                             </div>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-primary)', fontWeight: 600 }}>
-                              <span>{rep.details.item2?.productName} ({rep.details.item2?.stockedQty}개 입고)</span>
-                              <span style={{ color: 'var(--color-primary)', fontFamily: 'var(--font-outfit)', fontWeight: 700 }}>📅 소비기한: {rep.details.item2?.expiryDate}</span>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-primary)', fontWeight: 600, flexWrap: 'wrap', gap: '4px' }}>
+                              <span style={{ wordBreak: 'keep-all' }}>{rep.details.item2?.productName} ({rep.details.item2?.stockedQty}개 입고)</span>
+                              <span style={{ color: 'var(--color-primary)', fontFamily: 'var(--font-outfit)', fontWeight: 700, whiteSpace: 'nowrap' }}>📅 소비기한: {rep.details.item2?.expiryDate}</span>
                             </div>
                           </div>
                         )}
 
                         {rep.details.bottlingMemo && (
                           <div>
-                            <span style={{ background: 'rgba(234, 179, 8, 0.1)', color: '#ca8a04', padding: '2px 8px', borderRadius: '6px', fontWeight: 600 }}>
+                            <span style={{ background: 'rgba(234, 179, 8, 0.1)', color: '#ca8a04', padding: '2px 8px', borderRadius: '6px', fontWeight: 600, wordBreak: 'keep-all' }}>
                               📝 {rep.details.bottlingMemo}
                             </span>
                           </div>
@@ -1425,9 +1436,9 @@ const ReportsView = () => {
                       </div>
                     )}
 
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-secondary)', borderTop: '1px dashed var(--border-color)', paddingTop: '6px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem', color: 'var(--text-secondary)', borderTop: '1px dashed var(--border-color)', paddingTop: '6px', flexWrap: 'wrap', gap: '4px' }}>
                       <span>확인자: <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{rep.workerName}</strong></span>
-                      <span style={{ fontFamily: 'var(--font-outfit)', color: 'var(--text-muted)' }}>{formatReportDate(rep.createdAt)}</span>
+                      <span style={{ fontFamily: 'var(--font-outfit)', color: 'var(--text-secondary)', fontWeight: 500 }}>{formatReportDate(rep.createdAt)}</span>
                     </div>
                   </div>
                 );
