@@ -684,10 +684,29 @@ const ReportsView = () => {
 
       if (isEditing && selectedReportId) {
         const existing = reports.find(r => r.id === selectedReportId);
-        updateReport({
+        const updatedReport = {
           ...existing,
           ...reportData
-        });
+        };
+        updateReport(updatedReport);
+
+        if (updatedReport.confirmed && updatedReport.details) {
+          const d = updatedReport.details;
+          if (d.isMultiItem) {
+            if (d.item1 && d.item1.productId) {
+              const stocked = d.item1.stockedQty !== undefined ? d.item1.stockedQty : Math.max(0, (d.item1.count || 0) - (d.item1.deduct || 0));
+              updateActualQty(updatedReport.planId, stocked, d.item1.productId);
+            }
+            if (d.item2 && d.item2.productId) {
+              const stocked = d.item2.stockedQty !== undefined ? d.item2.stockedQty : Math.max(0, (d.item2.count || 0) - (d.item2.deduct || 0));
+              updateActualQty(updatedReport.planId, stocked, d.item2.productId);
+            }
+          } else {
+            const stocked = d.actualStockedQty !== undefined ? d.actualStockedQty : Math.max(0, (d.count || 0) - (d.deduct || 0));
+            updateActualQty(updatedReport.planId, stocked, d.productId || null);
+          }
+        }
+
         alert('병입 리포트가 성공적으로 수정되었습니다.');
       } else {
         addReport(reportData);
@@ -834,13 +853,16 @@ const ReportsView = () => {
         const d = report.details;
         if (d.isMultiItem) {
           if (d.item1 && d.item1.productId) {
-            updateActualQty(report.planId, d.item1.stockedQty || 0, d.item1.productId);
+            const stocked = d.item1.stockedQty !== undefined ? d.item1.stockedQty : Math.max(0, (d.item1.count || 0) - (d.item1.deduct || 0));
+            updateActualQty(report.planId, stocked, d.item1.productId);
           }
           if (d.item2 && d.item2.productId) {
-            updateActualQty(report.planId, d.item2.stockedQty || 0, d.item2.productId);
+            const stocked = d.item2.stockedQty !== undefined ? d.item2.stockedQty : Math.max(0, (d.item2.count || 0) - (d.item2.deduct || 0));
+            updateActualQty(report.planId, stocked, d.item2.productId);
           }
         } else {
-          updateActualQty(report.planId, d.actualStockedQty || 0, d.productId || null);
+          const stocked = d.actualStockedQty !== undefined ? d.actualStockedQty : Math.max(0, (d.count || 0) - (d.deduct || 0));
+          updateActualQty(report.planId, stocked, d.productId || null);
         }
       }
     }

@@ -78,7 +78,8 @@ const InventoryView = ({ onDeleteHistory, onOpenMemoModal, isAdminLoggedIn }) =>
         : [{ productId: plan.productId, totalQty: plan.totalQty }];
 
       const isMultiItem = planItems.length > 1;
-      const invRecord = inventory.find(i => i.planId === plan.id) || { actualQty: plan.totalQty, history: [] };
+      const invRecord = inventory.find(i => i.planId === plan.id) || { history: [] };
+      const isReportConfirmed = reports && reports.some(r => r.type === 'bottling' && r.planId === plan.id && r.confirmed);
 
       planItems.forEach((it) => {
         const prod = products.find(p => p.id === it.productId);
@@ -92,11 +93,13 @@ const InventoryView = ({ onDeleteHistory, onOpenMemoModal, isAdminLoggedIn }) =>
 
         const plannedQty = it.totalQty || ( (it.expectedOrderQty || 0) + (it.marketingQty || 0) + (it.bufferQty || 0) );
         
-        let itemActualQty = plannedQty;
+        let itemActualQty = 0;
         if (invRecord.itemActualQtys && invRecord.itemActualQtys[it.productId] !== undefined) {
           itemActualQty = invRecord.itemActualQtys[it.productId];
         } else if (!isMultiItem && invRecord.actualQty !== undefined) {
           itemActualQty = invRecord.actualQty;
+        } else if (isReportConfirmed) {
+          itemActualQty = plannedQty;
         }
 
         // Outflows for this specific product item
@@ -107,7 +110,7 @@ const InventoryView = ({ onDeleteHistory, onOpenMemoModal, isAdminLoggedIn }) =>
           return sum;
         }, 0);
 
-        const currentStock = itemActualQty - itemOutflows;
+        const currentStock = isReportConfirmed ? (itemActualQty - itemOutflows) : 0;
 
         rows.push({
           subKey,
@@ -121,12 +124,13 @@ const InventoryView = ({ onDeleteHistory, onOpenMemoModal, isAdminLoggedIn }) =>
           plannedQty,
           actualQty: itemActualQty,
           currentStock,
-          isMultiItem
+          isMultiItem,
+          isReportConfirmed
         });
       });
     });
     return rows;
-  }, [plans, products, inventory]);
+  }, [plans, products, inventory, reports]);
 
   // Active sub-plans for outflow dropdown (재고가 0 초과인 품목만 출고 등록 가능)
   const activeSubPlans = useMemo(() => {
@@ -376,7 +380,7 @@ const InventoryView = ({ onDeleteHistory, onOpenMemoModal, isAdminLoggedIn }) =>
                   </td>
                 </tr>
               ) : (
-                paginatedInventoryData.map(({ subKey, planId, productId, plan, subName, prodName, shippingLimit, expiryDate, plannedQty, actualQty, currentStock }) => {
+                paginatedInventoryData.map(({ subKey, planId, productId, plan, subName, prodName, shippingLimit, expiryDate, plannedQty, actualQty, currentStock, isReportConfirmed }) => {
                   const isSelected = selectedInventoryPlanId === subKey || selectedInventoryPlanId === planId;
                   return (
                     <tr 
@@ -390,12 +394,20 @@ const InventoryView = ({ onDeleteHistory, onOpenMemoModal, isAdminLoggedIn }) =>
                       <td style={{ fontFamily: 'var(--font-outfit)', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{expiryDate}</td>
                       <td style={{ wordBreak: 'keep-all' }}>{prodName}</td>
                       <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', whiteSpace: 'nowrap' }}>{plannedQty.toLocaleString()}</td>
-                      <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', fontWeight: 600, color: 'var(--color-success)', whiteSpace: 'nowrap' }}>{actualQty.toLocaleString()}</td>
-                      <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', fontWeight: 700, color: currentStock < 100 ? 'var(--color-danger)' : 'var(--color-primary)', whiteSpace: 'nowrap' }}>
-                        {currentStock.toLocaleString()}
+                      <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', fontWeight: 600, color: isReportConfirmed ? 'var(--color-success)' : 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                        {isReportConfirmed ? (
+                          actualQty.toLocaleString()
+                        ) : (
+                          <span style={{ fontSize: '0.8rem', background: 'rgba(245, 158, 11, 0.12)', color: '#d97706', padding: '3px 7px', borderRadius: '6px', fontWeight: 600, fontFamily: 'sans-serif' }}>
+                            리포트 대기중
+                          </span>
+                        )}
+                      </td>
+                      <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', fontWeight: 700, color: !isReportConfirmed ? 'var(--text-muted)' : (currentStock < 100 ? 'var(--color-danger)' : 'var(--color-primary)'), whiteSpace: 'nowrap' }}>
+                        {isReportConfirmed ? currentStock.toLocaleString() : '-'}
                       </td>
                       <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
-                        {reports && reports.some(r => r.type === 'bottling' && r.planId === planId && r.confirmed) ? (
+                        {isReportConfirmed ? (
                           <span style={{ fontSize: '0.78rem', background: 'rgba(16, 185, 129, 0.12)', color: '#10b981', padding: '3px 8px', borderRadius: '6px', fontWeight: 700 }}>
                             ✓ 병입 입고 연동완료
                           </span>
