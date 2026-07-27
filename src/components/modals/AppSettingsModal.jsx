@@ -11,13 +11,13 @@ const AppSettingsModal = ({ isOpen, onClose }) => {
   const [saveSuccessMsg, setSaveSuccessMsg] = useState('');
 
   useEffect(() => {
-    if (bannerSettings) {
+    if (isOpen && bannerSettings) {
       setTopBannerText(bannerSettings.topBannerText || '');
       setTickerBannerText(bannerSettings.tickerBannerText || '');
       setTopBannerEnabled(bannerSettings.topBannerEnabled ?? true);
       setTickerBannerEnabled(bannerSettings.tickerBannerEnabled ?? true);
     }
-  }, [bannerSettings, isOpen]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 

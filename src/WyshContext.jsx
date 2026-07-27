@@ -47,7 +47,11 @@ export const WyshProvider = ({ children }) => {
   });
 
   const updateBannerSettings = (newSettings) => {
-    const updated = { ...bannerSettings, ...newSettings };
+    const updated = {
+      ...bannerSettings,
+      ...newSettings,
+      updatedAt: new Date().toISOString()
+    };
     setBannerSettings(updated);
     try {
       localStorage.setItem('wysh_banner_settings', JSON.stringify(updated));
@@ -58,13 +62,17 @@ export const WyshProvider = ({ children }) => {
   };
 
   const resetBannerSettings = () => {
-    setBannerSettings(DEFAULT_BANNER_SETTINGS);
+    const resetObj = {
+      ...DEFAULT_BANNER_SETTINGS,
+      updatedAt: new Date().toISOString()
+    };
+    setBannerSettings(resetObj);
     try {
-      localStorage.setItem('wysh_banner_settings', JSON.stringify(DEFAULT_BANNER_SETTINGS));
+      localStorage.setItem('wysh_banner_settings', JSON.stringify(resetObj));
     } catch (e) {
       console.error('Failed to reset banner settings in localStorage:', e);
     }
-    pushBannerSettingsToSupabase(DEFAULT_BANNER_SETTINGS);
+    pushBannerSettingsToSupabase(resetObj);
   };
 
   // Initialize data from LocalStorage and start Realtime sync
@@ -134,12 +142,19 @@ export const WyshProvider = ({ children }) => {
       } = await fetchAllRemoteData();
 
       if (remoteBannerSettings) {
-        setBannerSettings(remoteBannerSettings);
-        try {
-          localStorage.setItem('wysh_banner_settings', JSON.stringify(remoteBannerSettings));
-        } catch (e) {
-          console.error('Failed to sync remote banner settings to localStorage:', e);
-        }
+        setBannerSettings(prev => {
+          if (!prev || !prev.updatedAt || (remoteBannerSettings.updatedAt && remoteBannerSettings.updatedAt >= prev.updatedAt)) {
+            try {
+              localStorage.setItem('wysh_banner_settings', JSON.stringify(remoteBannerSettings));
+            } catch (e) {
+              console.error('Failed to sync remote banner settings to localStorage:', e);
+            }
+            return remoteBannerSettings;
+          } else if (prev && prev.updatedAt && remoteBannerSettings.updatedAt && prev.updatedAt > remoteBannerSettings.updatedAt) {
+            pushBannerSettingsToSupabase(prev);
+          }
+          return prev;
+        });
       }
 
       const localInitial = loadInitialLocalStorageData();

@@ -21,7 +21,6 @@ const InventoryView = lazy(() => import('./components/InventoryView'));
 const RecipesView = lazy(() => import('./components/RecipesView'));
 const ReportsView = lazy(() => import('./components/ReportsView'));
 const OrderView = lazy(() => import('./components/OrderView'));
-const UserManualView = lazy(() => import('./components/UserManualView'));
 
 const ViewFallback = () => (
   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '300px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
@@ -390,12 +389,6 @@ const App = () => {
         <section className={`tab-content ${activeTab === 'order-view' ? 'active' : ''}`} id="order-view">
           {activeTab === 'order-view' && (
             <OrderView />
-          )}
-        </section>
-
-        <section className={`tab-content ${activeTab === 'manual-view' ? 'active' : ''}`} id="manual-view">
-          {activeTab === 'manual-view' && (
-            <UserManualView />
           )}
         </section>
       </Suspense>
