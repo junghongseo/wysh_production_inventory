@@ -379,17 +379,23 @@ body[data-theme="wysh-bw"],
 
 /* High-contrast multi-shade greyscale color variations for distinct product schedule bars in WYSH B&W mode */
 
-/* 1. Solid Deep Black (검정) */
-[data-theme="wysh-bw"] .calendar-event.event-color-blue,
-[data-theme="wysh-bw"] .calendar-event.event-color-black {
+/* 1. 위시그릭 (Solid Deep Black - 순수 검정) */
+[data-theme="wysh-bw"] .calendar-event.event-color-blue {
   background-color: #000000 !important;
   color: #ffffff !important;
   border: 1px solid #000000 !important;
 }
 
-/* 2. Very Dark Charcoal (아주 짙은 차콜 회색) */
+/* 2. 머드그릭 (Dark Charcoal Grey - 짙은 차콜 회색) */
+[data-theme="wysh-bw"] .calendar-event.event-color-black {
+  background-color: #2b2b2b !important;
+  color: #ffffff !important;
+  border: 1.5px solid #000000 !important;
+}
+
+/* 3. Very Dark Charcoal (아주 짙은 차콜 회색) */
 [data-theme="wysh-bw"] .calendar-event.event-color-purple {
-  background-color: #1a1a1a !important;
+  background-color: #404040 !important;
   color: #ffffff !important;
   border: 1px solid #000000 !important;
 }

@@ -551,7 +551,14 @@ const CalendarView = ({
                     }
 
                     const { plan, prod, prodName, dayLabel, fullTitle, dayClass, planIdx } = evt;
-                    const eventColor = prod?.color || ['blue', 'purple', 'green', 'orange', 'pink'][planIdx % 5];
+                    let eventColor = prod?.color;
+                    if (prodName.includes('머드') && (!eventColor || eventColor === 'blue')) {
+                      eventColor = 'black';
+                    } else if (prodName.includes('위시') && (!eventColor || eventColor === 'black')) {
+                      eventColor = 'blue';
+                    } else if (!eventColor) {
+                      eventColor = ['blue', 'black', 'purple', 'brown', 'indigo', 'orange', 'red', 'pink', 'teal', 'green', 'gray', 'yellow'][planIdx % 12];
+                    }
                     const isSelected = selectedPlan?.id === plan.id;
                     const isDimmed = selectedPlan && selectedPlan.id !== plan.id;
 
