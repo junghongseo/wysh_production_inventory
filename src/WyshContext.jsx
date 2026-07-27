@@ -13,7 +13,8 @@ import {
   pushReportToSupabase,
   deleteReportFromSupabase,
   pushShippingChartToSupabase,
-  deleteShippingChartFromSupabase
+  deleteShippingChartFromSupabase,
+  pushBannerSettingsToSupabase
 } from './services/supabaseService';
 
 const WyshContext = createContext();
@@ -53,6 +54,7 @@ export const WyshProvider = ({ children }) => {
     } catch (e) {
       console.error('Failed to save banner settings to localStorage:', e);
     }
+    pushBannerSettingsToSupabase(updated);
   };
 
   const resetBannerSettings = () => {
@@ -62,6 +64,7 @@ export const WyshProvider = ({ children }) => {
     } catch (e) {
       console.error('Failed to reset banner settings in localStorage:', e);
     }
+    pushBannerSettingsToSupabase(DEFAULT_BANNER_SETTINGS);
   };
 
   // Initialize data from LocalStorage and start Realtime sync
@@ -126,8 +129,18 @@ export const WyshProvider = ({ children }) => {
         mappedInventory,
         mappedCalendarNotes,
         mappedReports,
-        mappedShippingCharts
+        mappedShippingCharts,
+        remoteBannerSettings
       } = await fetchAllRemoteData();
+
+      if (remoteBannerSettings) {
+        setBannerSettings(remoteBannerSettings);
+        try {
+          localStorage.setItem('wysh_banner_settings', JSON.stringify(remoteBannerSettings));
+        } catch (e) {
+          console.error('Failed to sync remote banner settings to localStorage:', e);
+        }
+      }
 
       const localInitial = loadInitialLocalStorageData();
 

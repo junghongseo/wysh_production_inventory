@@ -17,16 +17,27 @@ export const fetchAllRemoteData = async () => {
   if (errInventory) throw errInventory;
 
   let mappedCalendarNotes = [];
+  let remoteBannerSettings = null;
   try {
     const { data: remoteNotes, error: errNotes } = await supabase.from('calendar_notes').select('*');
     if (errNotes) {
       console.warn("Supabase Fetch Warn: calendar_notes query failed, maybe table is not created yet.", errNotes);
     } else if (remoteNotes) {
-      mappedCalendarNotes = remoteNotes.map(n => ({
-        dateStr: n.date_str,
-        title: n.title,
-        content: n.content
-      }));
+      const bannerNote = remoteNotes.find(n => n.date_str === '__banner_settings__');
+      if (bannerNote && bannerNote.content) {
+        try {
+          remoteBannerSettings = JSON.parse(bannerNote.content);
+        } catch (e) {
+          console.warn("Failed to parse remote banner settings:", e);
+        }
+      }
+      mappedCalendarNotes = remoteNotes
+        .filter(n => n.date_str !== '__banner_settings__')
+        .map(n => ({
+          dateStr: n.date_str,
+          title: n.title,
+          content: n.content
+        }));
     }
   } catch (errNotesFetch) {
     console.warn("Supabase Fetch Warning (calendar_notes):", errNotesFetch);
@@ -175,8 +186,27 @@ export const fetchAllRemoteData = async () => {
     mappedInventory,
     mappedCalendarNotes,
     mappedReports,
-    mappedShippingCharts
+    mappedShippingCharts,
+    remoteBannerSettings
   };
+};
+
+export const pushBannerSettingsToSupabase = async (bannerSettings) => {
+  if (!supabase || !bannerSettings) return;
+  try {
+    const { error } = await supabase.from('calendar_notes').upsert({
+      date_str: '__banner_settings__',
+      title: 'banner_settings',
+      content: JSON.stringify(bannerSettings)
+    }, { onConflict: 'date_str' });
+    if (error) {
+      console.warn("Failed to push banner settings to Supabase:", error);
+    } else {
+      console.log("Successfully synced banner settings to Supabase cloud DB.");
+    }
+  } catch (err) {
+    console.warn("Error pushing banner settings to Supabase:", err);
+  }
 };
 
 export const pushShippingChartToSupabase = async (chart) => {
