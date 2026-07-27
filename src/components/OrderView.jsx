@@ -40,9 +40,16 @@ const OrderView = () => {
 
   // Section 3 (Analytics) states
   const [analyticsRange, setAnalyticsRange] = useState('14'); // '7' | '14' | '30' | 'all'
+  const [tablePageSize, setTablePageSize] = useState(10); // 10 | 15
+  const [tableCurrentPage, setTableCurrentPage] = useState(1);
 
   const captureRef = useRef(null);
   const viewCaptureRef = useRef(null);
+
+  // Reset page number to 1 when range or page size changes
+  React.useEffect(() => {
+    setTableCurrentPage(1);
+  }, [analyticsRange, tablePageSize]);
 
   // Synchronize Section 2 selected chart data when date changes
   const activeViewChart = useMemo(() => {
@@ -434,7 +441,7 @@ const OrderView = () => {
     printWindow.document.close();
   }, []);
 
-  // Filtered Shipping Charts for Section 3 Analytics
+  // Filtered Shipping Charts for Section 3 Analytics (Chronological for charts)
   const filteredAnalyticsCharts = useMemo(() => {
     if (!shippingCharts || shippingCharts.length === 0) return [];
     const sorted = [...shippingCharts].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
@@ -444,7 +451,12 @@ const OrderView = () => {
     return sorted.slice(-days);
   }, [shippingCharts, analyticsRange]);
 
-  // Total Quantity Breakdown Aggregation for Section 3 Donut Chart
+  // Sorted Shipping Charts for Section 3 Detailed Table (Date Descending: 최신 날짜순)
+  const sortedAnalyticsTableData = useMemo(() => {
+    return [...filteredAnalyticsCharts].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  }, [filteredAnalyticsCharts]);
+
+  // Total Quantity Breakdown Aggregation for Section 3 Donut Chart & Table Summary
   const overallBreakdown = useMemo(() => {
     let tot1 = 0;
     let tot2 = 0;
@@ -464,11 +476,22 @@ const OrderView = () => {
     const p2 = (tot2 / sumCounts) * 100;
     const p3 = (tot3Plus / sumCounts) * 100;
 
+    const totalDaysCount = filteredAnalyticsCharts.length;
+    const avgTotalOrders = totalDaysCount > 0 ? (grandTotalOrders / totalDaysCount).toFixed(1) : '0';
+    const avgCount1 = totalDaysCount > 0 ? (tot1 / totalDaysCount).toFixed(1) : '0';
+    const avgCount2 = totalDaysCount > 0 ? (tot2 / totalDaysCount).toFixed(1) : '0';
+    const avgCount3Plus = totalDaysCount > 0 ? (tot3Plus / totalDaysCount).toFixed(1) : '0';
+
     return {
       tot1,
       tot2,
       tot3Plus,
-      grandTotalOrders: sumCounts,
+      grandTotalOrders,
+      totalDaysCount,
+      avgTotalOrders,
+      avgCount1,
+      avgCount2,
+      avgCount3Plus,
       p1: p1.toFixed(1),
       p2: p2.toFixed(1),
       p3: p3.toFixed(1),
@@ -477,6 +500,13 @@ const OrderView = () => {
       rawP3: p3
     };
   }, [filteredAnalyticsCharts]);
+
+  // Pagination for Section 3 Table
+  const totalPages = Math.ceil(sortedAnalyticsTableData.length / tablePageSize) || 1;
+  const pagedTableData = useMemo(() => {
+    const startIdx = (tableCurrentPage - 1) * tablePageSize;
+    return sortedAnalyticsTableData.slice(startIdx, startIdx + tablePageSize);
+  }, [sortedAnalyticsTableData, tableCurrentPage, tablePageSize]);
 
   return (
     <div className="inventory-layout" style={{ width: '100%', maxWidth: '100%', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -1197,7 +1227,7 @@ const OrderView = () => {
               📊 3. 출고 동향 및 수량별 비중 분석
             </h3>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '4px' }}>
-              일자별 총 출고 건수 추이와 1개·2개·3개 이상 주문 수량의 통합 비중을 원형(도넛) 차트로 분석합니다.
+              일자별 총 출고 건수 추이와 1개·2개·3개 이상 주문 수량의 통합 비중을 원형(도넛) 차트 및 세부 통계로 분석합니다.
             </p>
           </div>
 
@@ -1396,25 +1426,103 @@ const OrderView = () => {
               </div>
             </div>
 
-            {/* Detailed Data Table */}
+            {/* Detailed Data Table (With Pagination & Period Summary Rows) */}
             <div style={{ backgroundColor: 'var(--bg-card)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-              <h4 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '10px', color: 'var(--text-primary)' }}>
-                📋 날짜별 주문 수량 구성 세부 데이터
-              </h4>
+              
+              {/* Table Header Controls (Title + Page Size + Pagination Controls) */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
+                <div>
+                  <h4 style={{ fontSize: '0.98rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    📋 날짜별 주문 수량 구성 세부 데이터
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                      (총 {sortedAnalyticsTableData.length}일 / 최신 날짜순)
+                    </span>
+                  </h4>
+                </div>
 
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+                  {/* Page Size Selector */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.8rem' }}>
+                    <span style={{ color: 'var(--text-secondary)', fontWeight: 500 }}>표시 개수:</span>
+                    {[10, 15].map(size => (
+                      <button
+                        key={size}
+                        onClick={() => setTablePageSize(size)}
+                        style={{
+                          padding: '2px 8px',
+                          borderRadius: '4px',
+                          border: tablePageSize === size ? '1px solid var(--color-primary)' : '1px solid var(--border-color)',
+                          backgroundColor: tablePageSize === size ? 'rgba(2, 132, 199, 0.12)' : 'transparent',
+                          color: tablePageSize === size ? 'var(--color-primary)' : 'var(--text-secondary)',
+                          fontSize: '0.75rem',
+                          fontWeight: tablePageSize === size ? 700 : 500,
+                          cursor: 'pointer'
+                        }}
+                      >
+                        {size}개씩
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Pagination Buttons */}
+                  {totalPages > 1 && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <button
+                        onClick={() => setTableCurrentPage(prev => Math.max(prev - 1, 1))}
+                        disabled={tableCurrentPage === 1}
+                        style={{
+                          padding: '3px 8px',
+                          borderRadius: '4px',
+                          border: '1px solid var(--border-color)',
+                          backgroundColor: 'transparent',
+                          color: tableCurrentPage === 1 ? 'var(--text-secondary)' : 'var(--text-primary)',
+                          opacity: tableCurrentPage === 1 ? 0.4 : 1,
+                          fontSize: '0.78rem',
+                          cursor: tableCurrentPage === 1 ? 'default' : 'pointer'
+                        }}
+                      >
+                        ◀ 이전
+                      </button>
+
+                      <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-primary)', padding: '0 6px' }}>
+                        {tableCurrentPage} / {totalPages}
+                      </span>
+
+                      <button
+                        onClick={() => setTableCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                        disabled={tableCurrentPage === totalPages}
+                        style={{
+                          padding: '3px 8px',
+                          borderRadius: '4px',
+                          border: '1px solid var(--border-color)',
+                          backgroundColor: 'transparent',
+                          color: tableCurrentPage === totalPages ? 'var(--text-secondary)' : 'var(--text-primary)',
+                          opacity: tableCurrentPage === totalPages ? 0.4 : 1,
+                          fontSize: '0.78rem',
+                          cursor: tableCurrentPage === totalPages ? 'default' : 'pointer'
+                        }}
+                      >
+                        다음 ▶
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Table Render */}
               <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
                   <thead>
                     <tr style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '2px solid var(--border-color)' }}>
-                      <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700 }}>날짜</th>
-                      <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700 }}>총 주문건수</th>
-                      <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: '#0284c7' }}>1개 주문</th>
-                      <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: '#0d9488' }}>2개 주문</th>
-                      <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: '#8b5cf6' }}>3개 이상</th>
+                      <th style={{ padding: '9px 10px', textAlign: 'left', fontWeight: 700 }}>날짜</th>
+                      <th style={{ padding: '9px 10px', textAlign: 'right', fontWeight: 700 }}>총 주문건수</th>
+                      <th style={{ padding: '9px 10px', textAlign: 'right', fontWeight: 700, color: '#0284c7' }}>1개 주문</th>
+                      <th style={{ padding: '9px 10px', textAlign: 'right', fontWeight: 700, color: '#0d9488' }}>2개 주문</th>
+                      <th style={{ padding: '9px 10px', textAlign: 'right', fontWeight: 700, color: '#8b5cf6' }}>3개 이상</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredAnalyticsCharts.map((c) => {
+                    {pagedTableData.map((c) => {
                       const bk = c.qtyBreakdown || { count1: 0, count2: 0, count3Plus: 0, percent1: '0%', percent2: '0%', percent3Plus: '0%' };
                       return (
                         <tr key={c.date} style={{ borderBottom: '1px solid var(--border-color)' }}>
@@ -1433,8 +1541,105 @@ const OrderView = () => {
                       );
                     })}
                   </tbody>
+
+                  {/* Summary & Average Bottom Footer Rows */}
+                  <tfoot>
+                    {/* Row 1: Period Total Summary */}
+                    <tr style={{ backgroundColor: 'rgba(2, 132, 199, 0.06)', borderTop: '2px solid var(--color-primary)', fontWeight: 'bold' }}>
+                      <td style={{ padding: '9px 10px', textAlign: 'left', color: 'var(--text-primary)' }}>
+                        Σ 조회 기간 총 합계 ({overallBreakdown.totalDaysCount}일)
+                      </td>
+                      <td style={{ padding: '9px 10px', textAlign: 'right', color: 'var(--text-primary)', fontSize: '0.88rem' }}>
+                        {overallBreakdown.grandTotalOrders}건
+                      </td>
+                      <td style={{ padding: '9px 10px', textAlign: 'right', color: '#0284c7' }}>
+                        {overallBreakdown.tot1}건 ({overallBreakdown.p1}%)
+                      </td>
+                      <td style={{ padding: '9px 10px', textAlign: 'right', color: '#0d9488' }}>
+                        {overallBreakdown.tot2}건 ({overallBreakdown.p2}%)
+                      </td>
+                      <td style={{ padding: '9px 10px', textAlign: 'right', color: '#8b5cf6' }}>
+                        {overallBreakdown.tot3Plus}건 ({overallBreakdown.p3}%)
+                      </td>
+                    </tr>
+
+                    {/* Row 2: Period Daily Average Summary */}
+                    <tr style={{ backgroundColor: 'rgba(13, 148, 136, 0.08)', borderTop: '1px solid rgba(13, 148, 136, 0.3)', fontWeight: 'bold' }}>
+                      <td style={{ padding: '9px 10px', textAlign: 'left', color: '#0f766e' }}>
+                        📊 조회 기간 일평균 (Daily Avg)
+                      </td>
+                      <td style={{ padding: '9px 10px', textAlign: 'right', color: '#0f766e', fontSize: '0.88rem' }}>
+                        평균 {overallBreakdown.avgTotalOrders}건/일
+                      </td>
+                      <td style={{ padding: '9px 10px', textAlign: 'right', color: '#0284c7' }}>
+                        평균 {overallBreakdown.avgCount1}건
+                      </td>
+                      <td style={{ padding: '9px 10px', textAlign: 'right', color: '#0d9488' }}>
+                        평균 {overallBreakdown.avgCount2}건
+                      </td>
+                      <td style={{ padding: '9px 10px', textAlign: 'right', color: '#8b5cf6' }}>
+                        평균 {overallBreakdown.avgCount3Plus}건
+                      </td>
+                    </tr>
+                  </tfoot>
                 </table>
               </div>
+
+              {/* Bottom Pagination Bar */}
+              {totalPages > 1 && (
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '6px', marginTop: '14px' }}>
+                  <button
+                    onClick={() => setTableCurrentPage(1)}
+                    disabled={tableCurrentPage === 1}
+                    style={{
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      border: '1px solid var(--border-color)',
+                      backgroundColor: 'transparent',
+                      fontSize: '0.78rem',
+                      cursor: tableCurrentPage === 1 ? 'default' : 'pointer',
+                      opacity: tableCurrentPage === 1 ? 0.4 : 1
+                    }}
+                  >
+                    처음
+                  </button>
+
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                    <button
+                      key={page}
+                      onClick={() => setTableCurrentPage(page)}
+                      style={{
+                        padding: '4px 9px',
+                        borderRadius: '4px',
+                        border: tableCurrentPage === page ? '1px solid var(--color-primary)' : '1px solid var(--border-color)',
+                        backgroundColor: tableCurrentPage === page ? 'var(--color-primary)' : 'transparent',
+                        color: tableCurrentPage === page ? '#ffffff' : 'var(--text-primary)',
+                        fontSize: '0.78rem',
+                        fontWeight: tableCurrentPage === page ? 700 : 500,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {page}
+                    </button>
+                  ))}
+
+                  <button
+                    onClick={() => setTableCurrentPage(totalPages)}
+                    disabled={tableCurrentPage === totalPages}
+                    style={{
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      border: '1px solid var(--border-color)',
+                      backgroundColor: 'transparent',
+                      fontSize: '0.78rem',
+                      cursor: tableCurrentPage === totalPages ? 'default' : 'pointer',
+                      opacity: tableCurrentPage === totalPages ? 0.4 : 1
+                    }}
+                  >
+                    끝
+                  </button>
+                </div>
+              )}
             </div>
 
           </div>
