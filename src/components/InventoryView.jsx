@@ -94,10 +94,33 @@ const InventoryView = ({ onDeleteHistory, onOpenMemoModal, isAdminLoggedIn }) =>
         const plannedQty = it.totalQty || ( (it.expectedOrderQty || 0) + (it.marketingQty || 0) + (it.bufferQty || 0) );
         
         let itemActualQty = 0;
+        const confirmedBottlingReport = reports?.find(r => r.type === 'bottling' && r.planId === plan.id && r.confirmed);
+
         if (invRecord.itemActualQtys && invRecord.itemActualQtys[it.productId] !== undefined) {
           itemActualQty = invRecord.itemActualQtys[it.productId];
-        } else if (!isMultiItem && invRecord.actualQty !== undefined) {
+        } else if (!isMultiItem && invRecord.actualQty !== undefined && invRecord.actualQty !== plannedQty) {
           itemActualQty = invRecord.actualQty;
+        } else if (confirmedBottlingReport && confirmedBottlingReport.details) {
+          const d = confirmedBottlingReport.details;
+          if (d.isMultiItem) {
+            let matchedItem = null;
+            if (d.item1 && (d.item1.productId === it.productId || (!d.item1.productId && planItems[0]?.productId === it.productId))) {
+              matchedItem = d.item1;
+            } else if (d.item2 && (d.item2.productId === it.productId || (!d.item2.productId && planItems[1]?.productId === it.productId))) {
+              matchedItem = d.item2;
+            }
+            if (matchedItem) {
+              itemActualQty = matchedItem.stockedQty !== undefined 
+                ? matchedItem.stockedQty 
+                : Math.max(0, (matchedItem.count || 0) - (matchedItem.deduct || 0));
+            } else {
+              itemActualQty = plannedQty;
+            }
+          } else {
+            itemActualQty = d.actualStockedQty !== undefined 
+              ? d.actualStockedQty 
+              : Math.max(0, (d.count || 0) - (d.deduct || 0));
+          }
         } else if (isReportConfirmed) {
           itemActualQty = plannedQty;
         }

@@ -456,7 +456,7 @@ const ReportsView = () => {
       return {
         isMultiItem: true,
         item1: {
-          productId: prod1.id,
+          productId: item1?.productId || prod1.id,
           productName: prod1.name || '품목 1',
           count: count1,
           remainsG: remains1G,
@@ -468,7 +468,7 @@ const ReportsView = () => {
           expiryDate: expiryDate1
         },
         item2: {
-          productId: prod2.id,
+          productId: item2?.productId || prod2.id,
           productName: prod2.name || '품목 2',
           count: count2,
           remainsG: remains2G,

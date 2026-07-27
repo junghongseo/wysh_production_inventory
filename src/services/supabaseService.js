@@ -295,6 +295,7 @@ export const pushInventoryToSupabase = async (record) => {
     const dbInventory = {
       plan_id: record.planId,
       actual_qty: record.actualQty,
+      item_actual_qtys: record.itemActualQtys || {},
       history: record.history
     };
     const { error } = await supabase.from('inventory').upsert(dbInventory);
