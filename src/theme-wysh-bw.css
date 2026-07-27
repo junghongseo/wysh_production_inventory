@@ -377,7 +377,9 @@ body[data-theme="wysh-bw"],
   border: 1px solid #aaaaaa !important;
 }
 
-/* High-contrast event color variations for multi-product schedule distinction */
+/* High-contrast multi-shade greyscale color variations for distinct product schedule bars in WYSH B&W mode */
+
+/* 1. Solid Deep Black (검정) */
 [data-theme="wysh-bw"] .calendar-event.event-color-blue,
 [data-theme="wysh-bw"] .calendar-event.event-color-black {
   background-color: #000000 !important;
@@ -385,26 +387,79 @@ body[data-theme="wysh-bw"],
   border: 1px solid #000000 !important;
 }
 
-[data-theme="wysh-bw"] .calendar-event.event-color-purple,
-[data-theme="wysh-bw"] .calendar-event.event-color-orange {
-  background-color: #222222 !important;
+/* 2. Very Dark Charcoal (아주 짙은 차콜 회색) */
+[data-theme="wysh-bw"] .calendar-event.event-color-purple {
+  background-color: #1a1a1a !important;
   color: #ffffff !important;
   border: 1px solid #000000 !important;
 }
 
-[data-theme="wysh-bw"] .calendar-event.event-color-green,
-[data-theme="wysh-bw"] .calendar-event.event-color-teal {
-  background-color: #ffffff !important;
-  color: #000000 !important;
+/* 3. Dark Charcoal (짙은 차콜 회색) */
+[data-theme="wysh-bw"] .calendar-event.event-color-brown {
+  background-color: #333333 !important;
+  color: #ffffff !important;
+  border: 1px solid #000000 !important;
+}
+
+/* 4. Dark Slate (짙은 슬레이트 회색) */
+[data-theme="wysh-bw"] .calendar-event.event-color-indigo {
+  background-color: #4a4a4a !important;
+  color: #ffffff !important;
+  border: 1px solid #000000 !important;
+}
+
+/* 5. Sub-Ingredient / Medium Dark Grey (중간 짙은 회색 + 두꺼운 테두리) */
+[data-theme="wysh-bw"] .calendar-event.event-color-orange,
+[data-theme="wysh-bw"] .calendar-event.event-day-sub {
+  background-color: #616161 !important;
+  color: #ffffff !important;
   border: 1.5px solid #000000 !important;
 }
 
-[data-theme="wysh-bw"] .calendar-event.event-color-pink,
-[data-theme="wysh-bw"] .calendar-event.event-color-red,
-[data-theme="wysh-bw"] .calendar-event.event-color-yellow {
-  background-color: #f0f0f0 !important;
+/* 6. Neutral Mid Grey (중간 회색) */
+[data-theme="wysh-bw"] .calendar-event.event-color-red {
+  background-color: #7a7a7a !important;
+  color: #ffffff !important;
+  border: 1px solid #000000 !important;
+}
+
+/* 7. Light Medium Grey (밝은 중간 회색) */
+[data-theme="wysh-bw"] .calendar-event.event-color-pink {
+  background-color: #949494 !important;
+  color: #ffffff !important;
+  border: 1px solid #000000 !important;
+}
+
+/* 8. Muted Slate Grey (차분한 밝은 회색) */
+[data-theme="wysh-bw"] .calendar-event.event-color-teal {
+  background-color: #b0b0b0 !important;
   color: #000000 !important;
   border: 1px solid #000000 !important;
+  font-weight: 700 !important;
+}
+
+/* 9. Soft Light Grey (부드러운 밝은 회색) */
+[data-theme="wysh-bw"] .calendar-event.event-color-green {
+  background-color: #cccccc !important;
+  color: #000000 !important;
+  border: 1px solid #000000 !important;
+  font-weight: 700 !important;
+}
+
+/* 10. Crisp Light Grey (선명한 옅은 회색) */
+[data-theme="wysh-bw"] .calendar-event.event-color-gray {
+  background-color: #e0e0e0 !important;
+  color: #000000 !important;
+  border: 1px solid #000000 !important;
+  font-weight: 800 !important;
+}
+
+/* 11. Very Light Off-White Grey (아주 옅은 회색) */
+[data-theme="wysh-bw"] .calendar-event.event-color-yellow {
+  background-color: #f2f2f2 !important;
+  color: #000000 !important;
+  border: 1px solid #000000 !important;
+  font-weight: 800 !important;
 }
 
 /* Calendar Day Tags & Badges */
