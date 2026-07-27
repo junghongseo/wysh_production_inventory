@@ -494,7 +494,7 @@ const OrderView = () => {
       >
         
         {/* ------------------------------------------------------------------------- */}
-        {/* 영역 1: 주문 자동 정리 및 공식 출고표 반영 (Top Left Column) */}
+        {/* 영역 1: 주문 정리 및 공식 출고표 반영 (Top Left Column) */}
         {/* ------------------------------------------------------------------------- */}
         <section className="glass-card" style={{ padding: '24px 20px', height: '100%', boxSizing: 'border-box' }}>
           <div className="inventory-header-row" style={{ marginBottom: '12px' }}>

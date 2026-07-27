@@ -19,7 +19,7 @@ const UserManualView = () => {
     { id: 'calendar', label: '1. 생산 일정 & 배합표', icon: '📅' },
     { id: 'reports', label: '2. 리포트 작성 (3단계)', icon: '📝' },
     { id: 'inventory', label: '3. 차수별 재고 관리', icon: '📦' },
-    { id: 'order', label: '4. 주문 자동 정리', icon: '🛒' },
+    { id: 'order', label: '4. 주문 정리 및 분석', icon: '🛒' },
     { id: 'recipes', label: '5. 제품 & 레시피 설정 (관리자)', icon: '⚙️', adminOnly: true },
     { id: 'ai', label: '6. AI 생산 매니저', icon: '✨' }
   ];
@@ -241,9 +241,9 @@ const UserManualView = () => {
       id: 'ord-1',
       categoryId: 'order',
       mode: 'all',
-      title: '🛒 주문 자동 정리 및 재고 적정성 확인',
-      summary: '복사한 주문 텍스트를 붙여넣어 주문 정보와 재고 수량을 자동 비교합니다.',
-      tags: ['주문 자동 정리', '주문 파싱', '주문자명', '재고 비교', '발주 점검'],
+      title: '🛒 주문 정리 및 분석 (출고표 반영 & 수량 분석)',
+      summary: '엑셀 주문서를 포장 유형별로 집계하고, 일별 공식 출고표 반영 및 통합 출고/수량 비중 동향을 분석합니다.',
+      tags: ['주문 정리 및 분석', '공식 출고표', '엑셀 정리', '수량 분석', '도넛 차트'],
       content: [
         {
           heading: '🔘 사용 방법 및 기능',

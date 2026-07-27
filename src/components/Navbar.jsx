@@ -99,7 +99,7 @@ const Navbar = ({ activeTab, setActiveTab, isAdminLoggedIn }) => {
           <line x1="16" y1="17" x2="8" y2="17"></line>
           <polyline points="10 9 9 9 8 9"></polyline>
         </svg>
-        주문 자동 정리
+        주문 정리 및 분석
       </button>
       {isAdminLoggedIn && (
         <button 
