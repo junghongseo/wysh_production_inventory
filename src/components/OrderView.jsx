@@ -654,6 +654,7 @@ const OrderView = () => {
                   </span>
                   <input
                     type="date"
+                    className="order-date-picker-input"
                     value={targetDate}
                     onChange={(e) => {
                       setTargetDate(e.target.value);
@@ -924,6 +925,7 @@ const OrderView = () => {
               <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>조회 일자:</span>
               <input
                 type="date"
+                className="order-date-picker-input"
                 value={selectedViewDate}
                 onChange={(e) => setSelectedViewDate(e.target.value)}
                 style={{
@@ -944,6 +946,7 @@ const OrderView = () => {
               {shippingCharts.slice(0, 8).map((c) => (
                 <button
                   key={c.date}
+                  className={`order-date-quick-btn ${selectedViewDate === c.date ? 'active' : ''}`}
                   onClick={() => setSelectedViewDate(c.date)}
                   style={{
                     padding: '3px 8px',
@@ -1034,6 +1037,7 @@ const OrderView = () => {
                 >
                   <input 
                     type="text" 
+                    className="shipping-table-title-input"
                     value={viewTitle} 
                     onChange={(e) => setViewTitle(e.target.value)} 
                     style={{

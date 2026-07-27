@@ -1,5 +1,6 @@
 /* WYSH Production & Inventory Management Design System (Light Mode) */
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&family=Outfit:wght@300;400;500;600;700&display=swap');
+@import './theme-wysh-bw.css';
 
 :root {
     --bg-primary: #f8fafc;            /* Slate 50 */
@@ -1750,6 +1751,58 @@ button svg * {
   .manual-grid-container {
     grid-template-columns: 1fr !important;
   }
+}
+
+/* WyshTopBanner Default (Classic Light) Styling */
+.wysh-top-banner-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  z-index: 1000;
+  font-family: var(--font-sans);
+}
+
+.wysh-top-announcement-bar {
+  background: #0f172a;
+  color: #ffffff;
+  text-align: center;
+  padding: 8px 16px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.wysh-marquee-ticker-bar {
+  background: #f1f5f9;
+  color: #334155;
+  border-bottom: 1px solid var(--border-color);
+  padding: 6px 0;
+  overflow: hidden;
+  white-space: nowrap;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.wysh-marquee-track {
+  display: inline-flex;
+  align-items: center;
+  gap: 24px;
+  animation: bannerMarquee 30s linear infinite;
+  padding-left: 100%;
+}
+
+.ticker-separator {
+  color: var(--text-muted);
+  font-size: 0.65rem;
+}
+
+@keyframes bannerMarquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-100%); }
 }
 
 

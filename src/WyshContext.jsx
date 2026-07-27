@@ -29,6 +29,41 @@ export const WyshProvider = ({ children }) => {
   const [isDbConnected, setIsDbConnected] = useState(false);
   const [dbError, setDbError] = useState(null);
 
+  const DEFAULT_BANNER_SETTINGS = {
+    topBannerText: '평일 오전 10시 이전 주문 시 당일 발송 🚚',
+    tickerBannerText: 'WYSH PRODUCTION & INVENTORY SYSTEM • 카카오톡 채널 추가 시 배송비 무료 쿠폰 증정 [CLICK] • 실시간 차수별 재고 및 출고 관리 가동 중 [SYSTEM ONLINE]',
+    topBannerEnabled: true,
+    tickerBannerEnabled: true
+  };
+
+  const [bannerSettings, setBannerSettings] = useState(() => {
+    try {
+      const saved = localStorage.getItem('wysh_banner_settings');
+      return saved ? JSON.parse(saved) : DEFAULT_BANNER_SETTINGS;
+    } catch {
+      return DEFAULT_BANNER_SETTINGS;
+    }
+  });
+
+  const updateBannerSettings = (newSettings) => {
+    const updated = { ...bannerSettings, ...newSettings };
+    setBannerSettings(updated);
+    try {
+      localStorage.setItem('wysh_banner_settings', JSON.stringify(updated));
+    } catch (e) {
+      console.error('Failed to save banner settings to localStorage:', e);
+    }
+  };
+
+  const resetBannerSettings = () => {
+    setBannerSettings(DEFAULT_BANNER_SETTINGS);
+    try {
+      localStorage.setItem('wysh_banner_settings', JSON.stringify(DEFAULT_BANNER_SETTINGS));
+    } catch (e) {
+      console.error('Failed to reset banner settings in localStorage:', e);
+    }
+  };
+
   // Initialize data from LocalStorage and start Realtime sync
   useEffect(() => {
     const initialData = loadInitialLocalStorageData();
@@ -689,6 +724,9 @@ export const WyshProvider = ({ children }) => {
     shippingCharts,
     saveShippingChart,
     deleteShippingChart,
+    bannerSettings,
+    updateBannerSettings,
+    resetBannerSettings,
     isAdminLoggedIn,
     loginAdmin,
     logoutAdmin,
@@ -702,6 +740,9 @@ export const WyshProvider = ({ children }) => {
     reports,
     shippingCharts,
     loading,
+    bannerSettings,
+    updateBannerSettings,
+    resetBannerSettings,
     addProduct,
     updateProduct,
     deleteProduct,

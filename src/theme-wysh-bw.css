@@ -1,0 +1,522 @@
+/* WYSH Black & White Mall Concept Theme */
+
+[data-theme="wysh-bw"] {
+  --bg-primary: #ffffff;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f8f8f8;
+  --border-color: #000000;
+  --border-highlight: #111111;
+
+  --text-primary: #000000;
+  --text-secondary: #222222;
+  --text-muted: #666666;
+
+  --color-primary: #000000;
+  --color-primary-rgb: 0, 0, 0;
+  --color-success: #000000;
+  --color-success-rgb: 0, 0, 0;
+  --color-warning: #333333;
+  --color-warning-rgb: 51, 51, 51;
+  --color-accent: #000000;
+  --color-accent-rgb: 0, 0, 0;
+  --color-danger: #000000;
+  --color-danger-rgb: 0, 0, 0;
+
+  --glass-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+}
+
+/* Global Reset & Body for WYSH B&W Theme */
+html[data-theme="wysh-bw"],
+body[data-theme="wysh-bw"],
+[data-theme="wysh-bw"] body {
+  background-color: #ffffff !important;
+  background-image: none !important;
+  color: #000000 !important;
+  font-family: 'Outfit', 'Noto Sans KR', sans-serif !important;
+}
+
+/* Compact Theme Toggle Switch (Dark mode style) */
+.compact-theme-switch-wrapper {
+  display: flex;
+  align-items: center;
+}
+
+.theme-toggle-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #ffffff;
+  border: 1.5px solid #000000;
+  padding: 5px 12px 5px 6px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-family: 'Outfit', 'Noto Sans KR', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #000000;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+}
+
+.theme-toggle-switch:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.switch-track {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  transition: all 0.25s ease;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.theme-toggle-switch.is-bw {
+  background: #000000;
+  color: #ffffff;
+  border-color: #000000;
+}
+
+.theme-toggle-switch.is-bw .switch-track {
+  background: #222222;
+  border-color: #444444;
+}
+
+.switch-text {
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+/* Header Styling for WYSH B&W */
+[data-theme="wysh-bw"] .app-header {
+  border-bottom: 2px solid #000000;
+  padding-bottom: 20px;
+  background: #ffffff;
+}
+
+[data-theme="wysh-bw"] .brand-logo {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border-radius: 6px !important;
+  box-shadow: 2px 2px 0px #000000 !important;
+  font-family: 'Outfit', sans-serif !important;
+  letter-spacing: 2px !important;
+  font-weight: 900 !important;
+  width: 44px !important;
+  height: 44px !important;
+  border: 1.5px solid #000000 !important;
+  padding: 2px !important;
+}
+
+[data-theme="wysh-bw"] .brand-logo img {
+  filter: none !important;
+  object-fit: contain !important;
+}
+
+[data-theme="wysh-bw"] .brand-title-group h1 {
+  font-family: 'Outfit', 'Noto Sans KR', sans-serif !important;
+  background: none !important;
+  -webkit-text-fill-color: initial !important;
+  color: #000000 !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.5px !important;
+}
+
+[data-theme="wysh-bw"] .brand-title-group p {
+  color: #333333 !important;
+  font-weight: 500 !important;
+}
+
+/* Stat Cards Widget */
+[data-theme="wysh-bw"] .stat-mini-card {
+  background: #ffffff !important;
+  border: 1px solid #000000 !important;
+  border-radius: 4px !important;
+  box-shadow: 2px 2px 0px #000000 !important;
+}
+
+[data-theme="wysh-bw"] .stat-mini-card .label {
+  color: #555555 !important;
+  font-weight: 600 !important;
+}
+
+[data-theme="wysh-bw"] .stat-mini-card .value {
+  color: #000000 !important;
+  font-weight: 800 !important;
+}
+
+/* Navigation Tabs */
+[data-theme="wysh-bw"] .app-nav {
+  background: #ffffff !important;
+  border: 1.5px solid #000000 !important;
+  border-radius: 6px !important;
+  box-shadow: 3px 3px 0px #000000 !important;
+  padding: 4px !important;
+}
+
+[data-theme="wysh-bw"] .nav-tab {
+  color: #222222 !important;
+  font-weight: 600 !important;
+  border-radius: 4px !important;
+  transition: all 0.15s ease !important;
+  border: 1px solid transparent !important;
+}
+
+[data-theme="wysh-bw"] .nav-tab:hover {
+  background: #f0f0f0 !important;
+  color: #000000 !important;
+}
+
+[data-theme="wysh-bw"] .nav-tab.active {
+  background: #000000 !important;
+  color: #ffffff !important;
+  box-shadow: none !important;
+  border: 1px solid #000000 !important;
+}
+
+/* Cards & Containers */
+[data-theme="wysh-bw"] .glass-card,
+[data-theme="wysh-bw"] .card,
+[data-theme="wysh-bw"] .inventory-section,
+[data-theme="wysh-bw"] .calendar-container,
+[data-theme="wysh-bw"] .order-container,
+[data-theme="wysh-bw"] .report-card {
+  background: #ffffff !important;
+  backdrop-filter: none !important;
+  border: 1.5px solid #000000 !important;
+  border-radius: 6px !important;
+  box-shadow: 4px 4px 0px #000000 !important;
+}
+
+/* Enhanced High-Contrast E-Commerce Button Styling for WYSH B&W */
+[data-theme="wysh-bw"] button,
+[data-theme="wysh-bw"] .btn {
+  font-family: 'Outfit', 'Noto Sans KR', sans-serif !important;
+  border-radius: 5px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.4px !important;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* Primary Solid Black Buttons (e.g. Plan Add, Confirm, Login, Submit, Main Actions) */
+[data-theme="wysh-bw"] .btn-primary,
+[data-theme="wysh-bw"] .btn-success,
+[data-theme="wysh-bw"] .btn-add,
+[data-theme="wysh-bw"] .btn-submit,
+[data-theme="wysh-bw"] .btn-accent,
+[data-theme="wysh-bw"] .action-btn-primary,
+[data-theme="wysh-bw"] button.btn-primary,
+[data-theme="wysh-bw"] .header-controls-group button.btn-primary {
+  background: #000000 !important;
+  background-image: none !important;
+  color: #ffffff !important;
+  border: 1.5px solid #000000 !important;
+  box-shadow: 3px 3px 0px #000000 !important;
+}
+
+[data-theme="wysh-bw"] .btn-primary:hover,
+[data-theme="wysh-bw"] .btn-success:hover,
+[data-theme="wysh-bw"] .btn-add:hover,
+[data-theme="wysh-bw"] .btn-submit:hover,
+[data-theme="wysh-bw"] .btn-accent:hover,
+[data-theme="wysh-bw"] .action-btn-primary:hover,
+[data-theme="wysh-bw"] button.btn-primary:hover,
+[data-theme="wysh-bw"] .header-controls-group button.btn-primary:hover {
+  background: #ffffff !important;
+  color: #000000 !important;
+  box-shadow: 1px 1px 0px #000000 !important;
+  transform: translate(2px, 2px) !important;
+}
+
+/* Secondary & Outline Buttons (e.g. Cancel, Edit, Filters, Export, Logout) */
+[data-theme="wysh-bw"] .btn-secondary,
+[data-theme="wysh-bw"] .btn-outline,
+[data-theme="wysh-bw"] .btn-cancel,
+[data-theme="wysh-bw"] .btn-reset,
+[data-theme="wysh-bw"] button.btn-secondary,
+[data-theme="wysh-bw"] .header-controls-group button.btn-secondary {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border: 1.5px solid #000000 !important;
+  box-shadow: 2px 2px 0px #000000 !important;
+}
+
+[data-theme="wysh-bw"] .btn-secondary:hover,
+[data-theme="wysh-bw"] .btn-outline:hover,
+[data-theme="wysh-bw"] .btn-cancel:hover,
+[data-theme="wysh-bw"] .btn-reset:hover,
+[data-theme="wysh-bw"] button.btn-secondary:hover,
+[data-theme="wysh-bw"] .header-controls-group button.btn-secondary:hover {
+  background: #000000 !important;
+  color: #ffffff !important;
+  box-shadow: 1px 1px 0px #000000 !important;
+  transform: translate(1px, 1px) !important;
+}
+
+/* Delete & Danger Action Buttons */
+[data-theme="wysh-bw"] .btn-danger,
+[data-theme="wysh-bw"] .btn-delete,
+[data-theme="wysh-bw"] .action-btn-danger {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border: 1.5px solid #000000 !important;
+  box-shadow: 2px 2px 0px #000000 !important;
+}
+
+[data-theme="wysh-bw"] .btn-danger:hover,
+[data-theme="wysh-bw"] .btn-delete:hover,
+[data-theme="wysh-bw"] .action-btn-danger:hover {
+  background: #000000 !important;
+  color: #ffffff !important;
+  box-shadow: 1px 1px 0px #000000 !important;
+  transform: translate(1px, 1px) !important;
+}
+
+/* Small Card & Plan Item Action Pills */
+[data-theme="wysh-bw"] .plan-item button,
+[data-theme="wysh-bw"] .inventory-item button,
+[data-theme="wysh-bw"] .item-action-btn {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border: 1px solid #000000 !important;
+  font-weight: 700 !important;
+  border-radius: 4px !important;
+  padding: 3px 8px !important;
+  font-size: 0.75rem !important;
+}
+
+[data-theme="wysh-bw"] .plan-item button:hover,
+[data-theme="wysh-bw"] .inventory-item button:hover,
+[data-theme="wysh-bw"] .item-action-btn:hover {
+  background: #000000 !important;
+  color: #ffffff !important;
+}
+
+/* Tables & Headers */
+[data-theme="wysh-bw"] table {
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+  border: 1px solid #000000 !important;
+  width: 100% !important;
+}
+
+[data-theme="wysh-bw"] th {
+  background: #000000 !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  border-bottom: 1.5px solid #000000 !important;
+  padding: 12px 16px !important;
+  text-transform: uppercase !important;
+  font-size: 0.82rem !important;
+  letter-spacing: 0.5px !important;
+}
+
+[data-theme="wysh-bw"] td {
+  border-bottom: 1px solid #000000 !important;
+  border-right: 1px solid #f0f0f0 !important;
+  color: #000000 !important;
+  padding: 12px 16px !important;
+}
+
+[data-theme="wysh-bw"] tr:hover td {
+  background-color: #f7f7f7 !important;
+}
+
+/* Calendar Grid & Elements */
+[data-theme="wysh-bw"] .calendar-day-header {
+  background: #000000 !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="wysh-bw"] .calendar-day-cell {
+  background: #ffffff !important;
+  border: 1px solid #000000 !important;
+}
+
+[data-theme="wysh-bw"] .calendar-day-cell.today {
+  background: #f4f4f4 !important;
+  border: 2px solid #000000 !important;
+}
+
+/* WYSH B&W Bold High-Contrast Calendar Schedule Bars */
+[data-theme="wysh-bw"] .calendar-event {
+  font-family: 'Outfit', 'Noto Sans KR', sans-serif !important;
+  font-weight: 700 !important;
+  border-radius: 3px !important;
+  box-shadow: 1px 1px 0px rgba(0, 0, 0, 0.15) !important;
+  transition: all 0.15s ease !important;
+  letter-spacing: 0.2px !important;
+}
+
+[data-theme="wysh-bw"] .calendar-event:hover {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  box-shadow: 2px 2px 0px #000000 !important;
+  transform: translateY(-1px) !important;
+}
+
+[data-theme="wysh-bw"] .calendar-event.selected {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  border: 1.5px solid #000000 !important;
+  box-shadow: 3px 3px 0px #000000 !important;
+  font-weight: 800 !important;
+}
+
+[data-theme="wysh-bw"] .calendar-event.dimmed {
+  opacity: 0.4 !important;
+  background-color: #eeeeee !important;
+  color: #444444 !important;
+  border: 1px solid #aaaaaa !important;
+}
+
+/* High-contrast event color variations for multi-product schedule distinction */
+[data-theme="wysh-bw"] .calendar-event.event-color-blue,
+[data-theme="wysh-bw"] .calendar-event.event-color-black {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  border: 1px solid #000000 !important;
+}
+
+[data-theme="wysh-bw"] .calendar-event.event-color-purple,
+[data-theme="wysh-bw"] .calendar-event.event-color-orange {
+  background-color: #222222 !important;
+  color: #ffffff !important;
+  border: 1px solid #000000 !important;
+}
+
+[data-theme="wysh-bw"] .calendar-event.event-color-green,
+[data-theme="wysh-bw"] .calendar-event.event-color-teal {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border: 1.5px solid #000000 !important;
+}
+
+[data-theme="wysh-bw"] .calendar-event.event-color-pink,
+[data-theme="wysh-bw"] .calendar-event.event-color-red,
+[data-theme="wysh-bw"] .calendar-event.event-color-yellow {
+  background-color: #f0f0f0 !important;
+  color: #000000 !important;
+  border: 1px solid #000000 !important;
+}
+
+/* Calendar Day Tags & Badges */
+[data-theme="wysh-bw"] .day-highlight-tag.shipping {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  border: 1px solid #000000 !important;
+  font-weight: 700 !important;
+  border-radius: 3px !important;
+}
+
+[data-theme="wysh-bw"] .day-highlight-tag.expiry {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border: 1.5px solid #000000 !important;
+  font-weight: 700 !important;
+  border-radius: 3px !important;
+}
+
+[data-theme="wysh-bw"] .day-outflow-tag {
+  background-color: #ffffff !important;
+  color: #000000 !important;
+  border: 1px solid #000000 !important;
+  font-weight: 600 !important;
+  border-radius: 3px !important;
+}
+
+[data-theme="wysh-bw"] .day-note-badge {
+  background-color: #000000 !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  border-radius: 3px !important;
+}
+
+[data-theme="wysh-bw"] .plan-badge,
+[data-theme="wysh-bw"] .badge {
+  background: #000000 !important;
+  color: #ffffff !important;
+  border-radius: 3px !important;
+  font-weight: 700 !important;
+}
+
+/* Modals */
+[data-theme="wysh-bw"] .modal-content {
+  background: #ffffff !important;
+  border: 2px solid #000000 !important;
+  box-shadow: 6px 6px 0px #000000 !important;
+  border-radius: 6px !important;
+}
+
+[data-theme="wysh-bw"] .modal-header {
+  border-bottom: 1.5px solid #000000 !important;
+  background: #000000 !important;
+  color: #ffffff !important;
+  padding: 16px 20px !important;
+}
+
+[data-theme="wysh-bw"] .modal-header h2,
+[data-theme="wysh-bw"] .modal-header h3 {
+  color: #ffffff !important;
+  font-weight: 800 !important;
+}
+
+[data-theme="wysh-bw"] .close-btn {
+  color: #ffffff !important;
+}
+
+[data-theme="wysh-bw"] input,
+[data-theme="wysh-bw"] select,
+[data-theme="wysh-bw"] textarea {
+  border: 1.5px solid #000000 !important;
+  border-radius: 4px !important;
+  background: #ffffff !important;
+  color: #000000 !important;
+}
+
+/* Shipping Schedule Printable Title Input Box (Pure White Borderless Clean View) */
+[data-theme="wysh-bw"] .shipping-table-title-input,
+[data-theme="wysh-bw"] input.shipping-table-title-input {
+  border: 1px solid #ffffff !important;
+  border-bottom: none !important;
+  background-color: #ffffff !important;
+  box-shadow: none !important;
+  color: #000000 !important;
+  font-weight: 800 !important;
+  outline: none !important;
+}
+
+[data-theme="wysh-bw"] input:focus,
+[data-theme="wysh-bw"] select:focus,
+[data-theme="wysh-bw"] textarea:focus {
+  outline: none !important;
+  box-shadow: 0 0 0 2px #000000 !important;
+}
+
+/* WYSH B&W Top Banner & Ticker Overrides */
+[data-theme="wysh-bw"] .wysh-top-announcement-bar {
+  background: #000000 !important;
+  color: #ffffff !important;
+  border-bottom: 1px solid #111111 !important;
+  font-family: 'Outfit', 'Noto Sans KR', sans-serif !important;
+  font-weight: 700 !important;
+}
+
+[data-theme="wysh-bw"] .wysh-marquee-ticker-bar {
+  background: #ffffff !important;
+  color: #000000 !important;
+  border-bottom: 1.5px solid #000000 !important;
+  font-family: 'Outfit', 'Noto Sans KR', sans-serif !important;
+  font-weight: 600 !important;
+}
+
+[data-theme="wysh-bw"] .ticker-separator {
+  color: #888888 !important;
+}

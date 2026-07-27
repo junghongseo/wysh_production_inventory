@@ -3,6 +3,8 @@ import { useWysh } from './WyshContext';
 import HeaderStats from './components/HeaderStats';
 import Navbar from './components/Navbar';
 import RecipeDrawer from './components/RecipeDrawer';
+import WyshThemeSwitcher from './components/WyshThemeSwitcher';
+import WyshTopBanner from './components/WyshTopBanner';
 import PlanRegistrationModal from './components/modals/PlanRegistrationModal';
 import ProductRegistrationModal from './components/modals/ProductRegistrationModal';
 import ModifyQtyModal from './components/modals/ModifyQtyModal';
@@ -10,6 +12,7 @@ import ConfirmModal from './components/modals/ConfirmModal';
 import MemoModal from './components/modals/MemoModal';
 import CalendarNoteModal from './components/modals/CalendarNoteModal';
 import AdminLoginModal from './components/modals/AdminLoginModal';
+import AppSettingsModal from './components/modals/AppSettingsModal';
 import { AIManagerChat } from './components/AIManagerChat';
 
 // Code-split tabs using React.lazy for lightweight bundle and faster initial load
@@ -35,8 +38,17 @@ const App = () => {
   // Tab state
   const [activeTab, setActiveTab] = useState('calendar-view');
 
-  // Admin login modal state
+  // WYSH B&W Theme state (default: 'wysh-bw')
+  const [theme, setTheme] = useState(() => localStorage.getItem('wysh-theme') || 'wysh-bw');
+
+  React.useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('wysh-theme', theme);
+  }, [theme]);
+
+  // Admin login & settings modal states
   const [adminLoginModalOpen, setAdminLoginModalOpen] = useState(false);
+  const [appSettingsModalOpen, setAppSettingsModalOpen] = useState(false);
 
   // Redirect to calendar-view if user logs out while on recipes-view
   React.useEffect(() => {
@@ -185,147 +197,150 @@ const App = () => {
   }
 
   return (
-    <div className="app-container">
-      {/* Header */}
-      <header className="app-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-        <div 
-          className="brand-section" 
-          onClick={() => setActiveTab('calendar-view')}
-          style={{ cursor: 'pointer' }}
-          title="생산 일정 및 배합표 탭으로 이동"
-        >
-          <div className="brand-logo" style={{ background: 'transparent', boxShadow: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <img src="/WYSH2_로고_1772157440156.webp" alt="WYSH Logo" style={{ width: '42px', height: '42px', objectFit: 'contain', borderRadius: '8px' }} />
-          </div>
-          <div className="brand-title-group">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-              <h1 style={{ margin: 0 }}>Wyshboard</h1>
-              {!isDbConnected && (
-                <span style={{
-                  fontSize: '0.65rem',
-                  padding: '2px 8px',
-                  borderRadius: '12px',
-                  fontWeight: 600,
-                  color: '#ffffff',
-                  backgroundColor: 'var(--color-warning, #f59e0b)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  verticalAlign: 'middle'
-                }}>
+    <>
+      <WyshTopBanner />
+      <div className="app-container">
+        {/* Header */}
+        <header className="app-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+          <div 
+            className="brand-section" 
+            onClick={() => setActiveTab('calendar-view')}
+            style={{ cursor: 'pointer' }}
+            title="생산 일정 및 배합표 탭으로 이동"
+          >
+            <div className="brand-logo" style={{ background: 'transparent', boxShadow: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <img src="/WYSH2_로고_1772157440156.webp" alt="WYSH Logo" style={{ width: '42px', height: '42px', objectFit: 'contain', borderRadius: '8px' }} />
+            </div>
+            <div className="brand-title-group">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <h1 style={{ margin: 0 }}>Wyshboard</h1>
+                {!isDbConnected && (
                   <span style={{
-                    width: '6px',
-                    height: '6px',
-                    borderRadius: '50%',
-                    backgroundColor: '#ffffff',
-                    display: 'inline-block'
-                  }}></span>
-                  로컬 오프라인 모드
-                </span>
+                    fontSize: '0.65rem',
+                    padding: '2px 8px',
+                    borderRadius: '12px',
+                    fontWeight: 600,
+                    color: '#ffffff',
+                    backgroundColor: 'var(--color-warning, #f59e0b)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    verticalAlign: 'middle'
+                  }}>
+                    <span style={{
+                      width: '6px',
+                      height: '6px',
+                      borderRadius: '50%',
+                      backgroundColor: '#ffffff',
+                      display: 'inline-block'
+                    }}></span>
+                    로컬 오프라인 모드
+                  </span>
+                )}
+              </div>
+              <p style={{ margin: '4px 0 0 0' }}>생산부터 재고까지, 위시의 모든 흐름을 한눈에</p>
+              {dbError && (
+                <p style={{ fontSize: '0.7rem', color: 'var(--color-danger, #ef4444)', margin: '4px 0 0 0', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  ⚠️ 동기화 실패: {dbError}
+                </p>
               )}
             </div>
-            <p style={{ margin: '4px 0 0 0' }}>생산부터 재고까지, 위시의 모든 흐름을 한눈에</p>
-            {dbError && (
-              <p style={{ fontSize: '0.7rem', color: 'var(--color-danger, #ef4444)', margin: '4px 0 0 0', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                ⚠️ 동기화 실패: {dbError}
-              </p>
-            )}
           </div>
-        </div>
 
-        <div className="header-controls-group">
-          {/* Admin Authority Indicator */}
-          <div className="glass-card" style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            padding: '8px 16px',
-            borderRadius: '12px',
-            background: 'var(--bg-secondary)',
-            border: '1px solid var(--border-color)',
-            boxShadow: 'var(--glass-shadow)',
-            backdropFilter: 'blur(10px)',
-            transition: 'var(--transition-smooth)'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span style={{
-                width: '10px',
-                height: '10px',
-                borderRadius: '50%',
-                backgroundColor: isAdminLoggedIn ? 'var(--color-success, #10b981)' : 'var(--color-primary, #0ea5e9)',
-                display: 'inline-block',
-                boxShadow: isAdminLoggedIn ? '0 0 8px #10b981' : '0 0 8px #0ea5e9',
-                transition: 'all 0.3s ease'
-              }}></span>
-              <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                {isAdminLoggedIn ? '관리자 모드' : '일반 사용자 모드'}
-              </span>
+          <div className="header-controls-group">
+            <WyshThemeSwitcher theme={theme} setTheme={setTheme} />
+            {/* Admin Authority Indicator */}
+            <div className="glass-card" style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+              padding: '8px 16px',
+              borderRadius: '12px',
+              background: 'var(--bg-secondary)',
+              border: '1px solid var(--border-color)',
+              boxShadow: 'var(--glass-shadow)',
+              backdropFilter: 'blur(10px)',
+              transition: 'var(--transition-smooth)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{
+                  width: '10px',
+                  height: '10px',
+                  borderRadius: '50%',
+                  backgroundColor: isAdminLoggedIn ? 'var(--color-success, #10b981)' : 'var(--color-primary, #0ea5e9)',
+                  display: 'inline-block',
+                  boxShadow: isAdminLoggedIn ? '0 0 8px #10b981' : '0 0 8px #0ea5e9',
+                  transition: 'all 0.3s ease'
+                }}></span>
+                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                  {isAdminLoggedIn ? '관리자 모드' : '일반 사용자 모드'}
+                </span>
+              </div>
+              {isAdminLoggedIn ? (
+                <button 
+                  onClick={logoutAdmin}
+                  className="btn-secondary"
+                  style={{
+                    padding: '6px 12px',
+                    fontSize: '0.78rem',
+                    borderRadius: '8px',
+                    borderColor: 'rgba(239, 68, 68, 0.4)',
+                    color: 'var(--color-danger)',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    background: 'transparent',
+                    transition: 'var(--transition-smooth)'
+                  }}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                  </svg>
+                  로그아웃
+                </button>
+              ) : (
+                <button 
+                  onClick={() => setAdminLoginModalOpen(true)}
+                  className="btn-primary"
+                  style={{
+                    padding: '6px 12px',
+                    fontSize: '0.78rem',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                    background: 'linear-gradient(135deg, var(--color-primary), var(--color-accent))',
+                    border: 'none',
+                    color: '#ffffff',
+                    boxShadow: '0 4px 10px rgba(2, 132, 199, 0.15)',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                    transition: 'var(--transition-smooth)'
+                  }}
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                  </svg>
+                  관리자 로그인
+                </button>
+              )}
             </div>
-            {isAdminLoggedIn ? (
-              <button 
-                onClick={logoutAdmin}
-                className="btn-secondary"
-                style={{
-                  padding: '6px 12px',
-                  fontSize: '0.78rem',
-                  borderRadius: '8px',
-                  borderColor: 'rgba(239, 68, 68, 0.4)',
-                  color: 'var(--color-danger)',
-                  cursor: 'pointer',
-                  fontWeight: 600,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  background: 'transparent',
-                  transition: 'var(--transition-smooth)'
-                }}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                  <polyline points="16 17 21 12 16 7"></polyline>
-                  <line x1="21" y1="12" x2="9" y2="12"></line>
-                </svg>
-                로그아웃
-              </button>
-            ) : (
-              <button 
-                onClick={() => setAdminLoginModalOpen(true)}
-                className="btn-primary"
-                style={{
-                  padding: '6px 12px',
-                  fontSize: '0.78rem',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontWeight: 600,
-                  background: 'linear-gradient(135deg, var(--color-primary), var(--color-accent))',
-                  border: 'none',
-                  color: '#ffffff',
-                  boxShadow: '0 4px 10px rgba(2, 132, 199, 0.15)',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  transition: 'var(--transition-smooth)'
-                }}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                </svg>
-                관리자 로그인
-              </button>
-            )}
+            <HeaderStats />
           </div>
-          <HeaderStats />
-        </div>
-      </header>
+        </header>
 
-      {/* Main Navigation */}
-      <Navbar activeTab={activeTab} setActiveTab={(tab) => {
-        setActiveTab(tab);
-        if (tab === 'recipes-view' && !selectedProduct) {
-          setSelectedProduct(null);
-        }
-      }} isAdminLoggedIn={isAdminLoggedIn} />
+        {/* Main Navigation */}
+        <Navbar activeTab={activeTab} setActiveTab={(tab) => {
+          setActiveTab(tab);
+          if (tab === 'recipes-view' && !selectedProduct) {
+            setSelectedProduct(null);
+          }
+        }} isAdminLoggedIn={isAdminLoggedIn} onOpenAppSettings={() => setAppSettingsModalOpen(true)} appSettingsModalOpen={appSettingsModalOpen} />
 
       {/* Main Content Tabs */}
       <Suspense fallback={<ViewFallback />}>
@@ -458,9 +473,16 @@ const App = () => {
         onLogin={loginAdmin}
       />
 
+      {/* Admin App Settings Modal */}
+      <AppSettingsModal
+        isOpen={appSettingsModalOpen}
+        onClose={() => setAppSettingsModalOpen(false)}
+      />
+
       {/* Floating AI Production Manager Chat Widget */}
       <AIManagerChat />
     </div>
+    </>
   );
 };
 
