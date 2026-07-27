@@ -1547,7 +1547,7 @@ const OrderView = () => {
                     {/* Row 1: Period Total Summary */}
                     <tr style={{ backgroundColor: 'rgba(2, 132, 199, 0.06)', borderTop: '2px solid var(--color-primary)', fontWeight: 'bold' }}>
                       <td style={{ padding: '9px 10px', textAlign: 'left', color: 'var(--text-primary)' }}>
-                        Σ 조회 기간 총 합계 ({overallBreakdown.totalDaysCount}일)
+                        조회 기간 총 합계 ({overallBreakdown.totalDaysCount}일)
                       </td>
                       <td style={{ padding: '9px 10px', textAlign: 'right', color: 'var(--text-primary)', fontSize: '0.88rem' }}>
                         {overallBreakdown.grandTotalOrders}건
