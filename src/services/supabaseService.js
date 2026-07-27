@@ -61,6 +61,27 @@ export const fetchAllRemoteData = async () => {
     console.warn("Supabase Fetch Warning (reports):", errReportsFetch);
   }
 
+  let mappedShippingCharts = [];
+  try {
+    const { data: remoteCharts, error: errCharts } = await supabase.from('shipping_charts').select('*');
+    if (errCharts) {
+      console.warn("Supabase Fetch Warn: shipping_charts query failed, table might not exist yet.", errCharts);
+    } else if (remoteCharts) {
+      mappedShippingCharts = remoteCharts.map(c => ({
+        date: c.date,
+        title: c.title,
+        totalCount: c.total_count,
+        productTotals: c.product_totals || [],
+        results: c.results || [],
+        qtyBreakdown: c.qty_breakdown || { count1: 0, count2: 0, count3Plus: 0, percent1: '0.0%', percent2: '0.0%', percent3Plus: '0.0%' },
+        remarks: c.remarks || '',
+        updatedAt: c.updated_at
+      }));
+    }
+  } catch (errChartsFetch) {
+    console.warn("Supabase Fetch Warning (shipping_charts):", errChartsFetch);
+  }
+
   console.log("Supabase Fetch: Successfully pulled data from Cloud DB.");
 
   const mappedProducts = remoteProducts.map(p => {
@@ -153,8 +174,39 @@ export const fetchAllRemoteData = async () => {
     mappedPlans,
     mappedInventory,
     mappedCalendarNotes,
-    mappedReports
+    mappedReports,
+    mappedShippingCharts
   };
+};
+
+export const pushShippingChartToSupabase = async (chart) => {
+  if (!supabase || !chart) return;
+  try {
+    const dbChart = {
+      date: chart.date,
+      title: chart.title,
+      total_count: chart.totalCount,
+      product_totals: chart.productTotals,
+      results: chart.results,
+      qty_breakdown: chart.qtyBreakdown,
+      remarks: chart.remarks || '',
+      updated_at: chart.updatedAt || new Date().toISOString()
+    };
+    const { error } = await supabase.from('shipping_charts').upsert(dbChart);
+    if (error) console.warn("Supabase Push Warn (ShippingChart):", error);
+  } catch (e) {
+    console.error("Supabase Push Error (ShippingChart):", e);
+  }
+};
+
+export const deleteShippingChartFromSupabase = async (date) => {
+  if (!supabase || !date) return;
+  try {
+    const { error } = await supabase.from('shipping_charts').delete().eq('date', date);
+    if (error) console.warn("Supabase Push Warn (Delete ShippingChart):", error);
+  } catch (e) {
+    console.error("Supabase Push Error (Delete ShippingChart):", e);
+  }
 };
 
 export const pushProductToSupabase = async (product) => {

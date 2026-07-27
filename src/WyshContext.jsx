@@ -11,7 +11,9 @@ import {
   pushCalendarNoteToSupabase,
   deleteCalendarNoteFromSupabase,
   pushReportToSupabase,
-  deleteReportFromSupabase
+  deleteReportFromSupabase,
+  pushShippingChartToSupabase,
+  deleteShippingChartFromSupabase
 } from './services/supabaseService';
 
 const WyshContext = createContext();
@@ -22,6 +24,7 @@ export const WyshProvider = ({ children }) => {
   const [inventory, setInventory] = useState([]);
   const [calendarNotes, setCalendarNotes] = useState([]);
   const [reports, setReports] = useState([]);
+  const [shippingCharts, setShippingCharts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isDbConnected, setIsDbConnected] = useState(false);
   const [dbError, setDbError] = useState(null);
@@ -34,6 +37,7 @@ export const WyshProvider = ({ children }) => {
     setInventory(initialData.inventory);
     setCalendarNotes(initialData.calendarNotes);
     setReports(initialData.reports);
+    setShippingCharts(initialData.shippingCharts || []);
     setLoading(false);
 
     // Initial sync
@@ -50,6 +54,9 @@ export const WyshProvider = ({ children }) => {
         syncFromSupabase();
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'reports' }, () => {
+        syncFromSupabase();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'shipping_charts' }, () => {
         syncFromSupabase();
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'inventory' }, () => {
@@ -83,7 +90,8 @@ export const WyshProvider = ({ children }) => {
         mappedPlans,
         mappedInventory,
         mappedCalendarNotes,
-        mappedReports
+        mappedReports,
+        mappedShippingCharts
       } = await fetchAllRemoteData();
 
       const localInitial = loadInitialLocalStorageData();
@@ -96,7 +104,7 @@ export const WyshProvider = ({ children }) => {
       const finalNotes = mappedCalendarNotes || [];
       const finalReports = mappedReports || [];
       const finalPlans = mappedPlans || [];
-
+      
       // Maintain products compatibility (only sync hardcoded defaults if missing)
       const mergedProductsMap = new Map();
       mappedProducts.forEach(p => mergedProductsMap.set(p.id, p));
@@ -110,11 +118,31 @@ export const WyshProvider = ({ children }) => {
         }
       });
       const finalProducts = Array.from(mergedProductsMap.values());
-
       const finalInventory = mappedInventory || [];
 
-      // Sort reports chronologically
-      finalReports.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+      // Robust merge for shipping charts to prevent auto-deletion during background polling
+      const localCharts = localInitial.shippingCharts || [];
+      const chartMap = new Map();
+
+      // Put local charts first
+      localCharts.forEach(c => {
+        if (c && c.date) chartMap.set(c.date, c);
+      });
+
+      // Merge remote charts (prefer remote if newer or equal)
+      (mappedShippingCharts || []).forEach(rc => {
+        if (!rc || !rc.date) return;
+        const lc = chartMap.get(rc.date);
+        if (!lc || !lc.updatedAt || (rc.updatedAt && rc.updatedAt >= lc.updatedAt)) {
+          chartMap.set(rc.date, rc);
+        } else if (lc && lc.updatedAt && rc.updatedAt && lc.updatedAt > rc.updatedAt) {
+          // If local chart is newer than remote, sync local chart back to remote
+          pushShippingChartToSupabase(lc);
+        }
+      });
+
+      const finalCharts = Array.from(chartMap.values());
+      finalCharts.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
       // Save Authoritative Remote State to LocalStorage and React State
       saveStorageItems('PRODUCTS', finalProducts);
@@ -122,12 +150,14 @@ export const WyshProvider = ({ children }) => {
       saveStorageItems('INVENTORY', finalInventory);
       saveStorageItems('CALENDAR_NOTES', finalNotes);
       saveStorageItems('REPORTS', finalReports);
+      saveStorageItems('SHIPPING_CHARTS', finalCharts);
 
       setProducts(finalProducts);
       setPlans(finalPlans);
       setInventory(finalInventory);
       setCalendarNotes(finalNotes);
       setReports(finalReports);
+      setShippingCharts(finalCharts);
 
       setIsDbConnected(true);
       setDbError(null);
@@ -136,6 +166,40 @@ export const WyshProvider = ({ children }) => {
       setIsDbConnected(false);
       setDbError(e.message || "Failed to sync with database");
     }
+  }, []);
+
+  // Shipping Charts Actions
+  const saveShippingChart = useCallback((chartData) => {
+    const updatedChart = {
+      ...chartData,
+      updatedAt: new Date().toISOString()
+    };
+
+    setShippingCharts(prev => {
+      const existingIdx = prev.findIndex(c => c.date === updatedChart.date);
+      let updated;
+      if (existingIdx !== -1) {
+        updated = [...prev];
+        updated[existingIdx] = updatedChart;
+      } else {
+        updated = [updatedChart, ...prev];
+      }
+      updated.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+      saveStorageItems('SHIPPING_CHARTS', updated);
+      return updated;
+    });
+
+    pushShippingChartToSupabase(updatedChart);
+    return updatedChart;
+  }, []);
+
+  const deleteShippingChart = useCallback((date) => {
+    setShippingCharts(prev => {
+      const updated = prev.filter(c => c.date !== date);
+      saveStorageItems('SHIPPING_CHARTS', updated);
+      return updated;
+    });
+    deleteShippingChartFromSupabase(date);
   }, []);
 
   // 1. Products Actions
@@ -622,6 +686,9 @@ export const WyshProvider = ({ children }) => {
     addReport,
     updateReport,
     deleteReport,
+    shippingCharts,
+    saveShippingChart,
+    deleteShippingChart,
     isAdminLoggedIn,
     loginAdmin,
     logoutAdmin,
@@ -633,6 +700,7 @@ export const WyshProvider = ({ children }) => {
     inventory,
     calendarNotes,
     reports,
+    shippingCharts,
     loading,
     addProduct,
     updateProduct,
@@ -654,6 +722,8 @@ export const WyshProvider = ({ children }) => {
     addReport,
     updateReport,
     deleteReport,
+    saveShippingChart,
+    deleteShippingChart,
     isAdminLoggedIn,
     loginAdmin,
     logoutAdmin,

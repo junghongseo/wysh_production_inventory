@@ -3,7 +3,8 @@ const STORAGE_KEYS = {
   PLANS: 'wysh_plans',
   INVENTORY: 'wysh_inventory',
   CALENDAR_NOTES: 'wysh_calendar_notes',
-  REPORTS: 'wysh_reports'
+  REPORTS: 'wysh_reports',
+  SHIPPING_CHARTS: 'wysh_shipping_charts'
 };
 
 export const DEFAULT_PRODUCTS = [
@@ -82,6 +83,7 @@ export const loadInitialLocalStorageData = () => {
   let localInventory = JSON.parse(localStorage.getItem(STORAGE_KEYS.INVENTORY));
   let localCalendarNotes = JSON.parse(localStorage.getItem(STORAGE_KEYS.CALENDAR_NOTES));
   let localReports = JSON.parse(localStorage.getItem(STORAGE_KEYS.REPORTS));
+  let localShippingCharts = JSON.parse(localStorage.getItem(STORAGE_KEYS.SHIPPING_CHARTS));
 
   if (!localProducts) {
     localProducts = DEFAULT_PRODUCTS;
@@ -133,13 +135,18 @@ export const loadInitialLocalStorageData = () => {
     localReports = [];
     localStorage.setItem(STORAGE_KEYS.REPORTS, JSON.stringify([]));
   }
+  if (!localShippingCharts) {
+    localShippingCharts = [];
+    localStorage.setItem(STORAGE_KEYS.SHIPPING_CHARTS, JSON.stringify([]));
+  }
 
   return {
     products: localProducts,
     plans: localPlans,
     inventory: localInventory,
     calendarNotes: localCalendarNotes,
-    reports: localReports
+    reports: localReports,
+    shippingCharts: localShippingCharts
   };
 };
 

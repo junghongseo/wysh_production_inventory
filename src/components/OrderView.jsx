@@ -1,4 +1,5 @@
 import React, { useState, useRef, useMemo, useCallback } from 'react';
+import { useWysh } from '../WyshContext';
 
 const cleanItemName = (name) => {
   let nameStr = String(name || '').trim();
@@ -10,16 +11,7 @@ const cleanItemName = (name) => {
 };
 
 const OrderView = () => {
-  const [file, setFile] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [results, setResults] = useState(null);
-  const [productTotals, setProductTotals] = useState([]);
-  const [tableTitle, setTableTitle] = useState('');
-  const [remarks, setRemarks] = useState('');
-  const [isDragOver, setIsDragOver] = useState(false);
-
-  const captureRef = useRef(null);
+  const { shippingCharts, saveShippingChart, deleteShippingChart } = useWysh();
 
   // Local-time safe today string
   const todayStr = useMemo(() => {
@@ -28,11 +20,49 @@ const OrderView = () => {
     return new Date(today.getTime() - offset).toISOString().split('T')[0];
   }, []);
 
+  // Section 1 (Process & Reflect) states
+  const [file, setFile] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [successMsg, setSuccessMsg] = useState('');
+  const [results, setResults] = useState(null);
+  const [productTotals, setProductTotals] = useState([]);
+  const [qtyBreakdown, setQtyBreakdown] = useState(null);
+  const [tableTitle, setTableTitle] = useState('');
+  const [remarks, setRemarks] = useState('');
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [targetDate, setTargetDate] = useState(todayStr);
+
+  // Section 2 (Daily Viewer) states
+  const [selectedViewDate, setSelectedViewDate] = useState(todayStr);
+  const [viewTitle, setViewTitle] = useState('');
+  const [viewRemarks, setViewRemarks] = useState('');
+
+  // Section 3 (Analytics) states
+  const [analyticsRange, setAnalyticsRange] = useState('14'); // '7' | '14' | '30' | 'all'
+
+  const captureRef = useRef(null);
+  const viewCaptureRef = useRef(null);
+
+  // Synchronize Section 2 selected chart data when date changes
+  const activeViewChart = useMemo(() => {
+    return shippingCharts.find(c => c.date === selectedViewDate) || null;
+  }, [shippingCharts, selectedViewDate]);
+
+  // Handle Section 2 editable title/remarks sync
+  React.useEffect(() => {
+    if (activeViewChart) {
+      setViewTitle(activeViewChart.title || `${selectedViewDate} 출고표`);
+      setViewRemarks(activeViewChart.remarks || '');
+    }
+  }, [activeViewChart, selectedViewDate]);
+
   const handleFileChange = useCallback((e) => {
     const selectedFile = e.target.files[0];
     if (selectedFile) {
       setFile(selectedFile);
       setError('');
+      setSuccessMsg('');
     }
   }, []);
 
@@ -50,11 +80,11 @@ const OrderView = () => {
     setIsDragOver(false);
     const droppedFile = e.dataTransfer.files[0];
     if (droppedFile) {
-      // Check file extension
       const ext = droppedFile.name.split('.').pop().toLowerCase();
       if (ext === 'xlsx' || ext === 'xls') {
         setFile(droppedFile);
         setError('');
+        setSuccessMsg('');
       } else {
         setError('엑셀 파일(.xlsx, .xls)만 업로드 가능합니다.');
       }
@@ -69,6 +99,7 @@ const OrderView = () => {
 
     setLoading(true);
     setError('');
+    setSuccessMsg('');
 
     try {
       const XLSX = await import('xlsx');
@@ -77,13 +108,11 @@ const OrderView = () => {
         try {
           const data = new Uint8Array(e.target.result);
           
-          // Detect if it is HTML disguised as Excel
           const isZip = data[0] === 0x50 && data[1] === 0x4B && data[2] === 0x03 && data[3] === 0x04;
           const isOles = data[0] === 0xD0 && data[1] === 0xCF && data[2] === 0x11 && data[3] === 0xE0;
           
           let workbook;
           if (!isZip && !isOles) {
-            // Detect charset encoding from HTML header if present
             let encoding = 'utf-8';
             const prefixText = new TextDecoder('latin1').decode(data.slice(0, 2000));
             const charsetMatch = prefixText.match(/charset\s*=\s*["']?([\w\-]+)/i);
@@ -93,7 +122,6 @@ const OrderView = () => {
             
             const text = new TextDecoder(encoding).decode(data);
             
-            // Check if it's a multi-file web page frameset exported by Excel (missing data body)
             if (text.includes('Excel Workbook Frameset') || text.includes('<frameset') || text.includes('fnBuildFrameset')) {
               throw new Error("엑셀에서 '웹 페이지(*.htm; *.html)' 형식으로 저장되어 데이터 본문이 누락되었습니다. Excel에서 'Excel 통합 문서(*.xlsx)' 또는 'Excel 97-2003 통합 문서(*.xls)' 형식으로 다시 저장하여 업로드해 주세요.");
             }
@@ -192,14 +220,44 @@ const OrderView = () => {
             throw new Error('정리할 주문 데이터가 발견되지 않았습니다. 파일 내용을 확인하세요.');
           }
 
+          // Packaging combinations map
           const groupedMap = {};
+          // Order total quantity map (for 1, 2, 3+ order breakdown)
+          const orderTotalQtyMap = {};
+
           dfTarget.forEach(item => {
             const formatted = `${item.nameVal} [${item.qtyVal}개]`;
             if (!groupedMap[item.groupVal]) {
               groupedMap[item.groupVal] = [];
             }
             groupedMap[item.groupVal].push(formatted);
+            orderTotalQtyMap[item.groupVal] = (orderTotalQtyMap[item.groupVal] || 0) + item.qtyVal;
           });
+
+          // Calculate 1개, 2개, 3개 이상 order counts
+          let count1 = 0;
+          let count2 = 0;
+          let count3Plus = 0;
+
+          Object.values(orderTotalQtyMap).forEach(totQty => {
+            if (totQty === 1) count1++;
+            else if (totQty === 2) count2++;
+            else if (totQty >= 3) count3Plus++;
+          });
+
+          const totalOrdersCount = Object.keys(orderTotalQtyMap).length;
+          const percent1 = totalOrdersCount > 0 ? ((count1 / totalOrdersCount) * 100).toFixed(1) + '%' : '0.0%';
+          const percent2 = totalOrdersCount > 0 ? ((count2 / totalOrdersCount) * 100).toFixed(1) + '%' : '0.0%';
+          const percent3Plus = totalOrdersCount > 0 ? ((count3Plus / totalOrdersCount) * 100).toFixed(1) + '%' : '0.0%';
+
+          const computedBreakdown = {
+            count1,
+            count2,
+            count3Plus,
+            percent1,
+            percent2,
+            percent3Plus
+          };
 
           const orderTypeCounts = {};
           Object.values(groupedMap).forEach(itemList => {
@@ -222,11 +280,12 @@ const OrderView = () => {
 
           setResults(processedResults);
           setProductTotals(processedProductTotals);
+          setQtyBreakdown(computedBreakdown);
           
-          const yy = todayStr.substring(2, 4);
-          const mm = todayStr.substring(5, 7);
-          const dd = todayStr.substring(8, 10);
-          setTableTitle(`${yy}-${mm}-${dd} 출고표`);
+          const targetYy = targetDate.substring(2, 4);
+          const targetMm = targetDate.substring(5, 7);
+          const targetDd = targetDate.substring(8, 10);
+          setTableTitle(`${targetYy}-${targetMm}-${targetDd} 출고표`);
           setRemarks('');
         } catch (err) {
           console.error(err);
@@ -247,12 +306,58 @@ const OrderView = () => {
       setError('엑셀 모듈 로드 중 오류가 발생했습니다.');
       setLoading(false);
     }
-  }, [file, todayStr]);
+  }, [file, targetDate]);
 
-  const handleDownloadImage = useCallback(async () => {
-    if (!captureRef.current) return;
+  // Total Count calculation helper
+  const totalCount = results ? results.reduce((acc, curr) => acc + curr.count, 0) : 0;
 
-    const originalBtn = document.getElementById('download-btn');
+  // Official Chart Reflection Handler
+  const handleReflectAsOfficialChart = useCallback(() => {
+    if (!results || results.length === 0 || !qtyBreakdown) {
+      alert('반영할 출고표 데이터가 없습니다.');
+      return;
+    }
+
+    const targetDateFormatted = targetDate || todayStr;
+    const existing = shippingCharts.find(c => c.date === targetDateFormatted);
+    if (existing) {
+      if (!window.confirm(`${targetDateFormatted} 날짜에 이미 저장된 출고표가 있습니다. 새로운 내용으로 덮어쓰시겠습니까?`)) {
+        return;
+      }
+    }
+
+    const chartData = {
+      date: targetDateFormatted,
+      title: tableTitle || `${targetDateFormatted.substring(2)} 출고표`,
+      totalCount,
+      productTotals,
+      results,
+      qtyBreakdown,
+      remarks
+    };
+
+    saveShippingChart(chartData);
+    setSuccessMsg(`✅ ${targetDateFormatted} 출고표가 성공적으로 공식 반영 및 클라우드 동기화 되었습니다!`);
+    setSelectedViewDate(targetDateFormatted);
+  }, [results, qtyBreakdown, targetDate, todayStr, shippingCharts, tableTitle, totalCount, productTotals, remarks, saveShippingChart]);
+
+  // Section 2 View Save Remark/Title updates
+  const handleSaveViewUpdates = useCallback(() => {
+    if (!activeViewChart) return;
+    const updated = {
+      ...activeViewChart,
+      title: viewTitle,
+      remarks: viewRemarks
+    };
+    saveShippingChart(updated);
+    alert('출고표 제목 및 특이사항이 수정되어 클라우드에 반영되었습니다.');
+  }, [activeViewChart, viewTitle, viewRemarks, saveShippingChart]);
+
+  // Download Image Handler
+  const handleDownloadImage = useCallback(async (ref, dateStrForName, btnId) => {
+    if (!ref.current) return;
+
+    const originalBtn = document.getElementById(btnId);
     if (originalBtn) {
       originalBtn.disabled = true;
       originalBtn.innerText = '이미지 저장 중...';
@@ -260,13 +365,13 @@ const OrderView = () => {
 
     try {
       const html2canvas = (await import('html2canvas')).default;
-      const canvas = await html2canvas(captureRef.current, {
+      const canvas = await html2canvas(ref.current, {
         scale: 2,
         backgroundColor: '#ffffff'
       });
-      const dateStr = todayStr.replace(/-/g, '');
+      const dStr = (dateStrForName || todayStr).replace(/-/g, '');
       const link = document.createElement('a');
-      link.download = `출고표_${dateStr}.png`;
+      link.download = `출고표_${dStr}.png`;
       link.href = canvas.toDataURL('image/png');
       link.click();
     } catch (err) {
@@ -279,20 +384,129 @@ const OrderView = () => {
     }
   }, [todayStr]);
 
-  // Get total count
-  const totalCount = results ? results.reduce((acc, curr) => acc + curr.count, 0) : 0;
+  // Print Handler
+  const handlePrintChart = useCallback((ref) => {
+    if (!ref.current) return;
+    const contentHtml = ref.current.innerHTML;
+
+    const printWindow = window.open('', '_blank', 'width=800,height=900');
+    if (!printWindow) {
+      alert('팝업 차단이 활성화되어 있어 인쇄 창을 열 수 없습니다. 팝업 차단을 해제해 주세요.');
+      return;
+    }
+
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>출고표 인쇄</title>
+          <style>
+            body {
+              font-family: 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+              margin: 20px;
+              color: #0f172a;
+              background-color: #ffffff;
+            }
+            input, textarea {
+              border: none !important;
+              background: transparent !important;
+              resize: none;
+            }
+            @media print {
+              @page { margin: 15mm; }
+              body { margin: 0; }
+            }
+          </style>
+        </head>
+        <body>
+          <div style="max-width: 600px; margin: 0 auto;">
+            ${contentHtml}
+          </div>
+          <script>
+            window.onload = function() {
+              window.print();
+              setTimeout(function() { window.close(); }, 500);
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  }, []);
+
+  // Filtered Shipping Charts for Section 3 Analytics
+  const filteredAnalyticsCharts = useMemo(() => {
+    if (!shippingCharts || shippingCharts.length === 0) return [];
+    const sorted = [...shippingCharts].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    if (analyticsRange === 'all') return sorted;
+    const days = parseInt(analyticsRange, 10);
+    if (isNaN(days)) return sorted;
+    return sorted.slice(-days);
+  }, [shippingCharts, analyticsRange]);
+
+  // Total Quantity Breakdown Aggregation for Section 3 Donut Chart
+  const overallBreakdown = useMemo(() => {
+    let tot1 = 0;
+    let tot2 = 0;
+    let tot3Plus = 0;
+    let grandTotalOrders = 0;
+
+    filteredAnalyticsCharts.forEach(c => {
+      const bk = c.qtyBreakdown || { count1: 0, count2: 0, count3Plus: 0 };
+      tot1 += (bk.count1 || 0);
+      tot2 += (bk.count2 || 0);
+      tot3Plus += (bk.count3Plus || 0);
+      grandTotalOrders += (c.totalCount || 0);
+    });
+
+    const sumCounts = tot1 + tot2 + tot3Plus || grandTotalOrders || 1;
+    const p1 = (tot1 / sumCounts) * 100;
+    const p2 = (tot2 / sumCounts) * 100;
+    const p3 = (tot3Plus / sumCounts) * 100;
+
+    return {
+      tot1,
+      tot2,
+      tot3Plus,
+      grandTotalOrders: sumCounts,
+      p1: p1.toFixed(1),
+      p2: p2.toFixed(1),
+      p3: p3.toFixed(1),
+      rawP1: p1,
+      rawP2: p2,
+      rawP3: p3
+    };
+  }, [filteredAnalyticsCharts]);
 
   return (
-    <div className="inventory-layout" style={{ maxWidth: '680px', margin: '0 auto' }}>
-      <div className="dashboard-grid" style={{ gridTemplateColumns: '1fr' }}>
-        {/* Upload Card */}
-        <div className="glass-card">
-          <div className="inventory-header-row" style={{ marginBottom: '16px' }}>
-            <h3 style={{ fontSize: '1.15rem', fontWeight: 600 }}>주문 자동 정리</h3>
+    <div className="inventory-layout" style={{ width: '100%', maxWidth: '100%', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      
+      {/* ========================================================================= */}
+      {/* 상단 2열 레이아웃: 좌측 (영역 1: 업로드 및 정리) / 우측 (영역 2: 일별 출고표 조회 및 인쇄) */}
+      {/* ========================================================================= */}
+      <div 
+        style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', 
+          gap: '24px',
+          alignItems: 'start'
+        }}
+      >
+        
+        {/* ------------------------------------------------------------------------- */}
+        {/* 영역 1: 주문 자동 정리 및 공식 출고표 반영 (Top Left Column) */}
+        {/* ------------------------------------------------------------------------- */}
+        <section className="glass-card" style={{ padding: '24px 20px', height: '100%', boxSizing: 'border-box' }}>
+          <div className="inventory-header-row" style={{ marginBottom: '12px' }}>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              📁 1. 주문서 엑셀 정리 및 공식 출고표 반영
+            </h3>
           </div>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '20px' }}>
-            엑셀 주문서를 업로드하면 브라우저 내에서 직접 포장유형별 및 제품별 수량을 집계합니다.
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: '16px' }}>
+            엑셀 주문서를 업로드하면 포장 유형별/제품별 수량 및 1개·2개·3개 이상 수량별 비율을 정리합니다.
           </p>
+
+          {/* Upload Zone */}
           <div 
             className={`file-upload-zone ${isDragOver ? 'drag-over' : ''}`}
             onDragOver={handleDragOver}
@@ -301,7 +515,7 @@ const OrderView = () => {
             style={{
               border: '2px dashed var(--border-highlight)',
               borderRadius: '12px',
-              padding: '40px 20px',
+              padding: '24px 16px',
               textAlign: 'center',
               backgroundColor: isDragOver ? 'rgba(2, 132, 199, 0.05)' : 'transparent',
               transition: 'var(--transition-smooth)',
@@ -319,15 +533,15 @@ const OrderView = () => {
             
             <svg 
               xmlns="http://www.w3.org/2000/svg" 
-              width="48" 
-              height="48" 
+              width="36" 
+              height="36" 
               viewBox="0 0 24 24" 
               fill="none" 
               stroke="currentColor" 
               strokeWidth="1.5" 
               strokeLinecap="round" 
               strokeLinejoin="round"
-              style={{ color: 'var(--color-primary)', marginBottom: '16px', opacity: 0.8 }}
+              style={{ color: 'var(--color-primary)', marginBottom: '10px', opacity: 0.85 }}
             >
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
               <polyline points="17 8 12 3 7 8"></polyline>
@@ -336,17 +550,17 @@ const OrderView = () => {
 
             {file ? (
               <div>
-                <p style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '1rem' }}>{file.name}</p>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginTop: '4px' }}>
-                  {(file.size / 1024).toFixed(1)} KB | 파일이 선택되었습니다.
+                <p style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.9rem' }}>{file.name}</p>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.78rem', marginTop: '4px' }}>
+                  {(file.size / 1024).toFixed(1)} KB | 선택됨
                 </p>
               </div>
             ) : (
               <div>
-                <p style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '1rem' }}>
-                  엑셀 주문서 파일을 드래그 앤 드롭하거나 클릭하여 선택하세요.
+                <p style={{ fontWeight: 600, color: 'var(--text-primary)', fontSize: '0.9rem' }}>
+                  엑셀 주문서 드래그 앤 드롭 또는 클릭 선택
                 </p>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginTop: '4px' }}>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.78rem', marginTop: '4px' }}>
                   지원 포맷: .xlsx, .xls
                 </p>
               </div>
@@ -354,16 +568,22 @@ const OrderView = () => {
           </div>
 
           {error && (
-            <div className="validation-banner show" style={{ marginTop: '16px', display: 'flex' }}>
+            <div className="validation-banner show" style={{ marginTop: '14px', display: 'flex' }}>
               <span>⚠️ {error}</span>
             </div>
           )}
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px', gap: '12px' }}>
+          {successMsg && (
+            <div style={{ marginTop: '14px', padding: '10px 12px', borderRadius: '8px', backgroundColor: 'rgba(16, 185, 129, 0.1)', color: '#10b981', fontWeight: 600, fontSize: '0.85rem' }}>
+              {successMsg}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '14px', gap: '8px', flexWrap: 'wrap' }}>
             {file && (
               <button 
                 className="btn-secondary" 
-                onClick={() => { setFile(null); setResults(null); setError(''); }}
+                onClick={() => { setFile(null); setResults(null); setQtyBreakdown(null); setError(''); setSuccessMsg(''); }}
                 disabled={loading}
               >
                 초기화
@@ -374,197 +594,853 @@ const OrderView = () => {
               onClick={processExcel}
               disabled={loading || !file}
             >
-              {loading ? '데이터 정리 중...' : '파일 업로드 및 정리하기'}
+              {loading ? '정리 중...' : '파일 정리하기'}
             </button>
+          </div>
+
+          {/* Results Visualizer Block */}
+          {results && (
+            <div style={{ marginTop: '20px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
+              
+              {/* Reflection Control Bar */}
+              <div 
+                style={{
+                  display: 'flex',
+                  justify: 'space-between',
+                  alignItems: 'center',
+                  gap: '8px',
+                  backgroundColor: 'rgba(2, 132, 199, 0.08)',
+                  border: '1px solid rgba(2, 132, 199, 0.2)',
+                  borderRadius: '8px',
+                  padding: '10px 12px',
+                  maxWidth: '440px',
+                  margin: '0 auto 16px auto',
+                  flexWrap: 'wrap'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                  <span style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-primary)' }}>
+                    📅 날짜 선택:
+                  </span>
+                  <input
+                    type="date"
+                    value={targetDate}
+                    onChange={(e) => {
+                      setTargetDate(e.target.value);
+                      if (e.target.value) {
+                        const yy = e.target.value.substring(2, 4);
+                        const mm = e.target.value.substring(5, 7);
+                        const dd = e.target.value.substring(8, 10);
+                        setTableTitle(`${yy}-${mm}-${dd} 출고표`);
+                      }
+                    }}
+                    style={{
+                      padding: '4px 8px',
+                      borderRadius: '6px',
+                      border: '1px solid var(--border-color)',
+                      fontSize: '0.85rem',
+                      fontWeight: 600
+                    }}
+                  />
+                </div>
+
+                <button
+                  className="btn-success"
+                  onClick={handleReflectAsOfficialChart}
+                  style={{
+                    padding: '6px 12px',
+                    fontWeight: 700,
+                    fontSize: '0.85rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                >
+                  📌 공식 출고표로 반영하기
+                </button>
+              </div>
+
+              {/* Qty Breakdown Summary Pills */}
+              {qtyBreakdown && (
+                <div 
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(3, 1fr)',
+                    gap: '8px',
+                    maxWidth: '440px',
+                    margin: '0 auto 16px auto'
+                  }}
+                >
+                  <div style={{ backgroundColor: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '6px', padding: '8px', textAlign: 'center' }}>
+                    <div style={{ color: '#0369a1', fontSize: '0.72rem', fontWeight: 700 }}>1개 주문건</div>
+                    <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0c4a6e', marginTop: '1px' }}>{qtyBreakdown.count1}건</div>
+                    <div style={{ fontSize: '0.72rem', color: '#0284c7', fontWeight: 600 }}>({qtyBreakdown.percent1})</div>
+                  </div>
+
+                  <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '6px', padding: '8px', textAlign: 'center' }}>
+                    <div style={{ color: '#15803d', fontSize: '0.72rem', fontWeight: 700 }}>2개 주문건</div>
+                    <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#14532d', marginTop: '1px' }}>{qtyBreakdown.count2}건</div>
+                    <div style={{ fontSize: '0.72rem', color: '#16a34a', fontWeight: 600 }}>({qtyBreakdown.percent2})</div>
+                  </div>
+
+                  <div style={{ backgroundColor: '#faf5ff', border: '1px solid #e9d5ff', borderRadius: '6px', padding: '8px', textAlign: 'center' }}>
+                    <div style={{ color: '#6b21a8', fontSize: '0.72rem', fontWeight: 700 }}>3개 이상</div>
+                    <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#581c87', marginTop: '1px' }}>{qtyBreakdown.count3Plus}건</div>
+                    <div style={{ fontSize: '0.72rem', color: '#9333ea', fontWeight: 600 }}>({qtyBreakdown.percent3Plus})</div>
+                  </div>
+                </div>
+              )}
+
+              {/* Printable / Capturable Visualizer Block */}
+              <div 
+                ref={captureRef} 
+                style={{ 
+                  backgroundColor: '#ffffff', 
+                  padding: '20px 14px', 
+                  borderRadius: '8px', 
+                  color: '#0f172a',
+                  fontFamily: "'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif",
+                  width: '100%',
+                  maxWidth: '440px',
+                  margin: '0 auto',
+                  border: '1px solid #cbd5e1',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
+                  boxSizing: 'border-box'
+                }}
+              >
+                <div 
+                  style={{ 
+                    fontSize: '16px', 
+                    fontWeight: 'bold', 
+                    marginBottom: '12px', 
+                    color: '#0f172a',
+                    textAlign: 'left',
+                    borderBottom: '2px solid #0f172a',
+                    paddingBottom: '6px'
+                  }}
+                >
+                  <input 
+                    type="text" 
+                    value={tableTitle} 
+                    onChange={(e) => setTableTitle(e.target.value)} 
+                    style={{
+                      border: 'none',
+                      background: 'transparent',
+                      fontSize: 'inherit',
+                      fontWeight: 'inherit',
+                      fontFamily: 'inherit',
+                      color: 'inherit',
+                      width: '100%',
+                      outline: 'none',
+                      padding: 0
+                    }}
+                    placeholder="제목을 입력하세요"
+                  />
+                </div>
+
+                {/* Product Totals */}
+                <div 
+                  style={{ 
+                    marginBottom: '14px', 
+                    color: '#1e293b', 
+                    fontSize: '12px', 
+                    textAlign: 'left',
+                    backgroundColor: '#f8fafc',
+                    padding: '10px 12px',
+                    borderRadius: '6px',
+                    border: '1px solid #e2e8f0',
+                    lineHeight: '1.5'
+                  }}
+                >
+                  <div style={{ color: '#0284c7', marginBottom: '4px', fontSize: '11px', fontWeight: 'bold', letterSpacing: '0.5px' }}>
+                    📦 제품별 총 발송 수량
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    {productTotals.length === 0 ? (
+                      <div style={{ color: '#64748b' }}>발송 내역 없음</div>
+                    ) : (
+                      productTotals.map((item, idx) => (
+                        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #e2e8f0', paddingBottom: '2px' }}>
+                          <span style={{ color: '#334155', fontWeight: 500, wordBreak: 'break-all' }}>{item.name}</span>
+                          <span style={{ fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap', marginLeft: '6px' }}>{item.qty}개</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Output Table */}
+                <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                  <table 
+                    style={{ 
+                      width: '100%', 
+                      borderCollapse: 'collapse', 
+                      backgroundColor: '#ffffff',
+                      border: '1px solid #cbd5e1',
+                      fontSize: '12px'
+                    }}
+                  >
+                    <thead>
+                      <tr style={{ backgroundColor: '#f1f5f9' }}>
+                        <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'left', fontWeight: 'bold', color: '#334155' }}>
+                          포장 유형(개수)
+                        </th>
+                        <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'right', fontWeight: 'bold', color: '#334155', width: '55px', whiteSpace: 'nowrap' }}>
+                          건수
+                        </th>
+                        <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'right', fontWeight: 'bold', color: '#334155', width: '55px', whiteSpace: 'nowrap' }}>
+                          비율
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {results.map((item, idx) => {
+                        const percent = totalCount > 0 ? ((item.count / totalCount) * 100).toFixed(1) + '%' : '0.0%';
+                        return (
+                          <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                            <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'left', color: '#0f172a', wordBreak: 'break-all', fontSize: '11px' }}>
+                              {item.orderType}
+                            </td>
+                            <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'right', color: '#0f172a', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
+                              {item.count}
+                            </td>
+                            <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'right', color: '#64748b', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
+                              {percent}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      <tr>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', height: '18px' }}>&nbsp;</td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px' }}>&nbsp;</td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px' }}>&nbsp;</td>
+                      </tr>
+                      <tr style={{ backgroundColor: '#f8fafc', fontWeight: 'bold' }}>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '8px', textAlign: 'left', color: '#0f172a' }}>
+                          합계
+                        </td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '8px', textAlign: 'right', color: '#0f172a', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
+                          {totalCount}
+                        </td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '8px', textAlign: 'right', color: '#0f172a', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
+                          100%
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Remarks Area */}
+                <div style={{ marginTop: '14px', border: '1px solid #cbd5e1', borderRadius: '4px', overflow: 'hidden' }}>
+                  <div style={{ backgroundColor: '#f1f5f9', fontWeight: 'bold', padding: '5px 10px', fontSize: '11px', color: '#334155', borderBottom: '1px solid #cbd5e1', textAlign: 'left' }}>
+                    특이사항
+                  </div>
+                  <textarea
+                    value={remarks}
+                    onChange={(e) => setRemarks(e.target.value)}
+                    placeholder="여기에 특이사항을 입력하세요..."
+                    style={{
+                      width: '100%',
+                      minHeight: '60px',
+                      padding: '8px 10px',
+                      border: 'none',
+                      outline: 'none',
+                      fontSize: '11px',
+                      lineHeight: '1.5',
+                      color: '#334155',
+                      resize: 'vertical',
+                      fontFamily: 'inherit',
+                      display: 'block',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '14px', flexWrap: 'wrap', maxWidth: '440px', margin: '14px auto 0 auto' }}>
+                <button 
+                  className="btn-secondary" 
+                  onClick={() => handlePrintChart(captureRef)}
+                  style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.85rem' }}
+                >
+                  🖨️ 인쇄
+                </button>
+                <button 
+                  id="process-download-btn" 
+                  className="btn-success" 
+                  onClick={() => handleDownloadImage(captureRef, targetDate, 'process-download-btn')}
+                  style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.85rem' }}
+                >
+                  🖼️ 이미지 저장
+                </button>
+              </div>
+            </div>
+          )}
+        </section>
+
+        {/* ------------------------------------------------------------------------- */}
+        {/* 영역 2: 각 날짜별 공식 출고표 확인 및 인쇄/다운로드 (Top Right Column) */}
+        {/* ------------------------------------------------------------------------- */}
+        <section className="glass-card" style={{ padding: '24px 20px', height: '100%', boxSizing: 'border-box' }}>
+          <div className="inventory-header-row" style={{ marginBottom: '14px', flexWrap: 'wrap', gap: '10px' }}>
+            <div>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                📋 2. 일별 공식 출고표 확인 및 인쇄
+              </h3>
+            </div>
+
+            {/* Date Selector */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>조회 일자:</span>
+              <input
+                type="date"
+                value={selectedViewDate}
+                onChange={(e) => setSelectedViewDate(e.target.value)}
+                style={{
+                  padding: '4px 8px',
+                  borderRadius: '6px',
+                  border: '1px solid var(--border-color)',
+                  fontSize: '0.85rem',
+                  fontWeight: 600
+                }}
+              />
+            </div>
+          </div>
+
+          {/* Date Quick Selection Pills */}
+          {shippingCharts.length > 0 && (
+            <div style={{ display: 'flex', gap: '5px', overflowX: 'auto', paddingBottom: '6px', marginBottom: '14px' }}>
+              <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', alignSelf: 'center', whiteSpace: 'nowrap' }}>등록목록:</span>
+              {shippingCharts.slice(0, 8).map((c) => (
+                <button
+                  key={c.date}
+                  onClick={() => setSelectedViewDate(c.date)}
+                  style={{
+                    padding: '3px 8px',
+                    borderRadius: '12px',
+                    border: selectedViewDate === c.date ? '1px solid var(--color-primary)' : '1px solid var(--border-color)',
+                    backgroundColor: selectedViewDate === c.date ? 'rgba(2, 132, 199, 0.15)' : 'transparent',
+                    color: selectedViewDate === c.date ? 'var(--color-primary)' : 'var(--text-secondary)',
+                    fontSize: '0.78rem',
+                    fontWeight: selectedViewDate === c.date ? 700 : 500,
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap'
+                  }}
+                >
+                  {c.date.substring(5)} ({c.totalCount}건)
+                </button>
+              ))}
+            </div>
+          )}
+
+          {!activeViewChart ? (
+            <div style={{ textAlign: 'center', padding: '40px 16px', color: 'var(--text-secondary)' }}>
+              <div style={{ fontSize: '2rem', marginBottom: '8px' }}>📭</div>
+              <p style={{ fontWeight: 600, fontSize: '0.9rem' }}>{selectedViewDate} 날짜에 등록된 출고표가 없습니다.</p>
+              <p style={{ fontSize: '0.78rem', marginTop: '4px' }}>
+                좌측 영역 1에서 엑셀 정리 후 '공식 출고표로 반영하기'를 눌러 등록해 주세요.
+              </p>
+            </div>
+          ) : (
+            <div>
+              {/* Qty Breakdown Summary Pills */}
+              {activeViewChart.qtyBreakdown && (
+                <div 
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(3, 1fr)',
+                    gap: '8px',
+                    maxWidth: '440px',
+                    margin: '0 auto 16px auto'
+                  }}
+                >
+                  <div style={{ backgroundColor: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: '6px', padding: '8px', textAlign: 'center' }}>
+                    <div style={{ color: '#0369a1', fontSize: '0.72rem', fontWeight: 700 }}>1개 주문건</div>
+                    <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#0c4a6e', marginTop: '1px' }}>{activeViewChart.qtyBreakdown.count1}건</div>
+                    <div style={{ fontSize: '0.72rem', color: '#0284c7', fontWeight: 600 }}>({activeViewChart.qtyBreakdown.percent1})</div>
+                  </div>
+
+                  <div style={{ backgroundColor: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '6px', padding: '8px', textAlign: 'center' }}>
+                    <div style={{ color: '#15803d', fontSize: '0.72rem', fontWeight: 700 }}>2개 주문건</div>
+                    <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#14532d', marginTop: '1px' }}>{activeViewChart.qtyBreakdown.count2}건</div>
+                    <div style={{ fontSize: '0.72rem', color: '#16a34a', fontWeight: 600 }}>({activeViewChart.qtyBreakdown.percent2})</div>
+                  </div>
+
+                  <div style={{ backgroundColor: '#faf5ff', border: '1px solid #e9d5ff', borderRadius: '6px', padding: '8px', textAlign: 'center' }}>
+                    <div style={{ color: '#6b21a8', fontSize: '0.72rem', fontWeight: 700 }}>3개 이상</div>
+                    <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#581c87', marginTop: '1px' }}>{activeViewChart.qtyBreakdown.count3Plus}건</div>
+                    <div style={{ fontSize: '0.72rem', color: '#9333ea', fontWeight: 600 }}>({activeViewChart.qtyBreakdown.percent3Plus})</div>
+                  </div>
+                </div>
+              )}
+
+              {/* Main View Capturable Block */}
+              <div 
+                ref={viewCaptureRef} 
+                style={{ 
+                  backgroundColor: '#ffffff', 
+                  padding: '20px 14px', 
+                  borderRadius: '8px', 
+                  color: '#0f172a',
+                  fontFamily: "'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif",
+                  width: '100%',
+                  maxWidth: '440px',
+                  margin: '0 auto',
+                  border: '1px solid #cbd5e1',
+                  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)',
+                  boxSizing: 'border-box'
+                }}
+              >
+                <div 
+                  style={{ 
+                    fontSize: '16px', 
+                    fontWeight: 'bold', 
+                    marginBottom: '12px', 
+                    color: '#0f172a',
+                    textAlign: 'left',
+                    borderBottom: '2px solid #0f172a',
+                    paddingBottom: '6px'
+                  }}
+                >
+                  <input 
+                    type="text" 
+                    value={viewTitle} 
+                    onChange={(e) => setViewTitle(e.target.value)} 
+                    style={{
+                      border: 'none',
+                      background: 'transparent',
+                      fontSize: 'inherit',
+                      fontWeight: 'inherit',
+                      fontFamily: 'inherit',
+                      color: 'inherit',
+                      width: '100%',
+                      outline: 'none',
+                      padding: 0
+                    }}
+                    placeholder="제목을 입력하세요"
+                  />
+                </div>
+
+                {/* Product Totals */}
+                <div 
+                  style={{ 
+                    marginBottom: '14px', 
+                    color: '#1e293b', 
+                    fontSize: '12px', 
+                    textAlign: 'left',
+                    backgroundColor: '#f8fafc',
+                    padding: '10px 12px',
+                    borderRadius: '6px',
+                    border: '1px solid #e2e8f0',
+                    lineHeight: '1.5'
+                  }}
+                >
+                  <div style={{ color: '#0284c7', marginBottom: '4px', fontSize: '11px', fontWeight: 'bold', letterSpacing: '0.5px' }}>
+                    📦 제품별 총 발송 수량
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    {(!activeViewChart.productTotals || activeViewChart.productTotals.length === 0) ? (
+                      <div style={{ color: '#64748b' }}>발송 내역 없음</div>
+                    ) : (
+                      activeViewChart.productTotals.map((item, idx) => (
+                        <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #e2e8f0', paddingBottom: '2px' }}>
+                          <span style={{ color: '#334155', fontWeight: 500, wordBreak: 'break-all' }}>{item.name}</span>
+                          <span style={{ fontWeight: 700, color: '#0f172a', whiteSpace: 'nowrap', marginLeft: '6px' }}>{item.qty}개</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Output Table */}
+                <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                  <table 
+                    style={{ 
+                      width: '100%', 
+                      borderCollapse: 'collapse', 
+                      backgroundColor: '#ffffff',
+                      border: '1px solid #cbd5e1',
+                      fontSize: '12px'
+                    }}
+                  >
+                    <thead>
+                      <tr style={{ backgroundColor: '#f1f5f9' }}>
+                        <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'left', fontWeight: 'bold', color: '#334155' }}>
+                          포장 유형(개수)
+                        </th>
+                        <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'right', fontWeight: 'bold', color: '#334155', width: '55px', whiteSpace: 'nowrap' }}>
+                          건수
+                        </th>
+                        <th style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'right', fontWeight: 'bold', color: '#334155', width: '55px', whiteSpace: 'nowrap' }}>
+                          비율
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {activeViewChart.results.map((item, idx) => {
+                        const percent = activeViewChart.totalCount > 0 
+                          ? ((item.count / activeViewChart.totalCount) * 100).toFixed(1) + '%' 
+                          : '0.0%';
+                        return (
+                          <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0' }}>
+                            <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'left', color: '#0f172a', wordBreak: 'break-all', fontSize: '11px' }}>
+                              {item.orderType}
+                            </td>
+                            <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'right', color: '#0f172a', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
+                              {item.count}
+                            </td>
+                            <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', textAlign: 'right', color: '#64748b', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
+                              {percent}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      <tr>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px', height: '18px' }}>&nbsp;</td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px' }}>&nbsp;</td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '6px 8px' }}>&nbsp;</td>
+                      </tr>
+                      <tr style={{ backgroundColor: '#f8fafc', fontWeight: 'bold' }}>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '8px', textAlign: 'left', color: '#0f172a' }}>
+                          합계
+                        </td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '8px', textAlign: 'right', color: '#0f172a', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
+                          {activeViewChart.totalCount}
+                        </td>
+                        <td style={{ border: '1px solid #cbd5e1', padding: '8px', textAlign: 'right', color: '#0f172a', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>
+                          100%
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Remarks */}
+                <div style={{ marginTop: '14px', border: '1px solid #cbd5e1', borderRadius: '4px', overflow: 'hidden' }}>
+                  <div style={{ backgroundColor: '#f1f5f9', fontWeight: 'bold', padding: '5px 10px', fontSize: '11px', color: '#334155', borderBottom: '1px solid #cbd5e1', textAlign: 'left' }}>
+                    특이사항
+                  </div>
+                  <textarea
+                    value={viewRemarks}
+                    onChange={(e) => setViewRemarks(e.target.value)}
+                    placeholder="특이사항..."
+                    style={{
+                      width: '100%',
+                      minHeight: '60px',
+                      padding: '8px 10px',
+                      border: 'none',
+                      outline: 'none',
+                      fontSize: '11px',
+                      lineHeight: '1.5',
+                      color: '#334155',
+                      resize: 'vertical',
+                      fontFamily: 'inherit',
+                      display: 'block',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* View Action Buttons */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '16px', flexWrap: 'wrap', gap: '8px', maxWidth: '440px', margin: '14px auto 0 auto' }}>
+                <button
+                  className="btn-secondary"
+                  onClick={() => {
+                    if (window.confirm(`${selectedViewDate} 출고표 기록을 삭제하시겠습니까?`)) {
+                      deleteShippingChart(selectedViewDate);
+                    }
+                  }}
+                  style={{ backgroundColor: 'transparent', color: '#ef4444', border: '1px solid #fca5a5', fontSize: '0.8rem', padding: '4px 8px' }}
+                >
+                  🗑️ 삭제
+                </button>
+
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <button
+                    className="btn-secondary"
+                    onClick={handleSaveViewUpdates}
+                    style={{ fontSize: '0.85rem' }}
+                  >
+                    💾 저장
+                  </button>
+                  <button 
+                    className="btn-secondary" 
+                    onClick={() => handlePrintChart(viewCaptureRef)}
+                    style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.85rem' }}
+                  >
+                    🖨️ 인쇄
+                  </button>
+                  <button 
+                    id="view-download-btn" 
+                    className="btn-success" 
+                    onClick={() => handleDownloadImage(viewCaptureRef, selectedViewDate, 'view-download-btn')}
+                    style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.85rem' }}
+                  >
+                    🖼️ 이미지 저장
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </section>
+
+      </div>
+
+      {/* ========================================================================= */}
+      {/* 하단 1열 전폭 레이아웃 (영역 3: 출고 동향 & 수량별 비중 분석 차트 - 2 Column Side-by-Side Charts) */}
+      {/* ========================================================================= */}
+      <section className="glass-card" style={{ padding: '24px 20px', width: '100%', boxSizing: 'border-box' }}>
+        <div className="inventory-header-row" style={{ marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+          <div>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              📊 3. 출고 동향 및 수량별 비중 분석
+            </h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '4px' }}>
+              일자별 총 출고 건수 추이와 1개·2개·3개 이상 주문 수량의 통합 비중을 원형(도넛) 차트로 분석합니다.
+            </p>
+          </div>
+
+          {/* Range Selector */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>조회 기간:</span>
+            {[
+              { label: '최근 7일', val: '7' },
+              { label: '최근 14일', val: '14' },
+              { label: '최근 30일', val: '30' },
+              { label: '전체', val: 'all' }
+            ].map(r => (
+              <button
+                key={r.val}
+                onClick={() => setAnalyticsRange(r.val)}
+                style={{
+                  padding: '4px 10px',
+                  borderRadius: '6px',
+                  border: analyticsRange === r.val ? '1px solid var(--color-primary)' : '1px solid var(--border-color)',
+                  backgroundColor: analyticsRange === r.val ? 'var(--color-primary)' : 'transparent',
+                  color: analyticsRange === r.val ? '#ffffff' : 'var(--text-secondary)',
+                  fontSize: '0.8rem',
+                  fontWeight: analyticsRange === r.val ? 700 : 500,
+                  cursor: 'pointer'
+                }}
+              >
+                {r.label}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Results Visualizer */}
-        {results && (
-          <div className="glass-card" style={{ marginTop: '24px' }}>
+        {filteredAnalyticsCharts.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '50px 20px', color: 'var(--text-secondary)' }}>
+            <div style={{ fontSize: '2.5rem', marginBottom: '12px' }}>📊</div>
+            <p style={{ fontWeight: 600, fontSize: '1rem' }}>분석할 출고표 데이터가 충분하지 않습니다.</p>
+            <p style={{ fontSize: '0.85rem', marginTop: '6px' }}>
+              상단 영역 1에서 출고표를 정리하신 후 '공식 출고표로 반영하기'를 눌러 데이터를 쌓아주세요.
+            </p>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            
+            {/* Side-by-Side 2 Chart Cards Grid */}
             <div 
-              ref={captureRef} 
               style={{ 
-                backgroundColor: '#ffffff', 
-                padding: '30px 24px', 
-                borderRadius: '8px', 
-                color: '#0f172a',
-                fontFamily: "'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif",
-                maxWidth: '520px',
-                margin: '0 auto',
-                border: '1px solid #cbd5e1',
-                boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)'
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', 
+                gap: '20px',
+                alignItems: 'stretch'
               }}
             >
-              {/* Table Title (Click to Edit) */}
-              <div 
-                style={{ 
-                  fontSize: '18px', 
-                  fontWeight: 'bold', 
-                  marginBottom: '16px', 
-                  color: '#0f172a',
-                  textAlign: 'left',
-                  borderBottom: '2px solid #0f172a',
-                  paddingBottom: '8px'
-                }}
-              >
-                <input 
-                  type="text" 
-                  value={tableTitle} 
-                  onChange={(e) => setTableTitle(e.target.value)} 
-                  style={{
-                    border: 'none',
-                    background: 'transparent',
-                    fontSize: 'inherit',
-                    fontWeight: 'inherit',
-                    fontFamily: 'inherit',
-                    color: 'inherit',
-                    width: '100%',
-                    outline: 'none',
-                    padding: 0
-                  }}
-                  placeholder="제목을 입력하세요"
-                />
-              </div>
+              {/* Left Chart: Line Chart (Daily Total Orders) - No Horizontal Scroll, Crisp Vector Text */}
+              <div style={{ backgroundColor: 'var(--bg-card)', padding: '18px 16px', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column' }}>
+                <h4 style={{ fontSize: '0.98rem', fontWeight: 700, marginBottom: '14px', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  📈 일별 총 출고 건수 추이
+                </h4>
+                
+                <div style={{ width: '100%', height: '220px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <svg width="100%" height="100%" viewBox="0 0 380 200" preserveAspectRatio="xMidYMid meet" style={{ overflow: 'visible' }}>
+                    {/* Horizontal Grid lines */}
+                    <line x1="30" y1="20" x2="360" y2="20" stroke="var(--border-color)" strokeDasharray="3 3" opacity="0.5" />
+                    <line x1="30" y1="70" x2="360" y2="70" stroke="var(--border-color)" strokeDasharray="3 3" opacity="0.5" />
+                    <line x1="30" y1="120" x2="360" y2="120" stroke="var(--border-color)" strokeDasharray="3 3" opacity="0.5" />
+                    <line x1="30" y1="170" x2="360" y2="170" stroke="var(--border-color)" strokeOpacity="0.8" />
 
-              {/* Product Totals */}
-              <div 
-                style={{ 
-                  marginBottom: '20px', 
-                  color: '#1e293b', 
-                  fontSize: '14px', 
-                  textAlign: 'left',
-                  backgroundColor: '#f8fafc',
-                  padding: '14px 18px',
-                  borderRadius: '8px',
-                  border: '1px solid #e2e8f0',
-                  lineHeight: '1.6'
-                }}
-              >
-                <div style={{ color: '#0284c7', marginBottom: '8px', fontSize: '12px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                  📦 제품별 총 발송 수량
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  {productTotals.length === 0 ? (
-                    <div style={{ color: '#64748b' }}>발송 내역 없음</div>
-                  ) : (
-                    productTotals.map((item, idx) => (
-                      <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed #e2e8f0', paddingBottom: '4px' }}>
-                        <span style={{ color: '#334155', fontWeight: 500 }}>{item.name}</span>
-                        <span style={{ fontWeight: 700, color: '#0f172a' }}>{item.qty}개</span>
-                      </div>
-                    ))
-                  )}
+                    {(() => {
+                      const maxCount = Math.max(...filteredAnalyticsCharts.map(c => c.totalCount || 1), 10);
+                      const stepX = 330 / Math.max(filteredAnalyticsCharts.length - 1, 1);
+
+                      const points = filteredAnalyticsCharts.map((c, i) => {
+                        const x = 30 + i * stepX;
+                        const y = 170 - ((c.totalCount || 0) / maxCount) * 140;
+                        return { x, y, count: c.totalCount, date: c.date };
+                      });
+
+                      const pathD = points.reduce((acc, p, i) => i === 0 ? `M ${p.x} ${p.y}` : `${acc} L ${p.x} ${p.y}`, '');
+
+                      return (
+                        <>
+                          {/* Line */}
+                          <path d={pathD} fill="none" stroke="var(--color-primary)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                          
+                          {/* Data Points */}
+                          {points.map((p, i) => (
+                            <g key={i}>
+                              <circle cx={p.x} cy={p.y} r="4.5" fill="var(--color-primary)" stroke="#ffffff" strokeWidth="2" />
+                              <text x={p.x} y={p.y - 8} textAnchor="middle" fontSize="10" fontWeight="bold" fill="var(--text-primary)">
+                                {p.count}
+                              </text>
+                              <text x={p.x} y="188" textAnchor="middle" fontSize="9" fill="var(--text-secondary)">
+                                {p.date.substring(5)}
+                              </text>
+                            </g>
+                          ))}
+                        </>
+                      );
+                    })()}
+                  </svg>
                 </div>
               </div>
 
-              {/* Output Table */}
-              <table 
-                style={{ 
-                  width: '100%', 
-                  borderCollapse: 'collapse', 
-                  backgroundColor: '#ffffff',
-                  border: '1px solid #cbd5e1',
-                  fontSize: '14px',
-                  tableLayout: 'fixed'
-                }}
-              >
-                <thead>
-                  <tr style={{ backgroundColor: '#f1f5f9' }}>
-                    <th style={{ border: '1px solid #cbd5e1', padding: '10px 14px', textAlign: 'left', fontWeight: 'bold', color: '#334155' }}>
-                      포장 유형(개수)
-                    </th>
-                    <th style={{ border: '1px solid #cbd5e1', padding: '10px 14px', textAlign: 'right', fontWeight: 'bold', color: '#334155', width: '70px' }}>
-                      건수
-                    </th>
-                    <th style={{ border: '1px solid #cbd5e1', padding: '10px 14px', textAlign: 'right', fontWeight: 'bold', color: '#334155', width: '70px' }}>
-                      비율
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {results.map((item, idx) => {
-                    const percent = totalCount > 0 ? ((item.count / totalCount) * 100).toFixed(1) + '%' : '0.0%';
-                    return (
-                      <tr key={idx} style={{ borderBottom: '1px solid #e2e8f0' }}>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '10px 14px', textAlign: 'left', color: '#0f172a', wordBreak: 'break-all', fontSize: '13px' }}>
-                          {item.orderType}
-                        </td>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '10px 14px', textAlign: 'right', color: '#0f172a', fontFamily: 'monospace' }}>
-                          {item.count}
-                        </td>
-                        <td style={{ border: '1px solid #cbd5e1', padding: '10px 14px', textAlign: 'right', color: '#64748b', fontFamily: 'monospace' }}>
-                          {percent}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  {/* Empty Spacer Row (matching standard template style) */}
-                  <tr>
-                    <td style={{ border: '1px solid #cbd5e1', padding: '10px 14px', height: '24px' }}>&nbsp;</td>
-                    <td style={{ border: '1px solid #cbd5e1', padding: '10px 14px' }}>&nbsp;</td>
-                    <td style={{ border: '1px solid #cbd5e1', padding: '10px 14px' }}>&nbsp;</td>
-                  </tr>
-                  {/* Total Row */}
-                  <tr style={{ backgroundColor: '#f8fafc', fontWeight: 'bold' }}>
-                    <td style={{ border: '1px solid #cbd5e1', padding: '12px 14px', textAlign: 'left', color: '#0f172a' }}>
-                      합계
-                    </td>
-                    <td style={{ border: '1px solid #cbd5e1', padding: '12px 14px', textAlign: 'right', color: '#0f172a', fontFamily: 'monospace' }}>
-                      {totalCount}
-                    </td>
-                    <td style={{ border: '1px solid #cbd5e1', padding: '12px 14px', textAlign: 'right', color: '#0f172a', fontFamily: 'monospace' }}>
-                      100%
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+              {/* Right Chart: Sleek SVG Donut / Pie Chart (Order Quantity Breakdown) */}
+              <div style={{ backgroundColor: 'var(--bg-card)', padding: '18px 16px', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column' }}>
+                <h4 style={{ fontSize: '0.98rem', fontWeight: 700, marginBottom: '14px', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  🍩 주문 수량별 구성 비중 (원형 차트)
+                </h4>
 
-              {/* Remarks Area */}
-              <div style={{ marginTop: '20px', border: '1px solid #cbd5e1', borderRadius: '4px', overflow: 'hidden' }}>
-                <div style={{ backgroundColor: '#f1f5f9', fontWeight: 'bold', padding: '8px 14px', fontSize: '13px', color: '#334155', borderBottom: '1px solid #cbd5e1', textAlign: 'left' }}>
-                  특이사항
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-around', gap: '16px', flexWrap: 'wrap', flex: 1, padding: '10px 0' }}>
+                  {/* SVG Donut Chart */}
+                  <div style={{ position: 'relative', width: '150px', height: '150px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg width="150" height="150" viewBox="0 0 100 100">
+                      {(() => {
+                        const C = 2 * Math.PI * 35; // Circumference ≈ 219.91
+                        const l1 = (overallBreakdown.rawP1 / 100) * C;
+                        const l2 = (overallBreakdown.rawP2 / 100) * C;
+                        const l3 = (overallBreakdown.rawP3 / 100) * C;
+
+                        return (
+                          <g transform="rotate(-90 50 50)">
+                            {/* Segment 1: 1개 주문 */}
+                            <circle
+                              cx="50"
+                              cy="50"
+                              r="35"
+                              fill="transparent"
+                              stroke="#0284c7"
+                              strokeWidth="18"
+                              strokeDasharray={`${l1} ${C - l1}`}
+                              strokeDashoffset="0"
+                            />
+                            {/* Segment 2: 2개 주문 */}
+                            <circle
+                              cx="50"
+                              cy="50"
+                              r="35"
+                              fill="transparent"
+                              stroke="#0d9488"
+                              strokeWidth="18"
+                              strokeDasharray={`${l2} ${C - l2}`}
+                              strokeDashoffset={`${-l1}`}
+                            />
+                            {/* Segment 3: 3개 이상 주문 */}
+                            <circle
+                              cx="50"
+                              cy="50"
+                              r="35"
+                              fill="transparent"
+                              stroke="#8b5cf6"
+                              strokeWidth="18"
+                              strokeDasharray={`${l3} ${C - l3}`}
+                              strokeDashoffset={`${-(l1 + l2)}`}
+                            />
+                          </g>
+                        );
+                      })()}
+                    </svg>
+
+                    {/* Donut Center Label */}
+                    <div 
+                      style={{ 
+                        position: 'absolute', 
+                        display: 'flex', 
+                        flexDirection: 'column', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        pointerEvents: 'none'
+                      }}
+                    >
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 600 }}>총 주문</span>
+                      <span style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)' }}>{overallBreakdown.grandTotalOrders}건</span>
+                    </div>
+                  </div>
+
+                  {/* Sleek Legend List */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', minWidth: '130px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem' }}>
+                      <span style={{ width: '12px', height: '12px', backgroundColor: '#0284c7', borderRadius: '3px' }}></span>
+                      <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>1개 주문:</span>
+                      <span style={{ fontWeight: 700, color: '#0284c7', marginLeft: 'auto' }}>{overallBreakdown.p1}%</span>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem' }}>
+                      <span style={{ width: '12px', height: '12px', backgroundColor: '#0d9488', borderRadius: '3px' }}></span>
+                      <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>2개 주문:</span>
+                      <span style={{ fontWeight: 700, color: '#0d9488', marginLeft: 'auto' }}>{overallBreakdown.p2}%</span>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem' }}>
+                      <span style={{ width: '12px', height: '12px', backgroundColor: '#8b5cf6', borderRadius: '3px' }}></span>
+                      <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>3개 이상:</span>
+                      <span style={{ fontWeight: 700, color: '#8b5cf6', marginLeft: 'auto' }}>{overallBreakdown.p3}%</span>
+                    </div>
+                  </div>
                 </div>
-                <textarea
-                  value={remarks}
-                  onChange={(e) => setRemarks(e.target.value)}
-                  placeholder="여기에 특이사항을 입력하시면 이미지 저장 시 출고표 하단에 포함됩니다..."
-                  style={{
-                    width: '100%',
-                    minHeight: '80px',
-                    padding: '12px 14px',
-                    border: 'none',
-                    outline: 'none',
-                    fontSize: '13px',
-                    lineHeight: '1.5',
-                    color: '#334155',
-                    resize: 'vertical',
-                    fontFamily: 'inherit',
-                    display: 'block',
-                    boxSizing: 'border-box'
-                  }}
-                />
               </div>
             </div>
 
-            {/* Action Buttons */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '20px' }}>
-              <button 
-                id="download-btn" 
-                className="btn-success" 
-                onClick={handleDownloadImage}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}>
-                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                  <circle cx="9" cy="9" r="2"></circle>
-                  <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"></path>
-                </svg>
-                이미지 저장하기
-              </button>
+            {/* Detailed Data Table */}
+            <div style={{ backgroundColor: 'var(--bg-card)', padding: '16px', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+              <h4 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '10px', color: 'var(--text-primary)' }}>
+                📋 날짜별 주문 수량 구성 세부 데이터
+              </h4>
+
+              <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                  <thead>
+                    <tr style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '2px solid var(--border-color)' }}>
+                      <th style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 700 }}>날짜</th>
+                      <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700 }}>총 주문건수</th>
+                      <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: '#0284c7' }}>1개 주문</th>
+                      <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: '#0d9488' }}>2개 주문</th>
+                      <th style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700, color: '#8b5cf6' }}>3개 이상</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredAnalyticsCharts.map((c) => {
+                      const bk = c.qtyBreakdown || { count1: 0, count2: 0, count3Plus: 0, percent1: '0%', percent2: '0%', percent3Plus: '0%' };
+                      return (
+                        <tr key={c.date} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                          <td style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600 }}>{c.date}</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700 }}>{c.totalCount}건</td>
+                          <td style={{ padding: '8px 10px', textAlign: 'right', color: '#0284c7' }}>
+                            {bk.count1}건 <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>({bk.percent1})</span>
+                          </td>
+                          <td style={{ padding: '8px 10px', textAlign: 'right', color: '#0d9488' }}>
+                            {bk.count2}건 <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>({bk.percent2})</span>
+                          </td>
+                          <td style={{ padding: '8px 10px', textAlign: 'right', color: '#8b5cf6' }}>
+                            {bk.count3Plus}건 <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>({bk.percent3Plus})</span>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </div>
+
           </div>
         )}
-      </div>
+      </section>
+
     </div>
   );
 };
