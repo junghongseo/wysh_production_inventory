@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { useWysh } from '../WyshContext';
+import { calculateItemStock } from '../utils/stockUtils';
 
 // Local-time safe YYYY-MM-DD formatter
 const formatDate = (date) => {
@@ -26,7 +27,7 @@ const CalendarView = ({
   onOpenNoteModal,
   isAdminLoggedIn
 }) => {
-  const { plans, products, inventory, calendarNotes } = useWysh();
+  const { plans, products, inventory, reports, calendarNotes } = useWysh();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDateNote, setSelectedDateNote] = useState(null);
   const [selectedDate, setSelectedDate] = useState(null);
@@ -268,23 +269,7 @@ const CalendarView = ({
       const weight = prod ? prod.weight : 0;
       const yieldRate = prod ? (prod.yield || 28) : 0;
 
-      const plannedQty = it.totalQty || ((it.expectedOrderQty || 0) + (it.marketingQty || 0) + (it.bufferQty || 0));
-
-      let itemActualQty = plannedQty;
-      if (invRecord.itemActualQtys && invRecord.itemActualQtys[it.productId] !== undefined) {
-        itemActualQty = invRecord.itemActualQtys[it.productId];
-      } else if (!isMulti && invRecord.actualQty !== undefined) {
-        itemActualQty = invRecord.actualQty;
-      }
-
-      const itemOutflows = (invRecord.history || []).reduce((sum, h) => {
-        if (!isMulti || !h.productId || h.productId === it.productId) {
-          return sum + (h.qty || 0);
-        }
-        return sum;
-      }, 0);
-
-      const currentStock = itemActualQty - itemOutflows;
+      const { plannedQty, itemActualQty, itemOutflows, currentStock, isReportConfirmed } = calculateItemStock(plan, it, planItems, invRecord, reports);
 
       const botDate = it.bottlingDate || plan.bottlingDate;
       const shipLimit = it.shippingLimit || (botDate ? addDays(botDate, prod ? (prod.shippingLimitDays ?? 7) : 7) : plan.shippingLimit);
@@ -298,7 +283,9 @@ const CalendarView = ({
         yieldRate,
         plannedQty,
         itemActualQty,
+        itemOutflows,
         currentStock,
+        isReportConfirmed,
         bottlingDate: botDate,
         shippingLimit: shipLimit,
         expiryDate: expDate
@@ -356,7 +343,7 @@ const CalendarView = ({
       items: itemDetails,
       totalVolumeL: calculatedTotalVolumeL
     };
-  }, [selectedPlan, plans, products, inventory]);
+  }, [selectedPlan, plans, products, inventory, reports]);
 
   // Active highlights per cell based on selected sub-product filter
   const activeHighlights = useMemo(() => {

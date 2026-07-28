@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { useWysh } from '../WyshContext';
+import { calculateItemStock } from '../utils/stockUtils';
 
 const dateAddDays = (dateStr, days) => {
   if (!dateStr) return '';
@@ -12,7 +13,7 @@ const dateAddDays = (dateStr, days) => {
 };
 
 const HeaderStats = () => {
-  const { products, plans, inventory } = useWysh();
+  const { products, plans, inventory, reports } = useWysh();
 
   const stats = useMemo(() => {
     // A. Product count
@@ -26,14 +27,13 @@ const HeaderStats = () => {
     let totalStock = 0;
 
     (plans || []).forEach(plan => {
-      if (!plan) return;
+      if (!plan || plan.planType === 'sub_ingredient') return;
 
       const planItems = plan.items && Array.isArray(plan.items) && plan.items.length > 0 
         ? plan.items 
         : [{ productId: plan.productId, totalQty: plan.totalQty }];
 
-      const isMultiItem = planItems.length > 1;
-      const invRecord = (inventory || []).find(i => i.planId === plan.id) || { actualQty: plan.totalQty, history: [] };
+      const invRecord = (inventory || []).find(i => i.planId === plan.id) || { history: [] };
 
       planItems.forEach(it => {
         const prod = (products || []).find(p => p.id === it.productId);
@@ -46,24 +46,10 @@ const HeaderStats = () => {
         const isActive = shippingLimit >= todayStr && todayStr >= itemBotDate;
         if (!isActive) return;
 
-        const plannedQty = it.totalQty || ((it.expectedOrderQty || 0) + (it.marketingQty || 0) + (it.bufferQty || 0));
-
-        let itemActualQty = plannedQty;
-        if (invRecord.itemActualQtys && invRecord.itemActualQtys[it.productId] !== undefined) {
-          itemActualQty = invRecord.itemActualQtys[it.productId];
-        } else if (!isMultiItem && invRecord.actualQty !== undefined) {
-          itemActualQty = invRecord.actualQty;
+        const { currentStock, isReportConfirmed } = calculateItemStock(plan, it, planItems, invRecord, reports);
+        if (isReportConfirmed) {
+          totalStock += currentStock;
         }
-
-        const itemOutflows = (invRecord.history || []).reduce((sum, h) => {
-          if (!isMultiItem || !h.productId || h.productId === it.productId) {
-            return sum + (h.qty || 0);
-          }
-          return sum;
-        }, 0);
-
-        const currentStock = itemActualQty - itemOutflows;
-        totalStock += currentStock;
       });
     });
 
@@ -72,7 +58,7 @@ const HeaderStats = () => {
       pendingCount,
       totalStock: isNaN(totalStock) ? 0 : totalStock
     };
-  }, [products, plans, inventory]);
+  }, [products, plans, inventory, reports]);
 
   return (
     <div className="header-stats" id="header-stats-panel">

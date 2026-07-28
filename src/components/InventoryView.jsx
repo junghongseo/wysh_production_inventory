@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { useWysh } from '../WyshContext';
+import { calculateItemStock } from '../utils/stockUtils';
 
 const InventoryView = ({ onDeleteHistory, onOpenMemoModal, isAdminLoggedIn }) => {
   const { plans, products, inventory, reports, addOutflow, updateOutflow, verifyOutflow, getInventoryRecord } = useWysh();
@@ -91,49 +92,7 @@ const InventoryView = ({ onDeleteHistory, onOpenMemoModal, isAdminLoggedIn }) =>
         const shippingLimit = it.shippingLimit || (itemBotDate ? dateAddDays(itemBotDate, prod ? (prod.shippingLimitDays ?? 7) : 7) : plan.shippingLimit);
         const expiryDate = it.expiryDate || (itemBotDate ? dateAddDays(itemBotDate, prod ? (prod.expiryDays ?? 22) : 22) : plan.expiryDate);
 
-        const plannedQty = it.totalQty || ( (it.expectedOrderQty || 0) + (it.marketingQty || 0) + (it.bufferQty || 0) );
-        
-        let itemActualQty = 0;
-        const confirmedBottlingReport = reports?.find(r => r.type === 'bottling' && r.planId === plan.id && r.confirmed);
-
-        if (invRecord.itemActualQtys && invRecord.itemActualQtys[it.productId] !== undefined) {
-          itemActualQty = invRecord.itemActualQtys[it.productId];
-        } else if (!isMultiItem && invRecord.actualQty !== undefined && invRecord.actualQty !== plannedQty) {
-          itemActualQty = invRecord.actualQty;
-        } else if (confirmedBottlingReport && confirmedBottlingReport.details) {
-          const d = confirmedBottlingReport.details;
-          if (d.isMultiItem) {
-            let matchedItem = null;
-            if (d.item1 && (d.item1.productId === it.productId || (!d.item1.productId && planItems[0]?.productId === it.productId))) {
-              matchedItem = d.item1;
-            } else if (d.item2 && (d.item2.productId === it.productId || (!d.item2.productId && planItems[1]?.productId === it.productId))) {
-              matchedItem = d.item2;
-            }
-            if (matchedItem) {
-              itemActualQty = matchedItem.stockedQty !== undefined 
-                ? matchedItem.stockedQty 
-                : Math.max(0, (matchedItem.count || 0) - (matchedItem.deduct || 0));
-            } else {
-              itemActualQty = plannedQty;
-            }
-          } else {
-            itemActualQty = d.actualStockedQty !== undefined 
-              ? d.actualStockedQty 
-              : Math.max(0, (d.count || 0) - (d.deduct || 0));
-          }
-        } else if (isReportConfirmed) {
-          itemActualQty = plannedQty;
-        }
-
-        // Outflows for this specific product item
-        const itemOutflows = (invRecord.history || []).reduce((sum, h) => {
-          if (!isMultiItem || !h.productId || h.productId === it.productId) {
-            return sum + (h.qty || 0);
-          }
-          return sum;
-        }, 0);
-
-        const currentStock = isReportConfirmed ? (itemActualQty - itemOutflows) : 0;
+        const { plannedQty, itemActualQty, currentStock, isReportConfirmed } = calculateItemStock(plan, it, planItems, invRecord, reports);
 
         rows.push({
           subKey,
@@ -146,7 +105,7 @@ const InventoryView = ({ onDeleteHistory, onOpenMemoModal, isAdminLoggedIn }) =>
           expiryDate,
           plannedQty,
           actualQty: itemActualQty,
-          currentStock,
+          currentStock: isReportConfirmed ? currentStock : 0,
           isMultiItem,
           isReportConfirmed
         });
