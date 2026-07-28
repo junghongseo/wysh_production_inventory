@@ -161,7 +161,8 @@ const OrderView = () => {
           }
 
           // Header finding logic
-          const groupKeywords = ['주문번호', '주문 번호', '품목 주문 번호', '품목주문번호', '송장번호', '송장 번호', '운송장번호', '운송장 번호', '운송장 정보', '배송 번호', '배송번호'];
+          const invoiceKeywords = ['송장번호', '송장 번호', '운송장번호', '운송장 번호', '운송장 정보', '배송 번호', '배송번호'];
+          const orderKeywords = ['주문번호', '주문 번호', '품목 주문 번호', '품목주문번호'];
           const nameKeywords = ['상품명', '상품 이름', '상품이름', '판매처 상품명', '판매처상품명', '상품명(옵션포함)', '품목명'];
           const qtyKeywords = ['수량', '주문수량', '주문 수량', '구매 수량', '구매수량', '배송 수량', '배송수량', '상품수량', '상품 수량'];
 
@@ -174,14 +175,18 @@ const OrderView = () => {
             const row = jsonData[r];
             if (!Array.isArray(row)) continue;
             
-            let g = -1;
+            let invCol = -1;
+            let ordCol = -1;
             let n = -1;
             let q = -1;
 
             for (let c = 0; c < row.length; c++) {
               const cellVal = String(row[c] || '').trim();
-              if (g === -1 && groupKeywords.includes(cellVal)) {
-                g = c;
+              if (invCol === -1 && invoiceKeywords.includes(cellVal)) {
+                invCol = c;
+              }
+              if (ordCol === -1 && orderKeywords.includes(cellVal)) {
+                ordCol = c;
               }
               if (n === -1 && nameKeywords.includes(cellVal)) {
                 n = c;
@@ -191,9 +196,18 @@ const OrderView = () => {
               }
             }
             
-            if (g !== -1 && n !== -1 && q !== -1) {
+            if ((invCol !== -1 || ordCol !== -1) && n !== -1 && q !== -1) {
               headerRowIndex = r;
-              groupCol = g;
+              let useInv = false;
+              if (invCol !== -1) {
+                for (let k = r + 1; k < Math.min(jsonData.length, r + 20); k++) {
+                  if (jsonData[k] && String(jsonData[k][invCol] || '').trim()) {
+                    useInv = true;
+                    break;
+                  }
+                }
+              }
+              groupCol = useInv ? invCol : (ordCol !== -1 ? ordCol : invCol);
               nameCol = n;
               qtyCol = q;
               break;
@@ -227,17 +241,15 @@ const OrderView = () => {
             throw new Error('정리할 주문 데이터가 발견되지 않았습니다. 파일 내용을 확인하세요.');
           }
 
-          // Packaging combinations map
-          const groupedMap = {};
-          // Order total quantity map (for 1, 2, 3+ order breakdown)
-          const orderTotalQtyMap = {};
+          // Aggregate products per package/invoice group
+          const groupProductMap = {}; // { groupVal: { nameVal: sumQty } }
+          const orderTotalQtyMap = {}; // { groupVal: totalQty }
 
           dfTarget.forEach(item => {
-            const formatted = `${item.nameVal} [${item.qtyVal}개]`;
-            if (!groupedMap[item.groupVal]) {
-              groupedMap[item.groupVal] = [];
+            if (!groupProductMap[item.groupVal]) {
+              groupProductMap[item.groupVal] = {};
             }
-            groupedMap[item.groupVal].push(formatted);
+            groupProductMap[item.groupVal][item.nameVal] = (groupProductMap[item.groupVal][item.nameVal] || 0) + item.qtyVal;
             orderTotalQtyMap[item.groupVal] = (orderTotalQtyMap[item.groupVal] || 0) + item.qtyVal;
           });
 
@@ -267,9 +279,10 @@ const OrderView = () => {
           };
 
           const orderTypeCounts = {};
-          Object.values(groupedMap).forEach(itemList => {
-            const sortedItems = [...itemList].sort();
-            const orderType = sortedItems.join(', ');
+          Object.values(groupProductMap).forEach(prodMap => {
+            const formattedItems = Object.entries(prodMap).map(([pName, pQty]) => `${pName} [${pQty}개]`);
+            formattedItems.sort();
+            const orderType = formattedItems.join(', ');
             orderTypeCounts[orderType] = (orderTypeCounts[orderType] || 0) + 1;
           });
 
