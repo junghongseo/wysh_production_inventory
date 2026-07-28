@@ -73,7 +73,18 @@ const InventoryView = ({ onDeleteHistory, onOpenMemoModal, isAdminLoggedIn }) =>
   // Compute stats for all sub-plans/items in the system
   const allInventoryData = useMemo(() => {
     const rows = [];
-    plans.filter(plan => plan.planType !== 'sub_ingredient').forEach(plan => {
+    const targetPlans = plans
+      .filter(plan => plan.planType !== 'sub_ingredient')
+      .sort((a, b) => {
+        const dateA = a.startDate || '';
+        const dateB = b.startDate || '';
+        if (dateA !== dateB) {
+          return dateB.localeCompare(dateA); // 생산 시작 일자 내림차순 (미래/최신 계획 상단 노출)
+        }
+        return (b.id || '').localeCompare(a.id || ''); // 동일 일자인 경우 차수 ID 내림차순
+      });
+
+    targetPlans.forEach(plan => {
       const planItems = plan.items && Array.isArray(plan.items) && plan.items.length > 0 
         ? plan.items 
         : [{ productId: plan.productId, totalQty: plan.totalQty }];
