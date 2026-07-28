@@ -482,7 +482,7 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
                 <div className="info-row" style={{ marginBottom: '12px' }}>
                   <span className="label">가동 발효기</span>
                   <span className="value highlight" style={{ color: 'var(--color-primary)', fontSize: '1rem' }}>
-                    {details.plan.fermenterType === 'small' ? '소형 발효기' : '대형 발효기'} (원재료 총량: {(details.plan.totalVolumeL || 0).toFixed(2)} L)
+                    {details.plan.fermenterType === 'small' ? '소형 발효기' : '대형 발효기'} (원재료 총량: {((details.combinedBaseDetails?.totalBaseInputWeightG ? details.combinedBaseDetails.totalBaseInputWeightG / 1000 : (details.plan.totalVolumeL || 0))).toFixed(2)} L)
                   </span>
                 </div>
 

@@ -266,9 +266,31 @@ const PlanRegistrationModal = ({
   const totalVolumeL = useMemo(() => {
     const totalBaseYogurtG = computedItems.reduce((sum, item) => sum + item.baseYogurtG, 0);
     if (totalBaseYogurtG === 0) return 0;
-    const totalRawMilkG = totalBaseYogurtG / 0.28;
+
+    let baseProduct = computedItems.map(d => d.product).find(p => p && !p.isFlavor);
+    if (!baseProduct) {
+      const flavorItem = computedItems.find(d => d.product && d.product.isFlavor && d.product.baseProductId);
+      if (flavorItem) {
+        baseProduct = yogurtProducts.find(p => p.id === flavorItem.product.baseProductId);
+      }
+    }
+    if (!baseProduct) {
+      const flavorItem = computedItems.find(d => d.product && d.product.isFlavor);
+      if (flavorItem) {
+        const firstIngName = flavorItem.product.ingredients?.[0]?.name;
+        if (firstIngName) {
+          baseProduct = yogurtProducts.find(p => p.name.includes(firstIngName) || firstIngName.includes(p.name));
+        }
+      }
+    }
+    if (!baseProduct) {
+      baseProduct = yogurtProducts.find(p => !p.isFlavor) || yogurtProducts[0];
+    }
+
+    const baseYield = baseProduct ? (baseProduct.yield || 28) : 28;
+    const totalRawMilkG = totalBaseYogurtG / (baseYield / 100);
     return totalRawMilkG / 1000;
-  }, [computedItems]);
+  }, [computedItems, yogurtProducts]);
 
   // Fermenter validation for Yogurt Plan
   const validation = useMemo(() => {

@@ -305,10 +305,56 @@ const CalendarView = ({
       };
     });
 
+    let calculatedTotalVolumeL = plan.totalVolumeL || 0;
+    if (itemDetails.length > 0) {
+      let totalBaseYogurtG = 0;
+      itemDetails.forEach(it => {
+        const prod = it.prod;
+        if (prod) {
+          const itemTotalWeightG = (it.plannedQty || 0) * prod.weight;
+          if (prod.isFlavor) {
+            const flavorYield = prod.yield || 100;
+            const inputWeightG = itemTotalWeightG / (flavorYield / 100);
+            const baseIng = prod.ingredients?.find(i => i.name.includes('위시그릭') || i.name.includes('플레인')) || prod.ingredients?.[0];
+            const baseRatio = baseIng ? baseIng.ratio : 70;
+            totalBaseYogurtG += inputWeightG * (baseRatio / 100);
+          } else {
+            totalBaseYogurtG += itemTotalWeightG;
+          }
+        }
+      });
+
+      if (totalBaseYogurtG > 0) {
+        let baseProduct = itemDetails.map(d => d.prod).find(p => p && !p.isFlavor);
+        if (!baseProduct) {
+          const flavorItem = itemDetails.find(d => d.prod && d.prod.isFlavor && d.prod.baseProductId);
+          if (flavorItem) {
+            baseProduct = products.find(p => p.id === flavorItem.prod.baseProductId);
+          }
+        }
+        if (!baseProduct) {
+          const flavorItem = itemDetails.find(d => d.prod && d.prod.isFlavor);
+          if (flavorItem) {
+            const firstIngName = flavorItem.prod.ingredients?.[0]?.name;
+            if (firstIngName) {
+              baseProduct = products.find(p => p.name.includes(firstIngName) || firstIngName.includes(p.name));
+            }
+          }
+        }
+        if (!baseProduct) {
+          baseProduct = products.find(p => !p.isFlavor) || products[0];
+        }
+
+        const baseYield = baseProduct ? (baseProduct.yield || 28) : 28;
+        calculatedTotalVolumeL = (totalBaseYogurtG / (baseYield / 100)) / 1000;
+      }
+    }
+
     return {
       plan,
       isSubIngredientPlan: false,
-      items: itemDetails
+      items: itemDetails,
+      totalVolumeL: calculatedTotalVolumeL
     };
   }, [selectedPlan, plans, products, inventory]);
 
@@ -716,7 +762,7 @@ const CalendarView = ({
                     </div>
                     <div className="info-row">
                       <span className="label">원재료 총 투입량</span>
-                      <span className="value highlight" style={{ color: 'var(--color-success)' }}>{(selectedPlanDetails.plan.totalVolumeL || 0).toFixed(2)} L</span>
+                      <span className="value highlight" style={{ color: 'var(--color-success)' }}>{(selectedPlanDetails.totalVolumeL || selectedPlanDetails.plan.totalVolumeL || 0).toFixed(2)} L</span>
                     </div>
                     <div className="info-row">
                       <span className="label">1일차 [발효 시작]</span>
