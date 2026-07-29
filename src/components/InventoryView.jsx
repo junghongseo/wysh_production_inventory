@@ -270,7 +270,7 @@ const InventoryView = ({ onDeleteHistory, onOpenMemoModal, isAdminLoggedIn }) =>
 
     // Check inventory limit
     const record = getInventoryRecord(targetPlanId);
-    const subItem = allInventoryData.find(d => d.subKey === outflowPlanId || d.planId === targetPlanId);
+    const subItem = allInventoryData.find(d => d.subKey === outflowPlanId) || allInventoryData.find(d => d.planId === targetPlanId);
     if (subItem) {
       let maxAvailable = subItem.currentStock;
       if (editingHistoryId && record && record.history) {
@@ -479,7 +479,7 @@ const InventoryView = ({ onDeleteHistory, onOpenMemoModal, isAdminLoggedIn }) =>
               >
                 <option value="" disabled>출고할 생산 차수를 선택하세요</option>
                 {editingHistoryId && !activeSubPlans.some(p => p.subKey === outflowPlanId || p.planId === outflowPlanId) && (() => {
-                  const targetSub = allInventoryData.find(d => d.subKey === outflowPlanId || d.planId === outflowPlanId);
+                  const targetSub = allInventoryData.find(d => d.subKey === outflowPlanId) || allInventoryData.find(d => d.planId === outflowPlanId);
                   if (!targetSub) return null;
                   return (
                     <option key={targetSub.subKey} value={targetSub.subKey}>
