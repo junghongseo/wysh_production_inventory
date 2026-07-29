@@ -5,6 +5,9 @@ const Navbar = ({ activeTab, setActiveTab, isAdminLoggedIn, onOpenAppSettings, a
   const { reports, inventory } = useWysh();
 
   const unconfirmedReportsCount = reports.filter(r => !r.confirmed).length;
+  const unconfirmedSensoryCount = reports.filter(r => r.type === 'sensory' && !r.confirmed).length;
+  const visibleUnconfirmedReportsCount = isAdminLoggedIn ? unconfirmedReportsCount : unconfirmedSensoryCount;
+
   const unverifiedInventoryCount = inventory.reduce(
     (acc, inv) => acc + (inv.history ? inv.history.filter(h => h.verified === false).length : 0),
     0
@@ -68,7 +71,7 @@ const Navbar = ({ activeTab, setActiveTab, isAdminLoggedIn, onOpenAppSettings, a
           <polyline points="10 9 9 9 8 9"></polyline>
         </svg>
         <span>리포트</span>
-        {isAdminLoggedIn && unconfirmedReportsCount > 0 && (
+        {visibleUnconfirmedReportsCount > 0 && (
           <span style={{
             backgroundColor: '#ef4444',
             color: '#ffffff',
@@ -83,7 +86,7 @@ const Navbar = ({ activeTab, setActiveTab, isAdminLoggedIn, onOpenAppSettings, a
             boxShadow: '0 2px 4px rgba(239, 68, 68, 0.2)',
             lineHeight: '1'
           }}>
-            미확인 {unconfirmedReportsCount}
+            미확인 {visibleUnconfirmedReportsCount}
           </span>
         )}
       </button>
