@@ -1681,6 +1681,7 @@ button svg * {
     .report-history-card.mobile-active, 
     .report-form-card.mobile-active {
         display: flex !important;
+        flex-direction: column !important;
     }
 }
 

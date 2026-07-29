@@ -1557,7 +1557,7 @@ const ReportsView = () => {
         `}} />
 
         {/* Left: History list */}
-        <div className={`glass-card report-history-card ${mobileSubTab === 'history' ? 'mobile-active' : 'mobile-inactive'}`}>
+        <div className={`glass-card report-history-card ${mobileSubTab === 'history' ? 'mobile-active' : 'mobile-inactive'}`} style={{ display: 'flex', flexDirection: 'column' }}>
           <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 style={{ fontSize: '1.1rem', fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
               {activeReportType === 'sensory' ? '👤 관능검사 리포트 작성 이력' : (activeReportType === 'bottling' ? '🍾 병입 리포트 작성 이력' : (activeReportType === 'whey_separation' ? '💧 유청분리 리포트 작성 이력' : '🥛 발효 리포트 작성 이력'))}
