@@ -45,16 +45,21 @@ const App = () => {
     localStorage.setItem('wysh-theme', theme);
   }, [theme]);
 
-  // Compute unconfirmed reports count based on login role (admin vs worker)
+  // Compute unconfirmed reports & inventory count based on login role (admin vs worker)
   const unconfirmedCount = React.useMemo(() => {
     if (!reports) return 0;
     if (isAdminLoggedIn) {
-      return reports.filter(r => !r.confirmed).length;
+      const unconfirmedReportsCount = reports.filter(r => !r.confirmed).length;
+      const unverifiedOutflowsCount = inventory ? inventory.reduce(
+        (acc, inv) => acc + (inv.history ? inv.history.filter(h => h.verified === false).length : 0),
+        0
+      ) : 0;
+      return unconfirmedReportsCount + unverifiedOutflowsCount;
     }
     return reports.filter(r => r.type === 'sensory' && !r.confirmed).length;
-  }, [reports, isAdminLoggedIn]);
+  }, [reports, inventory, isAdminLoggedIn]);
 
-  // Update PWA App Badge when unconfirmed reports change
+  // Update PWA App Badge when unconfirmed reports or inventory change
   React.useEffect(() => {
     if (!reports) return;
 
@@ -95,7 +100,7 @@ const App = () => {
     }
 
     updateBadge();
-  }, [reports, unconfirmedCount]);
+  }, [reports, inventory, unconfirmedCount]);
 
   // Admin login & settings modal states
   const [adminLoginModalOpen, setAdminLoginModalOpen] = useState(false);
