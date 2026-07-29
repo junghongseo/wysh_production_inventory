@@ -45,26 +45,57 @@ const App = () => {
     localStorage.setItem('wysh-theme', theme);
   }, [theme]);
 
+  // Compute unconfirmed reports count based on login role (admin vs worker)
+  const unconfirmedCount = React.useMemo(() => {
+    if (!reports) return 0;
+    if (isAdminLoggedIn) {
+      return reports.filter(r => !r.confirmed).length;
+    }
+    return reports.filter(r => r.type === 'sensory' && !r.confirmed).length;
+  }, [reports, isAdminLoggedIn]);
+
   // Update PWA App Badge when unconfirmed reports change
   React.useEffect(() => {
     if (!reports) return;
-    const unconfirmedCount = reports.filter(r => !r.confirmed).length;
-    
-    if ('setAppBadge' in navigator) {
-      if (unconfirmedCount > 0) {
-        navigator.setAppBadge(unconfirmedCount).catch((err) => console.log('App Badge error:', err));
-      } else {
-        navigator.clearAppBadge().catch((err) => console.log('App Badge error:', err));
+
+    const updateBadge = () => {
+      if ('setAppBadge' in navigator) {
+        if (unconfirmedCount > 0) {
+          navigator.setAppBadge(unconfirmedCount).catch((err) => console.log('App Badge error:', err));
+        } else {
+          navigator.clearAppBadge().catch((err) => console.log('App Badge error:', err));
+        }
+      }
+
+      if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({
+          type: 'SET_BADGE',
+          count: unconfirmedCount
+        });
+      }
+    };
+
+    // iOS 16.4+ and Android Chrome require Notification permission for PWA Home Screen icon badges
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'default') {
+        const handleUserInteraction = () => {
+          Notification.requestPermission().then((permission) => {
+            if (permission === 'granted') {
+              updateBadge();
+            }
+          }).catch(err => console.log('Notification permission error:', err));
+          window.removeEventListener('click', handleUserInteraction);
+          window.removeEventListener('touchstart', handleUserInteraction);
+        };
+        window.addEventListener('click', handleUserInteraction);
+        window.addEventListener('touchstart', handleUserInteraction);
+      } else if (Notification.permission === 'granted') {
+        updateBadge();
       }
     }
 
-    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
-      navigator.serviceWorker.controller.postMessage({
-        type: 'SET_BADGE',
-        count: unconfirmedCount
-      });
-    }
-  }, [reports]);
+    updateBadge();
+  }, [reports, unconfirmedCount]);
 
   // Admin login & settings modal states
   const [adminLoginModalOpen, setAdminLoginModalOpen] = useState(false);
