@@ -4,7 +4,7 @@ const REPORT_TYPES = [
   { id: 'fermentation', label: '1. 발효 공정 일지', icon: '🥛' },
   { id: 'whey_separation', label: '2. 유청 분리 일지', icon: '🧪' },
   { id: 'bottling', label: '3. 충진/병입 일지', icon: '🍶' },
-  { id: 'packaging', label: '4. 최종 포장 일지', icon: '📦' }
+  { id: 'sensory', label: '4. 관능검사 리포트', icon: '👤' }
 ];
 
 const ReportTypeTabs = ({ activeType, onSelectType }) => {

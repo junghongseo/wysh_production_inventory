@@ -74,6 +74,15 @@ const ReportsView = () => {
   const [item2BottlingRemainsG, setItem2BottlingRemainsG] = useState('');
   const [item2DeductionQty, setItem2DeductionQty] = useState('');
 
+  // Form states (Sensory Evaluation Report)
+  const [eval1Note, setEval1Note] = useState('');
+  const [eval1Name, setEval1Name] = useState('');
+  const [eval2Note, setEval2Note] = useState('');
+  const [eval2Name, setEval2Name] = useState('');
+  const [sensoryStatus, setSensoryStatus] = useState('partial'); // 'partial' or 'completed'
+  const [selectedTargetKey, setSelectedTargetKey] = useState('');
+  const [selectedSensoryProductId, setSelectedSensoryProductId] = useState('');
+
   // 1. Filtered plans for dropdown according to production pipeline stages
   const availablePlans = useMemo(() => {
     const basePlans = plans.filter(p => p.planType !== 'sub_ingredient');
@@ -99,14 +108,19 @@ const ReportsView = () => {
       const startStr = format(monday);
       const endStr = format(sunday);
 
+      const fermentationPlanIds = new Set(
+        reports.filter(r => r.type === 'fermentation').map(r => r.planId)
+      );
+
       return basePlans.filter(p => {
         if (isEditing && p.id === selectedPlanId) return true;
-        return p.startDate >= startStr && p.startDate <= endStr;
+        return p.startDate >= startStr && p.startDate <= endStr && !fermentationPlanIds.has(p.id);
       });
     }
 
     if (activeReportType === 'whey_separation') {
-      // Show ONLY plans that HAVE a completed Fermentation report AND DO NOT HAVE a Whey Separation report yet
+      // Show ONLY plans that HAVE a completed Fermentation report AND DO NOT HAVE a Whey Separation report yet.
+      // Exclude legacy plans prior to 7월 4주차 (2026-07-20) created before digital whey separation reports were introduced.
       const fermentationPlanIds = new Set(
         reports.filter(r => r.type === 'fermentation').map(r => r.planId)
       );
@@ -116,7 +130,8 @@ const ReportsView = () => {
 
       return basePlans.filter(p => {
         if (isEditing && p.id === selectedPlanId) return true;
-        return fermentationPlanIds.has(p.id) && !wheySeparationPlanIds.has(p.id);
+        const isLegacyPlan = p.startDate < '2026-07-20' || p.name.includes('7월 3주차') || p.name.includes('7월 2주차') || p.name.includes('7월 1주차') || p.name.includes('7월3주차');
+        return fermentationPlanIds.has(p.id) && !wheySeparationPlanIds.has(p.id) && !isLegacyPlan;
       });
     }
 
@@ -137,6 +152,78 @@ const ReportsView = () => {
 
     return basePlans;
   }, [plans, reports, activeReportType, isEditing, selectedPlanId]);
+
+  // Available targets for Sensory Evaluation (handles multi-item plan splitting like (계획명)_(제품명))
+  const availableSensoryTargets = useMemo(() => {
+    if (activeReportType !== 'sensory') return [];
+
+    const basePlans = plans.filter(p => p.planType !== 'sub_ingredient');
+    const bottlingReports = reports.filter(r => r.type === 'bottling');
+    const sensoryReports = reports.filter(r => r.type === 'sensory');
+
+    const targets = [];
+
+    bottlingReports.forEach(bRep => {
+      const plan = basePlans.find(p => p.id === bRep.planId);
+      if (!plan) return;
+
+      const d = bRep.details || {};
+      
+      if (d.isMultiItem) {
+        // 2-item parallel production plan
+        const items = [];
+        if (d.item1 && d.item1.productId) items.push(d.item1);
+        if (d.item2 && d.item2.productId) items.push(d.item2);
+
+        items.forEach(it => {
+          const key = `${plan.id}::${it.productId}`;
+          const isCompleted = sensoryReports.some(sr => 
+            sr.planId === plan.id && 
+            sr.details?.productId === it.productId && 
+            sr.details?.sensoryStatus === 'completed'
+          );
+
+          if (!isCompleted || (isEditing && selectedTargetKey === key)) {
+            targets.push({
+              key,
+              planId: plan.id,
+              productId: it.productId,
+              productName: it.productName,
+              displayName: `${plan.name}_${it.productName}`,
+              startDate: plan.startDate,
+              isMultiItem: true
+            });
+          }
+        });
+      } else {
+        // Single item production plan
+        const key = plan.id;
+        const prodId = d.productId || plan.productId;
+        const prodObj = products.find(p => p.id === prodId);
+        const prodName = d.productName || (prodObj ? prodObj.name : '');
+
+        const isCompleted = sensoryReports.some(sr => 
+          sr.planId === plan.id && 
+          (!sr.details?.productId || sr.details?.productId === prodId) &&
+          sr.details?.sensoryStatus === 'completed'
+        );
+
+        if (!isCompleted || (isEditing && selectedTargetKey === key)) {
+          targets.push({
+            key,
+            planId: plan.id,
+            productId: prodId,
+            productName: prodName,
+            displayName: plan.name,
+            startDate: plan.startDate,
+            isMultiItem: false
+          });
+        }
+      }
+    });
+
+    return targets;
+  }, [plans, reports, activeReportType, isEditing, selectedTargetKey, products]);
 
   // Selected plan and product details
   const selectedPlanDetails = useMemo(() => {
@@ -516,6 +603,67 @@ const ReportsView = () => {
     }
   }, [selectedPlanDetails, isEditing, activeReportType]);
 
+  // Auto-fetched data for sensory evaluation report (from fermentation and whey separation)
+  const sensoryAutoData = useMemo(() => {
+    if (!selectedPlanId) return null;
+    const fermRep = reports.find(r => r.type === 'fermentation' && r.planId === selectedPlanId);
+    const wheyRep = reports.find(r => r.type === 'whey_separation' && r.planId === selectedPlanId);
+
+    let targetProductName = selectedPlanDetails?.product?.name || '';
+    if (selectedTargetKey) {
+      const targetObj = availableSensoryTargets.find(t => t.key === selectedTargetKey);
+      if (targetObj?.productName) {
+        targetProductName = targetObj.productName;
+      }
+    } else if (selectedSensoryProductId) {
+      const prodObj = products.find(p => p.id === selectedSensoryProductId);
+      if (prodObj) targetProductName = prodObj.name;
+    }
+
+    return {
+      productName: targetProductName,
+      sterilizationTemp: fermRep?.details?.sterilizationTemp ?? '미작성',
+      sterilizationTime: fermRep?.details?.sterilizationTime ?? '미작성',
+      heatingTemp: fermRep?.details?.heatingTemp ?? '미작성',
+      phValue: wheyRep?.details?.phValue ?? '미작성'
+    };
+  }, [reports, selectedPlanId, selectedTargetKey, availableSensoryTargets, selectedPlanDetails, selectedSensoryProductId, products]);
+
+  // Handle target selection for sensory evaluation report
+  const handleSensoryTargetChange = (targetKey) => {
+    setSelectedTargetKey(targetKey);
+    if (!targetKey) {
+      setSelectedPlanId('');
+      setSelectedSensoryProductId('');
+      handleResetForm();
+      return;
+    }
+
+    const [planId, prodId] = targetKey.includes('::') ? targetKey.split('::') : [targetKey, ''];
+    setSelectedPlanId(planId);
+    setSelectedSensoryProductId(prodId || '');
+
+    // Check if an existing sensory report exists for this target
+    const existingSensory = reports.find(r => 
+      r.type === 'sensory' && 
+      r.planId === planId && 
+      (!prodId || r.details?.productId === prodId)
+    );
+
+    if (existingSensory) {
+      handleSelectReport(existingSensory);
+    } else {
+      // Clear evaluator fields for new sensory report
+      setSelectedReportId(null);
+      setIsEditing(false);
+      setEval1Note('');
+      setEval1Name('');
+      setEval2Note('');
+      setEval2Name('');
+      setSensoryStatus('partial');
+    }
+  };
+
   // Handle report selection for view/edit
   const handleSelectReport = (report) => {
     setSelectedReportId(report.id);
@@ -551,6 +699,17 @@ const ReportsView = () => {
       setWheyTempUpper(d.tempUpper !== undefined ? d.tempUpper : '');
       setWheyTempLower(d.tempLower !== undefined ? d.tempLower : '');
       setWheyPh(d.phValue !== undefined ? d.phValue : '');
+    } else if (report.type === 'sensory') {
+      const d = report.details || {};
+      setSensoryStatus(d.sensoryStatus || 'partial');
+      setEval1Note(d.evaluator1?.note || '');
+      setEval1Name(d.evaluator1?.name || report.workerName || '');
+      setEval2Note(d.evaluator2?.note || '');
+      setEval2Name(d.evaluator2?.name || '');
+      const prodId = d.productId || '';
+      setSelectedSensoryProductId(prodId);
+      const targetKey = d.targetKey || (prodId ? `${report.planId}::${prodId}` : report.planId);
+      setSelectedTargetKey(targetKey);
     } else {
       const checked = report.checkedItems || [];
       setCheckedSterilization(checked.includes('sterilization'));
@@ -624,6 +783,15 @@ const ReportsView = () => {
     setItem2BottlingCount('');
     setItem2BottlingRemainsG('');
     setItem2DeductionQty('');
+
+    // Sensory resets
+    setEval1Note('');
+    setEval1Name('');
+    setEval2Note('');
+    setEval2Name('');
+    setSensoryStatus('partial');
+    setSelectedTargetKey('');
+    setSelectedSensoryProductId('');
   };
 
   // Handle form submit (save or update)
@@ -633,6 +801,79 @@ const ReportsView = () => {
       alert('생산 계획을 선택해주세요.');
       return;
     }
+
+    if (activeReportType === 'sensory') {
+      if (!selectedTargetKey && !selectedPlanId) {
+        alert('관능검사 대상 생산 건을 선택해 주세요.');
+        return;
+      }
+      if (!eval1Note.trim() || !eval1Name.trim()) {
+        alert('1차 평가자의 관능평가 소감과 서명(이름)을 모두 작성해 주세요.');
+        return;
+      }
+
+      let nextStatus = 'partial';
+      if (eval2Note.trim() && eval2Name.trim()) {
+        nextStatus = 'completed';
+      }
+
+      const targetObj = availableSensoryTargets.find(t => t.key === selectedTargetKey);
+      const targetProdName = sensoryAutoData?.productName || targetObj?.productName || selectedPlanDetails?.product?.name || '';
+      const targetProdId = selectedSensoryProductId || targetObj?.productId || selectedPlanDetails?.product?.id || '';
+
+      const existingReport = isEditing 
+        ? reports.find(r => r.id === selectedReportId) 
+        : reports.find(r => r.type === 'sensory' && r.planId === selectedPlanId && (r.details?.productId === targetProdId || !targetProdId));
+      
+      const existingDetails = existingReport?.details || {};
+
+      const reportData = {
+        planId: selectedPlanId,
+        type: 'sensory',
+        workerName: eval1Name.trim(),
+        confirmed: true,
+        checkedItems: [],
+        details: {
+          productId: targetProdId,
+          productName: targetProdName,
+          targetKey: selectedTargetKey,
+          isMultiItem: selectedTargetKey.includes('::') || targetObj?.isMultiItem,
+          sterilizationTemp: sensoryAutoData?.sterilizationTemp,
+          sterilizationTime: sensoryAutoData?.sterilizationTime,
+          heatingTemp: sensoryAutoData?.heatingTemp,
+          phValue: sensoryAutoData?.phValue,
+          sensoryStatus: nextStatus,
+          evaluator1: {
+            note: eval1Note.trim(),
+            name: eval1Name.trim(),
+            savedAt: existingDetails.evaluator1?.savedAt || new Date().toISOString()
+          },
+          evaluator2: (eval2Note.trim() && eval2Name.trim()) ? {
+            note: eval2Note.trim(),
+            name: eval2Name.trim(),
+            savedAt: existingDetails.evaluator2?.savedAt || new Date().toISOString()
+          } : (existingDetails.evaluator2 || null)
+        }
+      };
+
+      if ((isEditing && selectedReportId) || existingReport) {
+        const targetId = selectedReportId || existingReport.id;
+        const targetObjInReports = reports.find(r => r.id === targetId);
+        updateReport({
+          ...targetObjInReports,
+          ...reportData
+        });
+        alert(`관능검사 리포트가 성공적으로 저장되었습니다. (상태: ${nextStatus === 'completed' ? '최종 완료' : '1차 완료'})`);
+      } else {
+        addReport(reportData);
+        alert(`관능검사 리포트가 성공적으로 등록되었습니다. (상태: ${nextStatus === 'completed' ? '최종 완료' : '1차 완료'})`);
+      }
+
+      handleResetForm();
+      setMobileSubTab('history');
+      return;
+    }
+
     if (!workerName.trim()) {
       alert('확인자 서명을 작성해주세요.');
       return;
@@ -1147,6 +1388,30 @@ const ReportsView = () => {
               </span>
             )}
           </button>
+
+          <button 
+            className={`btn-secondary ${activeReportType === 'sensory' ? 'active' : ''}`}
+            onClick={() => { setActiveReportType('sensory'); handleResetForm(); }}
+            style={{ 
+              flex: '1 1 130px', 
+              minWidth: '120px',
+              justifyContent: 'center', 
+              padding: '10px 8px', 
+              borderRadius: '10px', 
+              fontWeight: 700,
+              fontSize: '0.88rem',
+              letterSpacing: '-0.01em',
+              background: activeReportType === 'sensory' ? 'var(--color-primary)' : '',
+              color: activeReportType === 'sensory' ? '#fff' : '',
+              borderColor: activeReportType === 'sensory' ? 'var(--color-primary)' : '',
+              display: 'inline-flex',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '4px'
+            }}
+          >
+            <span>👤 관능검사 리포트</span>
+          </button>
         </div>
       </div>
 
@@ -1274,7 +1539,7 @@ const ReportsView = () => {
         <div className={`glass-card ${mobileSubTab === 'history' ? 'mobile-active' : 'mobile-inactive'}`}>
           <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 style={{ fontSize: '1.1rem', fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
-              {activeReportType === 'bottling' ? '🍾 병입 리포트 작성 이력' : (activeReportType === 'whey_separation' ? '💧 유청분리 리포트 작성 이력' : '🥛 발효 리포트 작성 이력')}
+              {activeReportType === 'sensory' ? '👤 관능검사 리포트 작성 이력' : (activeReportType === 'bottling' ? '🍾 병입 리포트 작성 이력' : (activeReportType === 'whey_separation' ? '💧 유청분리 리포트 작성 이력' : '🥛 발효 리포트 작성 이력'))}
             </h3>
             <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', background: 'var(--bg-tertiary)', padding: '2px 10px', borderRadius: '12px', fontWeight: 600, fontFamily: 'var(--font-outfit)' }}>
               {filteredReports.length} 건
@@ -1284,7 +1549,7 @@ const ReportsView = () => {
           <div className="report-history-list" style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '720px', overflowY: 'auto' }}>
             {filteredReports.length === 0 ? (
               <div className="empty-state" style={{ padding: '40px 20px' }}>
-                <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>작성된 {activeReportType === 'bottling' ? '병입' : (activeReportType === 'whey_separation' ? '유청분리' : '발효')} 리포트가 없습니다.</p>
+                <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)' }}>작성된 {activeReportType === 'sensory' ? '관능검사' : (activeReportType === 'bottling' ? '병입' : (activeReportType === 'whey_separation' ? '유청분리' : '발효'))} 리포트가 없습니다.</p>
               </div>
             ) : (
               filteredReports.map(rep => {
@@ -1337,12 +1602,12 @@ const ReportsView = () => {
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
-                            maxWidth: '140px',
+                            maxWidth: '180px',
                             wordBreak: 'keep-all'
                           }}
-                          title={getPlanName(rep.planId)}
+                          title={rep.type === 'sensory' && rep.details?.productName && rep.details?.isMultiItem ? `${getPlanName(rep.planId)}_${rep.details.productName}` : getPlanName(rep.planId)}
                         >
-                          {getPlanName(rep.planId)}
+                          {rep.type === 'sensory' && rep.details?.productName && rep.details?.isMultiItem ? `${getPlanName(rep.planId)}_${rep.details.productName}` : getPlanName(rep.planId)}
                         </span>
                         {rep.confirmed ? (
                           <span style={{ fontSize: '0.72rem', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', padding: '2px 7px', borderRadius: '6px', fontWeight: 700, flexShrink: 0, whiteSpace: 'nowrap' }}>
@@ -1458,6 +1723,33 @@ const ReportsView = () => {
                       </div>
                     )}
 
+                    {/* Sensory evaluation summary badges */}
+                    {rep.type === 'sensory' && rep.details && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.76rem', wordBreak: 'keep-all' }}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                          <span style={{ 
+                            background: rep.details.sensoryStatus === 'completed' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(245, 158, 11, 0.15)', 
+                            color: rep.details.sensoryStatus === 'completed' ? '#10b981' : '#b45309', 
+                            padding: '2px 8px', 
+                            borderRadius: '6px', 
+                            fontWeight: 700 
+                          }}>
+                            {rep.details.sensoryStatus === 'completed' ? '✓ 최종 완료 (2인 평가)' : '⏳ 1차 완료 (2차 평가 대기)'}
+                          </span>
+                        </div>
+                        {rep.details.evaluator1 && (
+                          <div style={{ background: 'var(--bg-tertiary)', padding: '6px 10px', borderRadius: '8px', borderLeft: '3px solid var(--color-primary)' }}>
+                            <strong style={{ color: 'var(--text-primary)' }}>평가자 1 ({rep.details.evaluator1.name}):</strong> {rep.details.evaluator1.note}
+                          </div>
+                        )}
+                        {rep.details.evaluator2 && (
+                          <div style={{ background: 'var(--bg-tertiary)', padding: '6px 10px', borderRadius: '8px', borderLeft: '3px solid #10b981' }}>
+                            <strong style={{ color: 'var(--text-primary)' }}>평가자 2 ({rep.details.evaluator2.name}):</strong> {rep.details.evaluator2.note}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem', color: 'var(--text-secondary)', borderTop: '1px dashed var(--border-color)', paddingTop: '6px', flexWrap: 'wrap', gap: '4px' }}>
                       <span>확인자: <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{rep.workerName}</strong></span>
                       <span style={{ fontFamily: 'var(--font-outfit)', color: 'var(--text-secondary)', fontWeight: 500 }}>{formatReportDate(rep.createdAt)}</span>
@@ -1474,8 +1766,8 @@ const ReportsView = () => {
           <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <h3 style={{ fontSize: '1.2rem', fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
               {isEditing 
-                ? (activeReportType === 'bottling' ? '병입 리포트 수정 / 상세조회' : (activeReportType === 'whey_separation' ? '유청분리 리포트 수정 / 상세조회' : '발효 리포트 수정 / 상세조회'))
-                : (activeReportType === 'bottling' ? '신규 병입 리포트 작성' : (activeReportType === 'whey_separation' ? '신규 유청분리 리포트 작성' : '신규 발효 리포트 작성'))}
+                ? (activeReportType === 'sensory' ? '관능검사 리포트 수정 / 상세조회' : (activeReportType === 'bottling' ? '병입 리포트 수정 / 상세조회' : (activeReportType === 'whey_separation' ? '유청분리 리포트 수정 / 상세조회' : '발효 리포트 수정 / 상세조회')))
+                : (activeReportType === 'sensory' ? '신규 관능검사 리포트 작성' : (activeReportType === 'bottling' ? '신규 병입 리포트 작성' : (activeReportType === 'whey_separation' ? '신규 유청분리 리포트 작성' : '신규 발효 리포트 작성')))}
             </h3>
             {isEditing && (
               <button 
@@ -1499,30 +1791,56 @@ const ReportsView = () => {
                   {activeReportType === 'fermentation' && '(이번 주 생산 계획만 표출됩니다)'}
                   {activeReportType === 'whey_separation' && '(발효 완료 & 유청분리 미작성 계획만 표출됩니다)'}
                   {activeReportType === 'bottling' && '(유청분리 완료 & 병입 미작성 계획만 표출됩니다)'}
+                  {activeReportType === 'sensory' && '(병입 완료 생산 계획 및 제품별 표출됩니다)'}
                 </span>
               </label>
-              <select 
-                className="form-control" 
-                id="report-plan-select"
-                value={selectedPlanId}
-                onChange={(e) => setSelectedPlanId(e.target.value)}
-                disabled={isEditing}
-                required
-                style={{ height: '42px', fontSize: '0.88rem' }}
-              >
-                <option value="">-- 생산 계획을 선택하세요 --</option>
-                {availablePlans.length === 0 ? (
-                  <option disabled value="">
-                    {activeReportType === 'fermentation' && '이번 주 예정된 생산 계획이 없습니다.'}
-                    {activeReportType === 'whey_separation' && '유청분리 작성 대상 생산 계획이 없습니다.'}
-                    {activeReportType === 'bottling' && '병입 작성 대상 생산 계획이 없습니다.'}
-                  </option>
-                ) : (
-                  availablePlans.map(p => (
-                    <option key={p.id} value={p.id}>{p.name} ({p.startDate})</option>
-                  ))
-                )}
-              </select>
+              {activeReportType === 'sensory' ? (
+                <select 
+                  className="form-control" 
+                  id="report-plan-select"
+                  value={selectedTargetKey}
+                  onChange={(e) => handleSensoryTargetChange(e.target.value)}
+                  disabled={isEditing}
+                  required
+                  style={{ height: '42px', fontSize: '0.88rem' }}
+                >
+                  <option value="">-- 관능검사 대상 (생산 계획 및 제품) 선택 --</option>
+                  {availableSensoryTargets.length === 0 ? (
+                    <option disabled value="">
+                      관능검사 작성 대상 생산 건이 없습니다.
+                    </option>
+                  ) : (
+                    availableSensoryTargets.map(t => (
+                      <option key={t.key} value={t.key}>
+                        {t.displayName} ({t.startDate})
+                      </option>
+                    ))
+                  )}
+                </select>
+              ) : (
+                <select 
+                  className="form-control" 
+                  id="report-plan-select"
+                  value={selectedPlanId}
+                  onChange={(e) => setSelectedPlanId(e.target.value)}
+                  disabled={isEditing}
+                  required
+                  style={{ height: '42px', fontSize: '0.88rem' }}
+                >
+                  <option value="">-- 생산 계획을 선택하세요 --</option>
+                  {availablePlans.length === 0 ? (
+                    <option disabled value="">
+                      {activeReportType === 'fermentation' && '이번 주 예정된 생산 계획이 없습니다.'}
+                      {activeReportType === 'whey_separation' && '유청분리 작성 대상 생산 계획이 없습니다.'}
+                      {activeReportType === 'bottling' && '병입 작성 대상 생산 계획이 없습니다.'}
+                    </option>
+                  ) : (
+                    availablePlans.map(p => (
+                      <option key={p.id} value={p.id}>{p.name} ({p.startDate})</option>
+                    ))
+                  )}
+                </select>
+              )}
             </div>
 
             {/* BOTTLING REPORT FORM BODY */}
@@ -2213,22 +2531,182 @@ const ReportsView = () => {
               </>
             )}
 
-            {/* Signature name */}
-            <div className="form-group" style={{ marginTop: '8px' }}>
-              <label htmlFor="report-worker-name" style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', display: 'block', marginBottom: '6px' }}>
-                {activeReportType === 'bottling' ? '4. 작업 확인자 서명' : (activeReportType === 'whey_separation' ? '7. 확인자 서명' : '3. 확인자 서명')}
-              </label>
-              <input 
-                type="text" 
-                className="form-control" 
-                id="report-worker-name" 
-                placeholder="예: 홍길동 (본인의 이름을 입력하세요)"
-                value={workerName}
-                onChange={(e) => setWorkerName(e.target.value)}
-                required
-                style={{ height: '40px', fontSize: '0.88rem' }}
-              />
-            </div>
+            {/* SENSORY REPORT FORM BODY */}
+            {activeReportType === 'sensory' && (
+              <>
+                {/* Auto-fetched Read-Only Info Card */}
+                {selectedPlanId && sensoryAutoData && (
+                  <div style={{
+                    padding: '16px',
+                    background: 'var(--bg-tertiary)',
+                    borderRadius: '12px',
+                    border: '1px solid var(--border-color)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '12px'
+                  }}>
+                    <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span>📌 이전 공정 자동 연동 정보</span>
+                      <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-muted)' }}>(발효 및 유청분리 리포트 기준)</span>
+                    </h4>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' }}>
+                      <div style={{ background: 'var(--bg-secondary)', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>제품명</span>
+                        <strong style={{ fontSize: '0.88rem', color: 'var(--text-primary)' }}>
+                          {selectedPlanDetails?.product?.name || '제품정보 없음'}
+                        </strong>
+                      </div>
+                      <div style={{ background: 'var(--bg-secondary)', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>살균 방법</span>
+                        <strong style={{ fontSize: '0.88rem', color: 'var(--color-primary)' }}>
+                          {sensoryAutoData.sterilizationTemp}°C / {sensoryAutoData.sterilizationTime}분 완료
+                        </strong>
+                      </div>
+                      <div style={{ background: 'var(--bg-secondary)', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>가열 설정 온도</span>
+                        <strong style={{ fontSize: '0.88rem', color: 'var(--color-primary)' }}>
+                          {sensoryAutoData.heatingTemp}°C
+                        </strong>
+                      </div>
+                      <div style={{ background: 'var(--bg-secondary)', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>pH</span>
+                        <strong style={{ fontSize: '0.88rem', color: '#9333ea' }}>
+                          {sensoryAutoData.phValue}
+                        </strong>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Evaluator 1 Section */}
+                <div style={{
+                  padding: '16px',
+                  background: 'var(--bg-tertiary)',
+                  borderRadius: '12px',
+                  border: (eval1Name && eval1Note) ? '2px solid #10b981' : '2px solid #f59e0b',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                      👤 1차 관능평가 (평가자 1)
+                    </h4>
+                    {eval1Name && eval1Note && (
+                      <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 700 }}>
+                        ✓ 작성완료
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="form-group">
+                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
+                      관능평가 소감 <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(예: 질감 좋음, 산미 좋음 등)</span>
+                    </label>
+                    <textarea
+                      className="form-control"
+                      rows="3"
+                      placeholder="질감, 산미/풍미, 종합의견 등을 자유롭게 작성하세요."
+                      value={eval1Note}
+                      onChange={(e) => setEval1Note(e.target.value)}
+                      required
+                      style={{ fontSize: '0.88rem', resize: 'vertical' }}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
+                      평가자 1 서명 (이름)
+                    </label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="예: 홍길동 (본인의 이름을 입력하세요)"
+                      value={eval1Name}
+                      onChange={(e) => setEval1Name(e.target.value)}
+                      required
+                      style={{ height: '40px', fontSize: '0.88rem' }}
+                    />
+                  </div>
+                </div>
+
+                {/* Evaluator 2 Section */}
+                <div style={{
+                  padding: '16px',
+                  background: 'var(--bg-tertiary)',
+                  borderRadius: '12px',
+                  border: (eval2Name && eval2Note) ? '2px solid #10b981' : '1px solid var(--border-color)',
+                  opacity: (!eval1Name || !eval1Note) && sensoryStatus !== 'partial' && sensoryStatus !== 'completed' ? 0.6 : 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+                      👤 2차 관능평가 (평가자 2)
+                    </h4>
+                    {(!eval1Name || !eval1Note) && sensoryStatus !== 'partial' && sensoryStatus !== 'completed' ? (
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        🔒 1차 평가 작성/저장 후 입력 가능
+                      </span>
+                    ) : (eval2Name && eval2Note && (
+                      <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 700 }}>
+                        ✓ 작성완료
+                      </span>
+                    ))}
+                  </div>
+
+                  <div className="form-group">
+                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
+                      관능평가 소감 <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(예: 질감 살짝 묽음, 산미 약간 있음 등)</span>
+                    </label>
+                    <textarea
+                      className="form-control"
+                      rows="3"
+                      placeholder={(!eval1Name || !eval1Note) && sensoryStatus !== 'partial' && sensoryStatus !== 'completed' ? "1차 평가 저장 후 입력 가능합니다." : "2차 평가 소감을 작성하세요."}
+                      value={eval2Note}
+                      onChange={(e) => setEval2Note(e.target.value)}
+                      disabled={(!eval1Name || !eval1Note) && sensoryStatus !== 'partial' && sensoryStatus !== 'completed'}
+                      style={{ fontSize: '0.88rem', resize: 'vertical' }}
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
+                      평가자 2 서명 (이름)
+                    </label>
+                    <input
+                      type="text"
+                      className="form-control"
+                      placeholder="예: 김철수 (본인의 이름을 입력하세요)"
+                      value={eval2Name}
+                      onChange={(e) => setEval2Name(e.target.value)}
+                      disabled={(!eval1Name || !eval1Note) && sensoryStatus !== 'partial' && sensoryStatus !== 'completed'}
+                      style={{ height: '40px', fontSize: '0.88rem' }}
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Signature name for non-sensory reports */}
+            {activeReportType !== 'sensory' && (
+              <div className="form-group" style={{ marginTop: '8px' }}>
+                <label htmlFor="report-worker-name" style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', display: 'block', marginBottom: '6px' }}>
+                  {activeReportType === 'bottling' ? '4. 작업 확인자 서명' : (activeReportType === 'whey_separation' ? '7. 확인자 서명' : '3. 확인자 서명')}
+                </label>
+                <input 
+                  type="text" 
+                  className="form-control" 
+                  id="report-worker-name" 
+                  placeholder="예: 홍길동 (본인의 이름을 입력하세요)"
+                  value={workerName}
+                  onChange={(e) => setWorkerName(e.target.value)}
+                  required
+                  style={{ height: '40px', fontSize: '0.88rem' }}
+                />
+              </div>
+            )}
 
             {/* Buttons */}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
@@ -2254,7 +2732,9 @@ const ReportsView = () => {
                   boxShadow: '0 4px 12px rgba(2, 132, 199, 0.15)'
                 }}
               >
-                {isEditing ? '리포트 수정 완료' : '리포트 제출'}
+                {activeReportType === 'sensory'
+                  ? (eval2Name.trim() && eval2Note.trim() ? '관능검사 최종 저장' : '1차 관능평가 저장')
+                  : (isEditing ? '리포트 수정 완료' : '리포트 제출')}
               </button>
             </div>
 
