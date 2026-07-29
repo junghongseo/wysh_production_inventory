@@ -55,6 +55,19 @@ const CalendarView = ({
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
 
+  // Plans in the currently viewed month
+  const currentMonthPlans = useMemo(() => {
+    const monthStart = new Date(year, month, 1);
+    const monthEnd = new Date(year, month + 1, 0, 23, 59, 59);
+
+    return plans.filter(p => {
+      if (!p.startDate) return false;
+      const start = new Date(p.startDate + 'T00:00:00');
+      const end = p.bottlingDate ? new Date(p.bottlingDate + 'T00:00:00') : start;
+      return start <= monthEnd && end >= monthStart;
+    });
+  }, [plans, year, month]);
+
   // Filter plans according to active scheduleTypeFilter ('ALL', 'yogurt', 'sub')
   const filteredPlans = useMemo(() => {
     if (scheduleTypeFilter === 'yogurt') {
@@ -472,7 +485,7 @@ const CalendarView = ({
               onClick={() => setScheduleTypeFilter('ALL')}
               style={{ padding: '4px 10px', fontSize: '0.78rem', borderRadius: '12px' }}
             >
-              🌐 전체 일정 ({plans.length})
+              🌐 전체 일정 ({currentMonthPlans.length})
             </button>
             <button
               type="button"
@@ -480,7 +493,7 @@ const CalendarView = ({
               onClick={() => setScheduleTypeFilter('yogurt')}
               style={{ padding: '4px 10px', fontSize: '0.78rem', borderRadius: '12px' }}
             >
-              🥛 요거트 생산 ({plans.filter(p => p.planType !== 'sub_ingredient').length})
+              🥛 요거트 생산 ({currentMonthPlans.filter(p => p.planType !== 'sub_ingredient').length})
             </button>
             <button
               type="button"
@@ -488,7 +501,7 @@ const CalendarView = ({
               onClick={() => setScheduleTypeFilter('sub')}
               style={{ padding: '4px 10px', fontSize: '0.78rem', borderRadius: '12px', background: scheduleTypeFilter === 'sub' ? '#ea580c' : '', borderColor: scheduleTypeFilter === 'sub' ? '#ea580c' : '' }}
             >
-              🍞 부재료 생산 ({plans.filter(p => p.planType === 'sub_ingredient').length})
+              🍞 부재료 생산 ({currentMonthPlans.filter(p => p.planType === 'sub_ingredient').length})
             </button>
           </div>
         </div>
