@@ -32,7 +32,7 @@ const ViewFallback = () => (
 );
 
 const App = () => {
-  const { deletePlan, deleteProduct, deleteHistoryItem, updateOutflowMemo, saveCalendarNote, deleteCalendarNote, loading, isDbConnected, dbError, isAdminLoggedIn, loginAdmin, logoutAdmin, products, plans } = useWysh();
+  const { reports, deletePlan, deleteProduct, deleteHistoryItem, updateOutflowMemo, saveCalendarNote, deleteCalendarNote, loading, isDbConnected, dbError, isAdminLoggedIn, loginAdmin, logoutAdmin, products, plans } = useWysh();
 
   // Tab state
   const [activeTab, setActiveTab] = useState('calendar-view');
@@ -44,6 +44,27 @@ const App = () => {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('wysh-theme', theme);
   }, [theme]);
+
+  // Update PWA App Badge when unconfirmed reports change
+  React.useEffect(() => {
+    if (!reports) return;
+    const unconfirmedCount = reports.filter(r => !r.confirmed).length;
+    
+    if ('setAppBadge' in navigator) {
+      if (unconfirmedCount > 0) {
+        navigator.setAppBadge(unconfirmedCount).catch((err) => console.log('App Badge error:', err));
+      } else {
+        navigator.clearAppBadge().catch((err) => console.log('App Badge error:', err));
+      }
+    }
+
+    if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({
+        type: 'SET_BADGE',
+        count: unconfirmedCount
+      });
+    }
+  }, [reports]);
 
   // Admin login & settings modal states
   const [adminLoginModalOpen, setAdminLoginModalOpen] = useState(false);
