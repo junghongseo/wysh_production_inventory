@@ -831,7 +831,7 @@ const ReportsView = () => {
         planId: selectedPlanId,
         type: 'sensory',
         workerName: eval1Name.trim(),
-        confirmed: true,
+        confirmed: isEditing && existingReport ? existingReport.confirmed : false,
         checkedItems: [],
         details: {
           productId: targetProdId,
@@ -1066,10 +1066,10 @@ const ReportsView = () => {
     setMobileSubTab('history');
   };
 
-  // Admin report confirmation handler
+  // Report confirmation handler
   const handleConfirmReport = (report, e) => {
     if (e) e.stopPropagation();
-    if (!isAdminLoggedIn) {
+    if (!isAdminLoggedIn && report.type !== 'sensory') {
       alert('관리자 로그인 후에 확인 처리를 진행할 수 있습니다.');
       return;
     }
@@ -1250,6 +1250,7 @@ const ReportsView = () => {
   const unconfirmedFermentationCount = reports.filter(r => r.type === 'fermentation' && !r.confirmed).length;
   const unconfirmedWheyCount = reports.filter(r => r.type === 'whey_separation' && !r.confirmed).length;
   const unconfirmedBottlingCount = reports.filter(r => r.type === 'bottling' && !r.confirmed).length;
+  const unconfirmedSensoryCount = reports.filter(r => r.type === 'sensory' && !r.confirmed).length;
 
   return (
     <div className="recipe-split" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '24px' }}>
@@ -1411,6 +1412,26 @@ const ReportsView = () => {
             }}
           >
             <span>👤 관능검사 리포트</span>
+            {unconfirmedSensoryCount > 0 && (
+              <span style={{
+                backgroundColor: '#ef4444',
+                color: '#ffffff',
+                fontSize: '0.7rem',
+                padding: '2px 6px',
+                borderRadius: '10px',
+                fontWeight: 'bold',
+                marginLeft: '4px',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 2px 4px rgba(239, 68, 68, 0.2)',
+                lineHeight: '1',
+                flexShrink: 0,
+                whiteSpace: 'nowrap'
+              }}>
+                미확인 {unconfirmedSensoryCount}
+              </span>
+            )}
           </button>
         </div>
       </div>
@@ -1620,7 +1641,7 @@ const ReportsView = () => {
                         )}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                        {isAdminLoggedIn && !rep.confirmed && (
+                        {(isAdminLoggedIn || rep.type === 'sensory') && !rep.confirmed && (
                           <button 
                             className="btn-primary"
                             onClick={(e) => handleConfirmReport(rep, e)}
