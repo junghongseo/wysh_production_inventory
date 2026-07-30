@@ -171,11 +171,14 @@ export const WyshProvider = ({ children }) => {
       localStorage.removeItem('wysh_deleted_notes');
       localStorage.removeItem('wysh_deleted_reports');
       localStorage.removeItem('wysh_deleted_plans');
+      localStorage.removeItem('wysh_deleted_material_costs');
 
       const finalNotes = mappedCalendarNotes || [];
       const finalReports = mappedReports || [];
       const finalPlans = mappedPlans || [];
-      
+      const finalMaterials = mappedMaterialCosts || [];
+      const finalInventory = mappedInventory || [];
+
       // Maintain products compatibility (only sync hardcoded defaults if missing)
       const mergedProductsMap = new Map();
       mappedProducts.forEach(p => mergedProductsMap.set(p.id, p));
@@ -189,69 +192,24 @@ export const WyshProvider = ({ children }) => {
         }
       });
       const finalProducts = Array.from(mergedProductsMap.values());
-      const finalInventory = mappedInventory || [];
 
-      // Robust merge for shipping charts to prevent auto-deletion during background polling
+      // Shipping charts merge
       const localCharts = localInitial.shippingCharts || [];
       const chartMap = new Map();
-
-      // Put local charts first
       localCharts.forEach(c => {
         if (c && c.date) chartMap.set(c.date, c);
       });
-
-      // Merge remote charts (prefer remote if newer or equal)
       (mappedShippingCharts || []).forEach(rc => {
         if (!rc || !rc.date) return;
         const lc = chartMap.get(rc.date);
         if (!lc || !lc.updatedAt || (rc.updatedAt && rc.updatedAt >= lc.updatedAt)) {
           chartMap.set(rc.date, rc);
         } else if (lc && lc.updatedAt && rc.updatedAt && lc.updatedAt > rc.updatedAt) {
-          // If local chart is newer than remote, sync local chart back to remote
           pushShippingChartToSupabase(lc);
         }
       });
-
       const finalCharts = Array.from(chartMap.values());
       finalCharts.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-
-      // Robust merge for material costs with tombstone tracking
-      let deletedMaterialIds = [];
-      try {
-        deletedMaterialIds = JSON.parse(localStorage.getItem('wysh_deleted_material_costs') || '[]');
-      } catch (e) {
-        deletedMaterialIds = [];
-      }
-
-      // Ensure any deleted items are removed from Supabase DB
-      if (deletedMaterialIds.length > 0) {
-        deletedMaterialIds.forEach(id => {
-          deleteMaterialCostFromSupabase(id);
-        });
-      }
-
-      // Filter out deleted items from remote and local datasets
-      const validRemoteMaterials = (mappedMaterialCosts || []).filter(m => m && m.id && !deletedMaterialIds.includes(m.id));
-      const validLocalMaterials = (localInitial.materialCosts || []).filter(m => m && m.id && !deletedMaterialIds.includes(m.id));
-
-      const materialMap = new Map();
-      validRemoteMaterials.forEach(rm => materialMap.set(rm.id, rm));
-
-      // Merge local custom materials: If not in remote yet, push to Supabase so other devices receive it
-      validLocalMaterials.forEach(lm => {
-        if (!materialMap.has(lm.id)) {
-          materialMap.set(lm.id, lm);
-          pushMaterialCostToSupabase(lm);
-        } else {
-          const rm = materialMap.get(lm.id);
-          if (lm.updatedAt && rm.updatedAt && lm.updatedAt > rm.updatedAt) {
-            materialMap.set(lm.id, lm);
-            pushMaterialCostToSupabase(lm);
-          }
-        }
-      });
-
-      const finalMaterials = Array.from(materialMap.values());
 
       // Save Authoritative Remote State to LocalStorage and React State
       saveStorageItems('PRODUCTS', finalProducts);
@@ -798,16 +756,6 @@ export const WyshProvider = ({ children }) => {
   }, []);
 
   const deleteMaterialCost = useCallback((id) => {
-    try {
-      const deletedList = JSON.parse(localStorage.getItem('wysh_deleted_material_costs') || '[]');
-      if (!deletedList.includes(id)) {
-        deletedList.push(id);
-        localStorage.setItem('wysh_deleted_material_costs', JSON.stringify(deletedList));
-      }
-    } catch (e) {
-      console.error('Failed to save deleted material costs tombstone:', e);
-    }
-
     setMaterialCosts(prev => {
       const updated = prev.filter(m => m.id !== id);
       saveStorageItems('MATERIAL_COSTS', updated);
