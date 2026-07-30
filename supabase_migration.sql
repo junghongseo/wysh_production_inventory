@@ -153,4 +153,37 @@ CREATE POLICY "Allow public write access to shipping_charts" ON shipping_charts 
 CREATE POLICY "Allow public update access to shipping_charts" ON shipping_charts FOR UPDATE USING (true) WITH CHECK (true);
 CREATE POLICY "Allow public delete access to shipping_charts" ON shipping_charts FOR DELETE USING (true);
 
+-- =========================================================================
+-- 6. Material Costs Table (Raw and Packaging Material Unit Price Storage)
+-- =========================================================================
 
+CREATE TABLE IF NOT EXISTS material_costs (
+    id TEXT PRIMARY KEY,
+    category TEXT NOT NULL DEFAULT 'raw',
+    name TEXT NOT NULL,
+    manufacturer TEXT,
+    supplier TEXT,
+    package_qty NUMERIC NOT NULL DEFAULT 0,
+    unit TEXT NOT NULL DEFAULT 'g',
+    price_vat_inclusive NUMERIC NOT NULL DEFAULT 0,
+    tax_type TEXT NOT NULL DEFAULT 'taxable',
+    memo TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
+-- Enable RLS and add policies
+ALTER TABLE material_costs ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Allow public read access to material_costs" ON material_costs FOR SELECT USING (true);
+CREATE POLICY "Allow public write access to material_costs" ON material_costs FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public update access to material_costs" ON material_costs FOR UPDATE USING (true) WITH CHECK (true);
+CREATE POLICY "Allow public delete access to material_costs" ON material_costs FOR DELETE USING (true);
+
+-- Seed Material Costs
+INSERT INTO material_costs (id, category, name, manufacturer, supplier, package_qty, unit, price_vat_inclusive, tax_type) VALUES
+('mat-1', 'raw', '서울우유 1L', '서울우유협동조합', '하나로마트', 1, 'L', 3300, 'taxable'),
+('mat-2', 'raw', '유산균 스타터', '바이오랩', '본사 직거래', 500, 'g', 50000, 'duty_free'),
+('mat-3', 'packaging', 'PET 용기 150ml (뚜껑 포함)', '용기패키징', '방산시장 패키지', 100, '개', 22000, 'taxable'),
+('mat-4', 'packaging', '위시그릭 전면 브랜드 스티커', '성원아드피아', '성원아드피아 온라인', 1000, '개', 33000, 'taxable')
+ON CONFLICT (id) DO NOTHING;

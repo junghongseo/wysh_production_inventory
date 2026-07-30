@@ -215,22 +215,40 @@ export const WyshProvider = ({ children }) => {
       const finalCharts = Array.from(chartMap.values());
       finalCharts.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
-      // Robust merge for material costs
+      // Robust merge for material costs: Prefer remote Supabase data as Source of Truth
       const localMaterials = localInitial.materialCosts || [];
-      const materialMap = new Map();
-      localMaterials.forEach(m => {
-        if (m && m.id) materialMap.set(m.id, m);
-      });
-      (mappedMaterialCosts || []).forEach(rm => {
-        if (!rm || !rm.id) return;
-        const lm = materialMap.get(rm.id);
-        if (!lm || !lm.updatedAt || (rm.updatedAt && rm.updatedAt >= lm.updatedAt)) {
-          materialMap.set(rm.id, rm);
-        } else if (lm && lm.updatedAt && rm.updatedAt && lm.updatedAt > rm.updatedAt) {
-          pushMaterialCostToSupabase(lm);
-        }
-      });
-      const finalMaterials = Array.from(materialMap.values());
+      let finalMaterials = [];
+
+      if (mappedMaterialCosts && mappedMaterialCosts.length > 0) {
+        const materialMap = new Map();
+        mappedMaterialCosts.forEach(rm => {
+          if (rm && rm.id) materialMap.set(rm.id, rm);
+        });
+
+        // Sync local custom materials that might be newer or not yet pushed
+        localMaterials.forEach(lm => {
+          if (!lm || !lm.id) return;
+          const rm = materialMap.get(lm.id);
+          if (rm) {
+            if (lm.updatedAt && rm.updatedAt && lm.updatedAt > rm.updatedAt) {
+              materialMap.set(lm.id, lm);
+              pushMaterialCostToSupabase(lm);
+            }
+          } else {
+            // If local item is not default dummy data, push it to remote
+            const isDefaultDummy = ['mat-1', 'mat-2', 'mat-3', 'mat-4'].includes(lm.id);
+            if (!isDefaultDummy) {
+              materialMap.set(lm.id, lm);
+              pushMaterialCostToSupabase(lm);
+            }
+          }
+        });
+        finalMaterials = Array.from(materialMap.values());
+      } else if (localMaterials.length > 0) {
+        // If Supabase table is empty, push current local materials to Supabase
+        finalMaterials = localMaterials;
+        localMaterials.forEach(m => pushMaterialCostToSupabase(m));
+      }
 
       // Save Authoritative Remote State to LocalStorage and React State
       saveStorageItems('PRODUCTS', finalProducts);
