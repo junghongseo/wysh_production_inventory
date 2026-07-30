@@ -215,40 +215,43 @@ export const WyshProvider = ({ children }) => {
       const finalCharts = Array.from(chartMap.values());
       finalCharts.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
-      // Robust merge for material costs: Prefer remote Supabase data as Source of Truth
-      const localMaterials = localInitial.materialCosts || [];
-      let finalMaterials = [];
-
-      if (mappedMaterialCosts && mappedMaterialCosts.length > 0) {
-        const materialMap = new Map();
-        mappedMaterialCosts.forEach(rm => {
-          if (rm && rm.id) materialMap.set(rm.id, rm);
-        });
-
-        // Sync local custom materials that might be newer or not yet pushed
-        localMaterials.forEach(lm => {
-          if (!lm || !lm.id) return;
-          const rm = materialMap.get(lm.id);
-          if (rm) {
-            if (lm.updatedAt && rm.updatedAt && lm.updatedAt > rm.updatedAt) {
-              materialMap.set(lm.id, lm);
-              pushMaterialCostToSupabase(lm);
-            }
-          } else {
-            // If local item is not default dummy data, push it to remote
-            const isDefaultDummy = ['mat-1', 'mat-2', 'mat-3', 'mat-4'].includes(lm.id);
-            if (!isDefaultDummy) {
-              materialMap.set(lm.id, lm);
-              pushMaterialCostToSupabase(lm);
-            }
-          }
-        });
-        finalMaterials = Array.from(materialMap.values());
-      } else if (localMaterials.length > 0) {
-        // If Supabase table is empty, push current local materials to Supabase
-        finalMaterials = localMaterials;
-        localMaterials.forEach(m => pushMaterialCostToSupabase(m));
+      // Robust merge for material costs with tombstone tracking
+      let deletedMaterialIds = [];
+      try {
+        deletedMaterialIds = JSON.parse(localStorage.getItem('wysh_deleted_material_costs') || '[]');
+      } catch (e) {
+        deletedMaterialIds = [];
       }
+
+      // Ensure any deleted items are removed from Supabase DB
+      if (deletedMaterialIds.length > 0) {
+        deletedMaterialIds.forEach(id => {
+          deleteMaterialCostFromSupabase(id);
+        });
+      }
+
+      // Filter out deleted items from remote and local datasets
+      const validRemoteMaterials = (mappedMaterialCosts || []).filter(m => m && m.id && !deletedMaterialIds.includes(m.id));
+      const validLocalMaterials = (localInitial.materialCosts || []).filter(m => m && m.id && !deletedMaterialIds.includes(m.id));
+
+      const materialMap = new Map();
+      validRemoteMaterials.forEach(rm => materialMap.set(rm.id, rm));
+
+      // Merge local custom materials: If not in remote yet, push to Supabase so other devices receive it
+      validLocalMaterials.forEach(lm => {
+        if (!materialMap.has(lm.id)) {
+          materialMap.set(lm.id, lm);
+          pushMaterialCostToSupabase(lm);
+        } else {
+          const rm = materialMap.get(lm.id);
+          if (lm.updatedAt && rm.updatedAt && lm.updatedAt > rm.updatedAt) {
+            materialMap.set(lm.id, lm);
+            pushMaterialCostToSupabase(lm);
+          }
+        }
+      });
+
+      const finalMaterials = Array.from(materialMap.values());
 
       // Save Authoritative Remote State to LocalStorage and React State
       saveStorageItems('PRODUCTS', finalProducts);
@@ -795,6 +798,16 @@ export const WyshProvider = ({ children }) => {
   }, []);
 
   const deleteMaterialCost = useCallback((id) => {
+    try {
+      const deletedList = JSON.parse(localStorage.getItem('wysh_deleted_material_costs') || '[]');
+      if (!deletedList.includes(id)) {
+        deletedList.push(id);
+        localStorage.setItem('wysh_deleted_material_costs', JSON.stringify(deletedList));
+      }
+    } catch (e) {
+      console.error('Failed to save deleted material costs tombstone:', e);
+    }
+
     setMaterialCosts(prev => {
       const updated = prev.filter(m => m.id !== id);
       saveStorageItems('MATERIAL_COSTS', updated);
