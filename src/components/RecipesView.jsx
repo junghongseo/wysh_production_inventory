@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useWysh } from '../WyshContext';
+import MaterialCostListSection from './recipes/MaterialCostListSection';
 
 const RecipesView = ({ 
   selectedProduct, 
@@ -8,9 +9,17 @@ const RecipesView = ({
   onDeleteProduct, 
   onConfirmModal 
 }) => {
-  const { products, updateProduct } = useWysh();
+  const { 
+    products, 
+    updateProduct, 
+    materialCosts, 
+    addMaterialCost, 
+    updateMaterialCost, 
+    deleteMaterialCost, 
+    isAdminLoggedIn 
+  } = useWysh();
 
-  // Category Filter Tab state for the Left Panel
+  const [activeSubTab, setActiveSubTab] = useState('recipe'); // 'recipe' | 'material_costs'
   const [filterTab, setFilterTab] = useState('all'); // 'all' | 'yogurt' | 'sub_ingredient'
 
   // Local form states for the Recipe Editor
@@ -250,7 +259,67 @@ const RecipesView = ({
   }, [productIsSubIngredient, productIsFlavor, productBaseProductId, products]);
 
   return (
-    <div className="recipe-split">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      
+      {/* Admin Sub-Tab Navigation Bar */}
+      {isAdminLoggedIn && (
+        <div style={{ display: 'flex', gap: '8px', background: 'var(--bg-tertiary)', padding: '4px', borderRadius: '12px', width: 'fit-content' }}>
+          <button
+            type="button"
+            className={`tab-btn ${activeSubTab === 'recipe' ? 'active' : ''}`}
+            onClick={() => setActiveSubTab('recipe')}
+            style={{
+              padding: '8px 16px',
+              fontSize: '0.88rem',
+              fontWeight: 700,
+              borderRadius: '8px',
+              border: 'none',
+              cursor: 'pointer',
+              background: activeSubTab === 'recipe' ? 'var(--bg-secondary)' : 'transparent',
+              color: activeSubTab === 'recipe' ? 'var(--color-primary)' : 'var(--text-secondary)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            <span>🧪</span>
+            <span>레시피 / 수율 관리</span>
+          </button>
+
+          <button
+            type="button"
+            className={`tab-btn ${activeSubTab === 'material_costs' ? 'active' : ''}`}
+            onClick={() => setActiveSubTab('material_costs')}
+            style={{
+              padding: '8px 16px',
+              fontSize: '0.88rem',
+              fontWeight: 700,
+              borderRadius: '8px',
+              border: 'none',
+              cursor: 'pointer',
+              background: activeSubTab === 'material_costs' ? 'var(--bg-secondary)' : 'transparent',
+              color: activeSubTab === 'material_costs' ? 'var(--color-primary)' : 'var(--text-secondary)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            <span>📦</span>
+            <span>원/부자재 단가 관리</span>
+          </button>
+        </div>
+      )}
+
+      {/* Main Sub-Tab Views */}
+      {activeSubTab === 'material_costs' && isAdminLoggedIn ? (
+        <MaterialCostListSection
+          materialCosts={materialCosts}
+          onAddMaterial={addMaterialCost}
+          onUpdateMaterial={updateMaterialCost}
+          onDeleteMaterial={deleteMaterialCost}
+        />
+      ) : (
+        <div className="recipe-split">
       {/* Left: Product & Sub-ingredient List */}
       <div className="glass-card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
@@ -761,6 +830,8 @@ const RecipesView = ({
         </div>
       </div>
     </div>
+  )}
+</div>
   );
 };
 

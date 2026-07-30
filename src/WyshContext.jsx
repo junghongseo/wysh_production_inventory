@@ -14,6 +14,8 @@ import {
   deleteReportFromSupabase,
   pushShippingChartToSupabase,
   deleteShippingChartFromSupabase,
+  pushMaterialCostToSupabase,
+  deleteMaterialCostFromSupabase,
   pushBannerSettingsToSupabase
 } from './services/supabaseService';
 
@@ -26,6 +28,7 @@ export const WyshProvider = ({ children }) => {
   const [calendarNotes, setCalendarNotes] = useState([]);
   const [reports, setReports] = useState([]);
   const [shippingCharts, setShippingCharts] = useState([]);
+  const [materialCosts, setMaterialCosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isDbConnected, setIsDbConnected] = useState(false);
   const [dbError, setDbError] = useState(null);
@@ -84,6 +87,7 @@ export const WyshProvider = ({ children }) => {
     setCalendarNotes(initialData.calendarNotes);
     setReports(initialData.reports);
     setShippingCharts(initialData.shippingCharts || []);
+    setMaterialCosts(initialData.materialCosts || []);
     setLoading(false);
 
     // Initial sync
@@ -109,6 +113,9 @@ export const WyshProvider = ({ children }) => {
         syncFromSupabase();
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, () => {
+        syncFromSupabase();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'material_costs' }, () => {
         syncFromSupabase();
       })
       .subscribe();
@@ -138,6 +145,7 @@ export const WyshProvider = ({ children }) => {
         mappedCalendarNotes,
         mappedReports,
         mappedShippingCharts,
+        mappedMaterialCosts,
         remoteBannerSettings
       } = await fetchAllRemoteData();
 
@@ -207,6 +215,23 @@ export const WyshProvider = ({ children }) => {
       const finalCharts = Array.from(chartMap.values());
       finalCharts.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
+      // Robust merge for material costs
+      const localMaterials = localInitial.materialCosts || [];
+      const materialMap = new Map();
+      localMaterials.forEach(m => {
+        if (m && m.id) materialMap.set(m.id, m);
+      });
+      (mappedMaterialCosts || []).forEach(rm => {
+        if (!rm || !rm.id) return;
+        const lm = materialMap.get(rm.id);
+        if (!lm || !lm.updatedAt || (rm.updatedAt && rm.updatedAt >= lm.updatedAt)) {
+          materialMap.set(rm.id, rm);
+        } else if (lm && lm.updatedAt && rm.updatedAt && lm.updatedAt > rm.updatedAt) {
+          pushMaterialCostToSupabase(lm);
+        }
+      });
+      const finalMaterials = Array.from(materialMap.values());
+
       // Save Authoritative Remote State to LocalStorage and React State
       saveStorageItems('PRODUCTS', finalProducts);
       saveStorageItems('PLANS', finalPlans);
@@ -214,6 +239,7 @@ export const WyshProvider = ({ children }) => {
       saveStorageItems('CALENDAR_NOTES', finalNotes);
       saveStorageItems('REPORTS', finalReports);
       saveStorageItems('SHIPPING_CHARTS', finalCharts);
+      saveStorageItems('MATERIAL_COSTS', finalMaterials);
 
       setProducts(finalProducts);
       setPlans(finalPlans);
@@ -221,6 +247,7 @@ export const WyshProvider = ({ children }) => {
       setCalendarNotes(finalNotes);
       setReports(finalReports);
       setShippingCharts(finalCharts);
+      setMaterialCosts(finalMaterials);
 
       setIsDbConnected(true);
       setDbError(null);
@@ -722,6 +749,42 @@ export const WyshProvider = ({ children }) => {
     sessionStorage.removeItem('wysh_admin_logged_in');
   }, []);
 
+  const addMaterialCost = useCallback((newMaterial) => {
+    const item = {
+      ...newMaterial,
+      id: newMaterial.id || `mat-${Date.now()}`,
+      updatedAt: new Date().toISOString()
+    };
+    setMaterialCosts(prev => {
+      const updated = [item, ...prev];
+      saveStorageItems('MATERIAL_COSTS', updated);
+      return updated;
+    });
+    pushMaterialCostToSupabase(item);
+  }, []);
+
+  const updateMaterialCost = useCallback((updatedMaterial) => {
+    const item = {
+      ...updatedMaterial,
+      updatedAt: new Date().toISOString()
+    };
+    setMaterialCosts(prev => {
+      const updated = prev.map(m => m.id === item.id ? item : m);
+      saveStorageItems('MATERIAL_COSTS', updated);
+      return updated;
+    });
+    pushMaterialCostToSupabase(item);
+  }, []);
+
+  const deleteMaterialCost = useCallback((id) => {
+    setMaterialCosts(prev => {
+      const updated = prev.filter(m => m.id !== id);
+      saveStorageItems('MATERIAL_COSTS', updated);
+      return updated;
+    });
+    deleteMaterialCostFromSupabase(id);
+  }, []);
+
   const contextValue = useMemo(() => ({
     products,
     plans,
@@ -752,6 +815,10 @@ export const WyshProvider = ({ children }) => {
     shippingCharts,
     saveShippingChart,
     deleteShippingChart,
+    materialCosts,
+    addMaterialCost,
+    updateMaterialCost,
+    deleteMaterialCost,
     bannerSettings,
     updateBannerSettings,
     resetBannerSettings,
@@ -767,6 +834,7 @@ export const WyshProvider = ({ children }) => {
     calendarNotes,
     reports,
     shippingCharts,
+    materialCosts,
     loading,
     bannerSettings,
     updateBannerSettings,
@@ -793,6 +861,9 @@ export const WyshProvider = ({ children }) => {
     deleteReport,
     saveShippingChart,
     deleteShippingChart,
+    addMaterialCost,
+    updateMaterialCost,
+    deleteMaterialCost,
     isAdminLoggedIn,
     loginAdmin,
     logoutAdmin,

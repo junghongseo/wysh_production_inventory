@@ -93,6 +93,29 @@ export const fetchAllRemoteData = async () => {
     console.warn("Supabase Fetch Warning (shipping_charts):", errChartsFetch);
   }
 
+  let mappedMaterialCosts = [];
+  try {
+    const { data: remoteMaterials, error: errMaterials } = await supabase.from('material_costs').select('*');
+    if (errMaterials) {
+      console.warn("Supabase Fetch Warn: material_costs query failed, table might not exist yet.", errMaterials);
+    } else if (remoteMaterials) {
+      mappedMaterialCosts = remoteMaterials.map(m => ({
+        id: m.id,
+        category: m.category || 'raw',
+        name: m.name,
+        manufacturer: m.manufacturer || '',
+        supplier: m.supplier || '',
+        packageQty: parseFloat(m.package_qty) || 0,
+        unit: m.unit || 'g',
+        priceVatInclusive: parseFloat(m.price_vat_inclusive) || 0,
+        taxType: m.tax_type || 'taxable',
+        updatedAt: m.updated_at
+      }));
+    }
+  } catch (errMaterialsFetch) {
+    console.warn("Supabase Fetch Warning (material_costs):", errMaterialsFetch);
+  }
+
   console.log("Supabase Fetch: Successfully pulled data from Cloud DB.");
 
   const mappedProducts = remoteProducts.map(p => {
@@ -187,6 +210,7 @@ export const fetchAllRemoteData = async () => {
     mappedCalendarNotes,
     mappedReports,
     mappedShippingCharts,
+    mappedMaterialCosts,
     remoteBannerSettings
   };
 };
@@ -520,6 +544,40 @@ export const fetchEventsFromSupabase = async () => {
   } catch (e) {
     console.warn("Events fetch warn:", e);
     return [];
+  }
+};
+
+export const pushMaterialCostToSupabase = async (materialCost) => {
+  if (!supabase) return;
+  try {
+    const dbMaterial = {
+      id: materialCost.id,
+      category: materialCost.category,
+      name: materialCost.name,
+      manufacturer: materialCost.manufacturer || '',
+      supplier: materialCost.supplier || '',
+      package_qty: materialCost.packageQty,
+      unit: materialCost.unit,
+      price_vat_inclusive: materialCost.priceVatInclusive,
+      tax_type: materialCost.taxType,
+      updated_at: materialCost.updatedAt || new Date().toISOString()
+    };
+    const { error } = await supabase.from('material_costs').upsert(dbMaterial);
+    if (error) {
+      console.warn("Supabase push material_costs warning:", error);
+    }
+  } catch (e) {
+    console.error("Supabase Push Error (Material Cost):", e);
+  }
+};
+
+export const deleteMaterialCostFromSupabase = async (id) => {
+  if (!supabase) return;
+  try {
+    const { error } = await supabase.from('material_costs').delete().eq('id', id);
+    if (error) throw error;
+  } catch (e) {
+    console.error("Supabase Push Error (Delete Material Cost):", e);
   }
 };
 

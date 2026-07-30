@@ -4,8 +4,60 @@ const STORAGE_KEYS = {
   INVENTORY: 'wysh_inventory',
   CALENDAR_NOTES: 'wysh_calendar_notes',
   REPORTS: 'wysh_reports',
-  SHIPPING_CHARTS: 'wysh_shipping_charts'
+  SHIPPING_CHARTS: 'wysh_shipping_charts',
+  MATERIAL_COSTS: 'wysh_material_costs'
 };
+
+export const DEFAULT_MATERIAL_COSTS = [
+  {
+    id: 'mat-1',
+    category: 'raw', // 'raw' (원재료) | 'packaging' (부자재)
+    name: '서울우유 1L',
+    manufacturer: '서울우유협동조합',
+    supplier: '하나로마트',
+    packageQty: 1,
+    unit: 'L', // 'g' | 'kg' | 'ml' | 'L' | '개'
+    priceVatInclusive: 3300,
+    taxType: 'taxable', // 'taxable' (과세) | 'duty_free' (면세)
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: 'mat-2',
+    category: 'raw',
+    name: '유산균 스타터',
+    manufacturer: '바이오랩',
+    supplier: '본사 직거래',
+    packageQty: 500,
+    unit: 'g',
+    priceVatInclusive: 50000,
+    taxType: 'duty_free',
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: 'mat-3',
+    category: 'packaging',
+    name: 'PET 용기 150ml (뚜껑 포함)',
+    manufacturer: '용기패키징',
+    supplier: '방산시장 패키지',
+    packageQty: 100,
+    unit: '개',
+    priceVatInclusive: 22000,
+    taxType: 'taxable',
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: 'mat-4',
+    category: 'packaging',
+    name: '위시그릭 전면 브랜드 스티커',
+    manufacturer: '성원아드피아',
+    supplier: '성원아드피아 온라인',
+    packageQty: 1000,
+    unit: '개',
+    priceVatInclusive: 33000,
+    taxType: 'taxable',
+    updatedAt: new Date().toISOString()
+  }
+];
 
 export const DEFAULT_PRODUCTS = [
   {
@@ -84,6 +136,7 @@ export const loadInitialLocalStorageData = () => {
   let localCalendarNotes = JSON.parse(localStorage.getItem(STORAGE_KEYS.CALENDAR_NOTES));
   let localReports = JSON.parse(localStorage.getItem(STORAGE_KEYS.REPORTS));
   let localShippingCharts = JSON.parse(localStorage.getItem(STORAGE_KEYS.SHIPPING_CHARTS));
+  let localMaterialCosts = JSON.parse(localStorage.getItem(STORAGE_KEYS.MATERIAL_COSTS));
 
   if (!localProducts) {
     localProducts = DEFAULT_PRODUCTS;
@@ -139,6 +192,10 @@ export const loadInitialLocalStorageData = () => {
     localShippingCharts = [];
     localStorage.setItem(STORAGE_KEYS.SHIPPING_CHARTS, JSON.stringify([]));
   }
+  if (!localMaterialCosts) {
+    localMaterialCosts = DEFAULT_MATERIAL_COSTS;
+    localStorage.setItem(STORAGE_KEYS.MATERIAL_COSTS, JSON.stringify(DEFAULT_MATERIAL_COSTS));
+  }
 
   return {
     products: localProducts,
@@ -146,7 +203,8 @@ export const loadInitialLocalStorageData = () => {
     inventory: localInventory,
     calendarNotes: localCalendarNotes,
     reports: localReports,
-    shippingCharts: localShippingCharts
+    shippingCharts: localShippingCharts,
+    materialCosts: localMaterialCosts
   };
 };
 
