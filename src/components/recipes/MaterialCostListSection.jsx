@@ -60,7 +60,8 @@ const MaterialCostListSection = ({
         const nameMatch = m.name && m.name.toLowerCase().includes(query);
         const manuMatch = m.manufacturer && m.manufacturer.toLowerCase().includes(query);
         const suppMatch = m.supplier && m.supplier.toLowerCase().includes(query);
-        if (!nameMatch && !manuMatch && !suppMatch) return false;
+        const memoMatch = m.memo && m.memo.toLowerCase().includes(query);
+        if (!nameMatch && !manuMatch && !suppMatch && !memoMatch) return false;
       }
       return true;
     });
@@ -89,7 +90,8 @@ const MaterialCostListSection = ({
         '과세 구분': m.taxType === 'taxable' ? '과세' : '면세',
         '공급가액(VAT제외)': Math.round(calc.priceExcludingVat),
         'VAT제외 단가': Number(calc.unitCostExcludingVat.toFixed(2)),
-        '단가 기준': calc.unitText
+        '단가 기준': calc.unitText,
+        '비고': m.memo || '-'
       };
     });
 
@@ -259,6 +261,7 @@ const MaterialCostListSection = ({
                 <th style={{ padding: '12px 10px' }}>구매가격 (VAT포함)</th>
                 <th style={{ padding: '12px 10px' }}>과세구분</th>
                 <th style={{ padding: '12px 10px', textAlign: 'right' }}>계산 단가 (VAT제외)</th>
+                <th style={{ padding: '12px 10px' }}>비고</th>
                 <th style={{ padding: '12px 10px', textAlign: 'center' }}>작업</th>
               </tr>
             </thead>
@@ -332,6 +335,11 @@ const MaterialCostListSection = ({
                       <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
                         {calc.unitText} (공급가: {Math.round(calc.priceExcludingVat).toLocaleString()}원)
                       </div>
+                    </td>
+
+                    {/* Memo */}
+                    <td style={{ padding: '12px 10px', fontSize: '0.8rem', color: 'var(--text-secondary)', maxWidth: '160px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.memo || ''}>
+                      {item.memo || '-'}
                     </td>
 
                     {/* Actions */}

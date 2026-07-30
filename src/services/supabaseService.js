@@ -109,6 +109,7 @@ export const fetchAllRemoteData = async () => {
         unit: m.unit || 'g',
         priceVatInclusive: parseFloat(m.price_vat_inclusive) || 0,
         taxType: m.tax_type || 'taxable',
+        memo: m.memo || '',
         updatedAt: m.updated_at
       }));
     }
@@ -560,6 +561,7 @@ export const pushMaterialCostToSupabase = async (materialCost) => {
       unit: materialCost.unit,
       price_vat_inclusive: materialCost.priceVatInclusive,
       tax_type: materialCost.taxType,
+      memo: materialCost.memo || '',
       updated_at: materialCost.updatedAt || new Date().toISOString()
     };
     const { error } = await supabase.from('material_costs').upsert(dbMaterial);
