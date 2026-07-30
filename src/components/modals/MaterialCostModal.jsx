@@ -156,7 +156,7 @@ const MaterialCostModal = ({ isOpen, onClose, onSave, editingMaterial }) => {
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose} style={{
+    <div className={`modal-overlay ${isOpen ? 'open' : ''}`} onClick={onClose} style={{
       position: 'fixed',
       top: 0,
       left: 0,
