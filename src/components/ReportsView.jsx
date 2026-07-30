@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useWysh } from '../WyshContext';
 import AgitatorConfirmModal from './modals/AgitatorConfirmModal';
+import FermentationReportForm from './reports/FermentationReportForm';
+import WheyReportForm from './reports/WheyReportForm';
+import BottlingReportForm from './reports/BottlingReportForm';
+import SensoryReportForm from './reports/SensoryReportForm';
 
 // Seed historical pH measurements for Wish Greek (위시그릭)
 const WISH_GREEK_SEED_PH_DATA = [
@@ -1866,848 +1870,109 @@ const ReportsView = () => {
 
             {/* BOTTLING REPORT FORM BODY */}
             {activeReportType === 'bottling' && (
-              <>
-                {selectedPlanDetails && bottlingCalculations && (
-                  <div style={{ padding: '16px', background: 'var(--bg-tertiary)', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    
-                    {/* Single Item vs 2-Item Form Input */}
-                    {!bottlingCalculations.isMultiItem ? (
-                      <div>
-                        <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '12px' }}>
-                          2. 병입 수량 및 남은 양 입력 (단종 생산)
-                        </h4>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                          <div className="form-group">
-                            <label style={{ fontSize: '0.84rem', fontWeight: 600 }}>병입 완제품 수량 (개)</label>
-                            <input 
-                              type="number" 
-                              className="form-control" 
-                              placeholder="예: 112"
-                              value={bottlingCount}
-                              onChange={(e) => setBottlingCount(e.target.value)}
-                              required
-                              min="0"
-                              style={{ height: '40px', fontSize: '0.88rem' }}
-                            />
-                          </div>
-                          <div className="form-group">
-                            <label style={{ fontSize: '0.84rem', fontWeight: 600 }}>미달 남은 양 (g)</label>
-                            <input 
-                              type="number" 
-                              className="form-control" 
-                              placeholder="예: 215"
-                              value={bottlingRemainsG}
-                              onChange={(e) => setBottlingRemainsG(e.target.value)}
-                              min="0"
-                              style={{ height: '40px', fontSize: '0.88rem' }}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div>
-                        <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '12px' }}>
-                          2. 2종 동시 생산 병입 수량 입력
-                        </h4>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                          {/* Item 1 */}
-                          <div style={{ padding: '12px', background: 'var(--bg-secondary)', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
-                            <div style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--color-primary)', marginBottom: '8px' }}>
-                              품목 1: {bottlingCalculations.item1.productName}
-                            </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                              <div className="form-group">
-                                <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>병입 수량 (개)</label>
-                                <input 
-                                  type="number" 
-                                  className="form-control" 
-                                  placeholder="예: 112"
-                                  value={item1BottlingCount}
-                                  onChange={(e) => setItem1BottlingCount(e.target.value)}
-                                  required
-                                  min="0"
-                                  style={{ height: '38px', fontSize: '0.86rem' }}
-                                />
-                              </div>
-                              <div className="form-group">
-                                <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>미달 남은 양 (g)</label>
-                                <input 
-                                  type="number" 
-                                  className="form-control" 
-                                  placeholder="예: 215"
-                                  value={item1BottlingRemainsG}
-                                  onChange={(e) => setItem1BottlingRemainsG(e.target.value)}
-                                  min="0"
-                                  style={{ height: '38px', fontSize: '0.86rem' }}
-                                />
-                              </div>
-                            </div>
-                          </div>
-
-                          {/* Item 2 */}
-                          <div style={{ padding: '12px', background: 'var(--bg-secondary)', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
-                            <div style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--color-primary)', marginBottom: '8px' }}>
-                              품목 2: {bottlingCalculations.item2.productName}
-                            </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                              <div className="form-group">
-                                <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>병입 수량 (개)</label>
-                                <input 
-                                  type="number" 
-                                  className="form-control" 
-                                  placeholder="예: 96"
-                                  value={item2BottlingCount}
-                                  onChange={(e) => setItem2BottlingCount(e.target.value)}
-                                  required
-                                  min="0"
-                                  style={{ height: '38px', fontSize: '0.86rem' }}
-                                />
-                              </div>
-                              <div className="form-group">
-                                <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>미달 남은 양 (g)</label>
-                                <input 
-                                  type="number" 
-                                  className="form-control" 
-                                  placeholder="예: 180"
-                                  value={item2BottlingRemainsG}
-                                  onChange={(e) => setItem2BottlingRemainsG(e.target.value)}
-                                  min="0"
-                                  style={{ height: '38px', fontSize: '0.86rem' }}
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Real-time Yield Display */}
-                    <div style={{ padding: '12px 16px', background: 'rgba(2, 132, 199, 0.08)', borderRadius: '10px', border: '1px solid rgba(56, 189, 248, 0.3)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div>
-                        <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                          🎯 목표 수율: <strong style={{ color: 'var(--text-primary)', fontFamily: 'var(--font-outfit)' }}>{bottlingCalculations.targetYield}%</strong>
-                        </div>
-                        <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                          {bottlingCalculations.isMultiItem ? '두 제품 베이스 요거트 환산 총량 기준' : '원재료 총량 대비 계산된 수율'}
-                        </div>
-                      </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>실제 수율</span>
-                        <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--color-primary)', fontFamily: 'var(--font-outfit)' }}>
-                          {bottlingCalculations.actualYield || 0}%
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Special Notes & Deductions */}
-                    <div>
-                      <h4 style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '8px' }}>
-                        3. 특이사항 및 실제 입고 수량
-                      </h4>
-                      <div className="form-group" style={{ marginBottom: '10px' }}>
-                        <label style={{ fontSize: '0.82rem', fontWeight: 600 }}>특이사항 (예: 질감 확인용 1개 4층 쇼케이스 냉장고에 보관)</label>
-                        <input 
-                          type="text" 
-                          className="form-control" 
-                          placeholder="특이사항이 있을 경우 입력하세요"
-                          value={bottlingMemo}
-                          onChange={(e) => setBottlingMemo(e.target.value)}
-                          style={{ height: '38px', fontSize: '0.86rem' }}
-                        />
-                      </div>
-
-                      {!bottlingCalculations.isMultiItem ? (
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', alignItems: 'center', background: 'var(--bg-secondary)', padding: '12px', borderRadius: '10px', border: '1px solid var(--border-color)' }}>
-                          <div className="form-group" style={{ marginBottom: 0 }}>
-                            <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>제외/샘플 수량 (개)</label>
-                            <input 
-                              type="number" 
-                              className="form-control" 
-                              placeholder="0"
-                              value={bottlingDeductionQty}
-                              onChange={(e) => setBottlingDeductionQty(e.target.value)}
-                              min="0"
-                              style={{ height: '38px', fontSize: '0.86rem' }}
-                            />
-                          </div>
-                          <div>
-                            <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>실제 입고 수량</div>
-                            <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--color-success)', fontFamily: 'var(--font-outfit)' }}>
-                              {bottlingCalculations.actualStockedQty || 0} 개
-                            </div>
-                          </div>
-                        </div>
-                      ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', alignItems: 'center', background: 'var(--bg-secondary)', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                            <div className="form-group" style={{ marginBottom: 0 }}>
-                              <label style={{ fontSize: '0.78rem', fontWeight: 600 }}>{bottlingCalculations.item1.productName} 제외 수량</label>
-                              <input 
-                                type="number" 
-                                className="form-control" 
-                                placeholder="0"
-                                value={item1DeductionQty}
-                                onChange={(e) => setItem1DeductionQty(e.target.value)}
-                                min="0"
-                                style={{ height: '36px', fontSize: '0.84rem' }}
-                              />
-                            </div>
-                            <div>
-                              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>실제 입고 수량</div>
-                              <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--color-success)', fontFamily: 'var(--font-outfit)' }}>
-                                {bottlingCalculations.item1.stockedQty || 0} 개
-                              </div>
-                            </div>
-                          </div>
-
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', alignItems: 'center', background: 'var(--bg-secondary)', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                            <div className="form-group" style={{ marginBottom: 0 }}>
-                              <label style={{ fontSize: '0.78rem', fontWeight: 600 }}>{bottlingCalculations.item2.productName} 제외 수량</label>
-                              <input 
-                                type="number" 
-                                className="form-control" 
-                                placeholder="0"
-                                value={item2DeductionQty}
-                                onChange={(e) => setItem2DeductionQty(e.target.value)}
-                                min="0"
-                                style={{ height: '36px', fontSize: '0.84rem' }}
-                              />
-                            </div>
-                            <div>
-                              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>실제 입고 수량</div>
-                              <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--color-success)', fontFamily: 'var(--font-outfit)' }}>
-                                {bottlingCalculations.item2.stockedQty || 0} 개
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Expiration Date Display */}
-                    <div style={{ padding: '12px 14px', background: 'var(--bg-secondary)', borderRadius: '10px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      <div style={{ fontSize: '0.86rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span>📅</span>
-                        <span>자동 지정 소비기한</span>
-                      </div>
-                      {!bottlingCalculations.isMultiItem ? (
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'var(--bg-tertiary)', borderRadius: '8px', fontSize: '0.84rem' }}>
-                          <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{bottlingCalculations.productName}</span>
-                          <strong style={{ color: 'var(--color-primary)', fontFamily: 'var(--font-outfit)', fontSize: '0.92rem' }}>
-                            {bottlingCalculations.expiryDate}
-                          </strong>
-                        </div>
-                      ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'var(--bg-tertiary)', borderRadius: '8px', fontSize: '0.84rem' }}>
-                            <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>품목 1: {bottlingCalculations.item1.productName}</span>
-                            <strong style={{ color: 'var(--color-primary)', fontFamily: 'var(--font-outfit)', fontSize: '0.92rem' }}>
-                              {bottlingCalculations.item1.expiryDate}
-                            </strong>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: 'var(--bg-tertiary)', borderRadius: '8px', fontSize: '0.84rem' }}>
-                            <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>품목 2: {bottlingCalculations.item2.productName}</span>
-                            <strong style={{ color: 'var(--color-primary)', fontFamily: 'var(--font-outfit)', fontSize: '0.92rem' }}>
-                              {bottlingCalculations.item2.expiryDate}
-                            </strong>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                  </div>
-                )}
-              </>
+              <BottlingReportForm
+                selectedPlanDetails={selectedPlanDetails}
+                bottlingCalculations={bottlingCalculations}
+                bottlingCount={bottlingCount}
+                setBottlingCount={setBottlingCount}
+                bottlingRemainsG={bottlingRemainsG}
+                setBottlingRemainsG={setBottlingRemainsG}
+                item1BottlingCount={item1BottlingCount}
+                setItem1BottlingCount={setItem1BottlingCount}
+                item1BottlingRemainsG={item1BottlingRemainsG}
+                setItem1BottlingRemainsG={setItem1BottlingRemainsG}
+                item2BottlingCount={item2BottlingCount}
+                setItem2BottlingCount={setItem2BottlingCount}
+                item2BottlingRemainsG={item2BottlingRemainsG}
+                setItem2BottlingRemainsG={setItem2BottlingRemainsG}
+                bottlingMemo={bottlingMemo}
+                setBottlingMemo={setBottlingMemo}
+                bottlingDeductionQty={bottlingDeductionQty}
+                setBottlingDeductionQty={setBottlingDeductionQty}
+                item1DeductionQty={item1DeductionQty}
+                setItem1DeductionQty={setItem1DeductionQty}
+                item2DeductionQty={item2DeductionQty}
+                setItem2DeductionQty={setItem2DeductionQty}
+              />
             )}
 
             {/* WHEY SEPARATION FORM BODY */}
             {activeReportType === 'whey_separation' && (
-              <>
-                {/* 1. 묽기 측정 */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '16px', background: 'var(--bg-tertiary)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-                  <label style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                    2. 요거트 묽기 측정
-                  </label>
-                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                    {['아주 묽음', '묽음', '보통', '되직함', '아주 되직함'].map((level) => (
-                      <button
-                        key={level}
-                        type="button"
-                        className={`chip-button ${wheyConsistency === level ? 'active' : ''}`}
-                        onClick={() => setWheyConsistency(level)}
-                      >
-                        {level}
-                      </button>
-                    ))}
-                  </div>
-                  <input
-                    type="text"
-                    className="form-control"
-                    placeholder="묽기 특이사항 / 상세 메모 (선택사항)"
-                    value={wheyConsistencyMemo}
-                    onChange={(e) => setWheyConsistencyMemo(e.target.value)}
-                    style={{ height: '36px', fontSize: '0.84rem', marginTop: '6px' }}
-                  />
-                </div>
-
-                {/* 2. 이물질 검사 */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '16px', background: 'var(--bg-tertiary)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <label style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                      3. 이물질 발견 여부
-                    </label>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button
-                        type="button"
-                        className={`chip-button ${!wheyForeignMatter ? 'active' : ''}`}
-                        style={!wheyForeignMatter ? { background: '#10b981', borderColor: '#10b981' } : {}}
-                        onClick={() => setWheyForeignMatter(false)}
-                      >
-                        ✓ 발견 없음
-                      </button>
-                      <button
-                        type="button"
-                        className={`chip-button ${wheyForeignMatter ? 'active' : ''}`}
-                        style={wheyForeignMatter ? { background: '#ef4444', borderColor: '#ef4444' } : {}}
-                        onClick={() => setWheyForeignMatter(true)}
-                      >
-                        ⚠️ 이물질 발견됨
-                      </button>
-                    </div>
-                  </div>
-
-                  {wheyForeignMatter && (
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder="발견된 이물질 내용 및 수거 조치를 작성하세요"
-                      value={wheyForeignMatterDetail}
-                      onChange={(e) => setWheyForeignMatterDetail(e.target.value)}
-                      required={wheyForeignMatter}
-                      style={{ height: '38px', fontSize: '0.85rem', borderColor: '#ef4444' }}
-                    />
-                  )}
-                </div>
-
-                {/* 3. 밧드 무게 및 총 추출량/로스율 자동 계산 */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '16px', background: 'var(--bg-tertiary)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-                  <label style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                    4. 바트 분할 무게 및 추출량 / 로스율 자동 계산
-                  </label>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                    <div>
-                      <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
-                        10kg 밧드 개수
-                      </label>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <input
-                          type="number"
-                          className="form-control"
-                          placeholder="예: 19"
-                          value={wheyBattCount}
-                          onChange={(e) => setWheyBattCount(e.target.value)}
-                          required
-                          style={{ height: '40px', fontSize: '0.9rem', fontFamily: 'var(--font-outfit)', fontWeight: 600 }}
-                        />
-                        <span style={{ fontSize: '0.85rem', color: 'var(--text-primary)', fontWeight: 600 }}>밧드</span>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
-                        마지막 밧드 무게 (g)
-                      </label>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <input
-                          type="number"
-                          className="form-control"
-                          placeholder="예: 3200"
-                          value={wheyLastBattWeightG}
-                          onChange={(e) => setWheyLastBattWeightG(e.target.value)}
-                          required
-                          style={{ height: '40px', fontSize: '0.9rem', fontFamily: 'var(--font-outfit)', fontWeight: 600 }}
-                        />
-                        <span style={{ fontSize: '0.85rem', color: 'var(--text-primary)', fontWeight: 600 }}>g</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Calculated summary card */}
-                  <div style={{ background: 'var(--bg-secondary)', padding: '14px', borderRadius: '10px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.84rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed var(--border-color)', paddingBottom: '6px' }}>
-                      <span style={{ color: 'var(--text-secondary)' }}>10kg 밧드 총합:</span>
-                      <strong style={{ fontFamily: 'var(--font-outfit)', color: 'var(--text-primary)' }}>{wheyCalculations.batts * 10} kg ({(wheyCalculations.batts * 10000).toLocaleString()} g)</strong>
-                    </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px dashed var(--border-color)', paddingBottom: '6px' }}>
-                      <span style={{ color: 'var(--text-secondary)' }}>총 추출 요거트 무게:</span>
-                      <strong style={{ fontFamily: 'var(--font-outfit)', color: 'var(--color-primary)', fontSize: '0.95rem' }}>
-                        {wheyCalculations.totalYieldKg.toFixed(2)} kg <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>({wheyCalculations.totalYieldG.toLocaleString()} g)</span>
-                      </strong>
-                    </div>
-                    {selectedPlanDetails && (
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '2px' }}>
-                        <span style={{ color: 'var(--text-secondary)' }}>생산 계획 원재료 목표량 대비 로스율:</span>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontSize: '0.76rem', color: 'var(--text-muted)' }}>
-                            (목표: {wheyCalculations.targetRawMaterialKg.toFixed(2)} kg)
-                          </span>
-                          <span style={{ 
-                            padding: '3px 10px', 
-                            borderRadius: '12px', 
-                            background: wheyCalculations.lossPercent > 5 ? 'rgba(239, 68, 68, 0.15)' : 'rgba(2, 132, 199, 0.15)', 
-                            color: wheyCalculations.lossPercent > 5 ? '#ef4444' : 'var(--color-primary)', 
-                            fontWeight: 700, 
-                            fontFamily: 'var(--font-outfit)',
-                            fontSize: '0.88rem'
-                          }}>
-                            {wheyCalculations.lossPercent.toFixed(2)}% 로스 ({wheyCalculations.lossG > 0 ? Math.round(wheyCalculations.lossG).toLocaleString() : 0}g)
-                          </span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* 4. 온도 체크 */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '16px', background: 'var(--bg-tertiary)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-                  <label style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                    5. 발효탱크 유청분리 직전 온도 체크
-                  </label>
-                  
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                    <div>
-                      <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
-                        탱크 윗부분 온도 (°C)
-                      </label>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <input
-                          type="number"
-                          step="0.1"
-                          className="form-control"
-                          placeholder="예: 35.9"
-                          value={wheyTempUpper}
-                          onChange={(e) => setWheyTempUpper(e.target.value)}
-                          required
-                          style={{ height: '40px', fontSize: '0.9rem', fontFamily: 'var(--font-outfit)', fontWeight: 600 }}
-                        />
-                        <span style={{ fontSize: '0.85rem', color: 'var(--text-primary)', fontWeight: 600 }}>°C</span>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
-                        탱크 아랫부분 온도 (°C)
-                      </label>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <input
-                          type="number"
-                          step="0.1"
-                          className="form-control"
-                          placeholder="예: 36.2"
-                          value={wheyTempLower}
-                          onChange={(e) => setWheyTempLower(e.target.value)}
-                          required
-                          style={{ height: '40px', fontSize: '0.9rem', fontFamily: 'var(--font-outfit)', fontWeight: 600 }}
-                        />
-                        <span style={{ fontSize: '0.85rem', color: 'var(--text-primary)', fontWeight: 600 }}>°C</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* 5. pH (산도) 측정 및 과거 데이터 연동 */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '16px', background: 'var(--bg-tertiary)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-                  <label style={{ fontSize: '0.92rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                    6. pH (산도) 측정
-                  </label>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <div style={{ flex: 1 }}>
-                      <input
-                        type="number"
-                        step="0.01"
-                        className="form-control"
-                        placeholder="예: 4.47 (전극형 센서 pH 수치 기입)"
-                        value={wheyPh}
-                        onChange={(e) => setWheyPh(e.target.value)}
-                        required
-                        style={{ height: '42px', fontSize: '0.95rem', fontFamily: 'var(--font-outfit)', fontWeight: 700 }}
-                      />
-                    </div>
-                  </div>
-
-                  {renderPhGauge(wheyPh)}
-                </div>
-              </>
+              <WheyReportForm
+                wheyConsistency={wheyConsistency}
+                setWheyConsistency={setWheyConsistency}
+                wheyConsistencyMemo={wheyConsistencyMemo}
+                setWheyConsistencyMemo={setWheyConsistencyMemo}
+                wheyForeignMatter={wheyForeignMatter}
+                setWheyForeignMatter={setWheyForeignMatter}
+                wheyForeignMatterDetail={wheyForeignMatterDetail}
+                setWheyForeignMatterDetail={setWheyForeignMatterDetail}
+                wheyBattCount={wheyBattCount}
+                setWheyBattCount={setWheyBattCount}
+                wheyLastBattWeightG={wheyLastBattWeightG}
+                setWheyLastBattWeightG={setWheyLastBattWeightG}
+                wheyCalculations={wheyCalculations}
+                selectedPlanDetails={selectedPlanDetails}
+                wheyTempUpper={wheyTempUpper}
+                setWheyTempUpper={setWheyTempUpper}
+                wheyTempLower={wheyTempLower}
+                setWheyTempLower={setWheyTempLower}
+                wheyPh={wheyPh}
+                setWheyPh={setWheyPh}
+                renderPhGauge={renderPhGauge}
+              />
             )}
 
             {/* FERMENTATION REPORT FORM BODY */}
             {activeReportType === 'fermentation' && (
-              <>
-                {/* Step 2: Selected Plan Summary (Recipe details hidden for security) */}
-                {selectedPlanDetails && (
-                  <div style={{ background: 'var(--bg-tertiary)', borderRadius: '12px', padding: '16px', border: '1px solid var(--border-color)' }}>
-                    <h4 style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--color-primary)' }}>
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                        <polyline points="14 2 14 8 20 8"></polyline>
-                        <line x1="16" y1="13" x2="8" y2="13"></line>
-                        <line x1="16" y1="17" x2="8" y2="17"></line>
-                        <polyline points="10 9 9 9 8 9"></polyline>
-                      </svg>
-                      <span>선택된 생산 계획 기본 정보</span>
-                    </h4>
-                    <div className="recipe-summary-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '8px 12px', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                      <div>
-                        기준 베이스 제품: <strong style={{ color: 'var(--text-primary)', fontWeight: 600, display: 'block', marginTop: '2px' }}>{selectedPlanDetails.product?.name || '베이스 제품'}</strong>
-                      </div>
-                      <div>
-                        생산 수량: <strong style={{ color: 'var(--text-primary)', fontWeight: 600, fontFamily: 'var(--font-outfit)', display: 'block', marginTop: '2px' }}>{(selectedPlanDetails.plan?.totalQty || 0).toLocaleString()} 개</strong>
-                      </div>
-                      <div>
-                        가동 발효기: <strong style={{ color: 'var(--text-primary)', fontWeight: 600, display: 'block', marginTop: '2px' }}>{selectedPlanDetails.plan?.fermenterType === 'large' ? '대형 발효기' : (selectedPlanDetails.plan?.fermenterType === 'small' ? '소형 발효기' : (selectedPlanDetails.plan?.fermenterType || '발효조'))}</strong>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Step 3: Record details */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  <label style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '4px' }}>
-                    2. 작업 내용 기록 (확인 항목 체크 및 입력)
-                  </label>
-
-                  {/* Sterilization */}
-                  <div className="report-check-row" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
-                    <div className="report-check-top" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <input 
-                        type="checkbox" 
-                        id="chk-sterilization" 
-                        checked={checkedSterilization} 
-                        onChange={(e) => setCheckedSterilization(e.target.checked)}
-                        style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                      />
-                      <label htmlFor="chk-sterilization" style={{ fontSize: '0.88rem', fontWeight: 600, cursor: 'pointer', color: 'var(--text-primary)', minWidth: '40px' }}>살균:</label>
-                    </div>
-                    <div className="report-check-bottom" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                      <input 
-                        type="number" 
-                        className="form-control inline-input" 
-                        value={sterilizationTemp} 
-                        onChange={(e) => setSterilizationTemp(e.target.value)}
-                        style={{ width: '70px', height: '32px', textAlign: 'center', padding: '4px', fontFamily: 'var(--font-outfit)', fontWeight: 600 }}
-                        disabled={!selectedPlanId}
-                      />
-                      <span>°C 에서</span>
-                      <input 
-                        type="number" 
-                        className="form-control inline-input" 
-                        value={sterilizationTime} 
-                        onChange={(e) => setSterilizationTime(e.target.value)}
-                        style={{ width: '70px', height: '32px', textAlign: 'center', padding: '4px', fontFamily: 'var(--font-outfit)', fontWeight: 600 }}
-                        disabled={!selectedPlanId}
-                      />
-                      <span>분 완료</span>
-                    </div>
-                  </div>
-
-                  {/* Cooling */}
-                  <div className="report-check-row" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
-                    <div className="report-check-top" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <input 
-                        type="checkbox" 
-                        id="chk-cooling" 
-                        checked={checkedCooling} 
-                        onChange={(e) => setCheckedCooling(e.target.checked)}
-                        style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                      />
-                      <label htmlFor="chk-cooling" style={{ fontSize: '0.88rem', fontWeight: 600, cursor: 'pointer', color: 'var(--text-primary)' }}>냉각 설정 온도:</label>
-                    </div>
-                    <div className="report-check-bottom" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                      <input 
-                        type="number" 
-                        className="form-control inline-input" 
-                        value={coolingTemp} 
-                        onChange={(e) => setCoolingTemp(e.target.value)}
-                        style={{ width: '75px', height: '32px', textAlign: 'center', padding: '4px', fontFamily: 'var(--font-outfit)', fontWeight: 600 }}
-                        disabled={!selectedPlanId}
-                      />
-                      <span>°C</span>
-                    </div>
-                  </div>
-
-                  {/* Inoculation */}
-                  <div className="report-check-row" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
-                    <div className="report-check-top" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <input 
-                        type="checkbox" 
-                        id="chk-inoculation" 
-                        checked={checkedInoculation} 
-                        onChange={(e) => setCheckedInoculation(e.target.checked)}
-                        style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                      />
-                      <label htmlFor="chk-inoculation" style={{ fontSize: '0.88rem', fontWeight: 600, cursor: 'pointer', color: 'var(--text-primary)' }}>유산균 접종:</label>
-                    </div>
-                    <div className="report-check-bottom" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                      <input 
-                        type="number" 
-                        className="form-control inline-input" 
-                        value={inoculationTemp} 
-                        onChange={(e) => setInoculationTemp(e.target.value)}
-                        style={{ width: '75px', height: '32px', textAlign: 'center', padding: '4px', fontFamily: 'var(--font-outfit)', fontWeight: 600 }}
-                        disabled={!selectedPlanId}
-                      />
-                      <span>°C 에서 접종 완료</span>
-                    </div>
-                  </div>
-
-                  {/* Heating */}
-                  <div className="report-check-row" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
-                    <div className="report-check-top" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <input 
-                        type="checkbox" 
-                        id="chk-heating" 
-                        checked={checkedHeating} 
-                        onChange={(e) => setCheckedHeating(e.target.checked)}
-                        style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                      />
-                      <label htmlFor="chk-heating" style={{ fontSize: '0.88rem', fontWeight: 600, cursor: 'pointer', color: 'var(--text-primary)' }}>가열 설정 온도:</label>
-                    </div>
-                    <div className="report-check-bottom" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                      <input 
-                        type="number" 
-                        className="form-control inline-input" 
-                        value={heatingTemp} 
-                        onChange={(e) => setHeatingTemp(e.target.value)}
-                        style={{ width: '75px', height: '32px', textAlign: 'center', padding: '4px', fontFamily: 'var(--font-outfit)', fontWeight: 600 }}
-                        disabled={!selectedPlanId}
-                      />
-                      <span>°C</span>
-                    </div>
-                  </div>
-
-                  {/* Heater */}
-                  <div className="report-check-row" style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border-color)', flexWrap: 'wrap' }}>
-                    <div className="report-check-top" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <input 
-                        type="checkbox" 
-                        id="chk-heater" 
-                        checked={checkedHeater} 
-                        onChange={(e) => setCheckedHeater(e.target.checked)}
-                        style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                      />
-                      <label htmlFor="chk-heater" style={{ fontSize: '0.88rem', fontWeight: 600, cursor: 'pointer', color: 'var(--text-primary)' }}>히터 설정 온도:</label>
-                    </div>
-                    <div className="report-check-bottom" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                      <input 
-                        type="number" 
-                        className="form-control inline-input" 
-                        value={heaterTemp} 
-                        onChange={(e) => setHeaterTemp(e.target.value)}
-                        style={{ width: '75px', height: '32px', textAlign: 'center', padding: '4px', fontFamily: 'var(--font-outfit)', fontWeight: 600 }}
-                        disabled={!selectedPlanId}
-                      />
-                      <span>°C</span>
-                    </div>
-                  </div>
-
-                  {/* Heater low ON */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                    <input 
-                      type="checkbox" 
-                      id="chk-heater-low" 
-                      checked={checkedHeaterLow} 
-                      onChange={(e) => setCheckedHeaterLow(e.target.checked)}
-                      style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                    />
-                    <label htmlFor="chk-heater-low" style={{ fontSize: '0.88rem', fontWeight: 600, cursor: 'pointer', color: 'var(--text-primary)' }}>히터 약 ON 완료</label>
-                  </div>
-
-                  {/* Agitator OFF Toggle Switch */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                    <span style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-primary)' }}>교반 OFF 확인</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <span style={{ 
-                        fontSize: '0.8rem', 
-                        fontWeight: 700, 
-                        color: checkedAgitator ? 'var(--text-muted, #94a3b8)' : 'var(--color-warning, #f59e0b)',
-                        background: checkedAgitator ? 'var(--bg-tertiary, #e2e8f0)' : 'rgba(245, 158, 11, 0.1)',
-                        padding: '2px 8px',
-                        borderRadius: '4px'
-                      }}>
-                        {checkedAgitator ? 'OFF (정지)' : 'ON (작동 중)'}
-                      </span>
-                      <label className="wysh-switch" style={{ margin: 0 }}>
-                        <input 
-                          type="checkbox" 
-                          checked={!checkedAgitator} 
-                          onChange={handleToggleAgitator}
-                        />
-                        <span className="wysh-slider"></span>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-              </>
+              <FermentationReportForm
+                selectedPlanId={selectedPlanId}
+                selectedPlanDetails={selectedPlanDetails}
+                checkedSterilization={checkedSterilization}
+                setCheckedSterilization={setCheckedSterilization}
+                sterilizationTemp={sterilizationTemp}
+                setSterilizationTemp={setSterilizationTemp}
+                sterilizationTime={sterilizationTime}
+                setSterilizationTime={setSterilizationTime}
+                checkedCooling={checkedCooling}
+                setCheckedCooling={setCheckedCooling}
+                coolingTemp={coolingTemp}
+                setCoolingTemp={setCoolingTemp}
+                checkedInoculation={checkedInoculation}
+                setCheckedInoculation={setCheckedInoculation}
+                inoculationTemp={inoculationTemp}
+                setInoculationTemp={setInoculationTemp}
+                checkedHeating={checkedHeating}
+                setCheckedHeating={setCheckedHeating}
+                heatingTemp={heatingTemp}
+                setHeatingTemp={setHeatingTemp}
+                checkedHeater={checkedHeater}
+                setCheckedHeater={setCheckedHeater}
+                heaterTemp={heaterTemp}
+                setHeaterTemp={setHeaterTemp}
+                checkedHeaterLow={checkedHeaterLow}
+                setCheckedHeaterLow={setCheckedHeaterLow}
+                checkedAgitator={checkedAgitator}
+                handleToggleAgitator={handleToggleAgitator}
+              />
             )}
 
             {/* SENSORY REPORT FORM BODY */}
             {activeReportType === 'sensory' && (
-              <>
-                {/* Auto-fetched Read-Only Info Card */}
-                {selectedPlanId && sensoryAutoData && (
-                  <div style={{
-                    padding: '16px',
-                    background: 'var(--bg-tertiary)',
-                    borderRadius: '12px',
-                    border: '1px solid var(--border-color)',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '12px'
-                  }}>
-                    <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span>📌 이전 공정 자동 연동 정보</span>
-                      <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-muted)' }}>(발효 및 유청분리 리포트 기준)</span>
-                    </h4>
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' }}>
-                      <div style={{ background: 'var(--bg-secondary)', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>제품명</span>
-                        <strong style={{ fontSize: '0.88rem', color: 'var(--text-primary)' }}>
-                          {selectedPlanDetails?.product?.name || '제품정보 없음'}
-                        </strong>
-                      </div>
-                      <div style={{ background: 'var(--bg-secondary)', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>살균 방법</span>
-                        <strong style={{ fontSize: '0.88rem', color: 'var(--color-primary)' }}>
-                          {sensoryAutoData.sterilizationTemp}°C / {sensoryAutoData.sterilizationTime}분 완료
-                        </strong>
-                      </div>
-                      <div style={{ background: 'var(--bg-secondary)', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>가열 설정 온도</span>
-                        <strong style={{ fontSize: '0.88rem', color: 'var(--color-primary)' }}>
-                          {sensoryAutoData.heatingTemp}°C
-                        </strong>
-                      </div>
-                      <div style={{ background: 'var(--bg-secondary)', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'block' }}>pH</span>
-                        <strong style={{ fontSize: '0.88rem', color: '#9333ea' }}>
-                          {sensoryAutoData.phValue}
-                        </strong>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Evaluator 1 Section */}
-                <div style={{
-                  padding: '16px',
-                  background: 'var(--bg-tertiary)',
-                  borderRadius: '12px',
-                  border: (eval1Name && eval1Note) ? '2px solid #10b981' : '2px solid #f59e0b',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '12px'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-                      👤 1차 관능평가 (평가자 1)
-                    </h4>
-                    {eval1Name && eval1Note && (
-                      <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 700 }}>
-                        ✓ 작성완료
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="form-group">
-                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
-                      관능평가 소감 <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(예: 질감 좋음, 산미 좋음 등)</span>
-                    </label>
-                    <textarea
-                      className="form-control"
-                      rows="3"
-                      placeholder="질감, 산미/풍미, 종합의견 등을 자유롭게 작성하세요."
-                      value={eval1Note}
-                      onChange={(e) => setEval1Note(e.target.value)}
-                      required
-                      style={{ fontSize: '0.88rem', resize: 'vertical' }}
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
-                      평가자 1 서명 (이름)
-                    </label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder="예: 홍길동 (본인의 이름을 입력하세요)"
-                      value={eval1Name}
-                      onChange={(e) => setEval1Name(e.target.value)}
-                      required
-                      style={{ height: '40px', fontSize: '0.88rem' }}
-                    />
-                  </div>
-                </div>
-
-                {/* Evaluator 2 Section */}
-                <div style={{
-                  padding: '16px',
-                  background: 'var(--bg-tertiary)',
-                  borderRadius: '12px',
-                  border: (eval2Name && eval2Note) ? '2px solid #10b981' : '1px solid var(--border-color)',
-                  opacity: (!eval1Name || !eval1Note) && sensoryStatus !== 'partial' && sensoryStatus !== 'completed' ? 0.6 : 1,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '12px'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-                      👤 2차 관능평가 (평가자 2)
-                    </h4>
-                    {(!eval1Name || !eval1Note) && sensoryStatus !== 'partial' && sensoryStatus !== 'completed' ? (
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                        🔒 1차 평가 작성/저장 후 입력 가능
-                      </span>
-                    ) : (eval2Name && eval2Note && (
-                      <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 700 }}>
-                        ✓ 작성완료
-                      </span>
-                    ))}
-                  </div>
-
-                  <div className="form-group">
-                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
-                      관능평가 소감 <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(예: 질감 살짝 묽음, 산미 약간 있음 등)</span>
-                    </label>
-                    <textarea
-                      className="form-control"
-                      rows="3"
-                      placeholder={(!eval1Name || !eval1Note) && sensoryStatus !== 'partial' && sensoryStatus !== 'completed' ? "1차 평가 저장 후 입력 가능합니다." : "2차 평가 소감을 작성하세요."}
-                      value={eval2Note}
-                      onChange={(e) => setEval2Note(e.target.value)}
-                      disabled={(!eval1Name || !eval1Note) && sensoryStatus !== 'partial' && sensoryStatus !== 'completed'}
-                      style={{ fontSize: '0.88rem', resize: 'vertical' }}
-                    />
-                  </div>
-
-                  <div className="form-group">
-                    <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '4px' }}>
-                      평가자 2 서명 (이름)
-                    </label>
-                    <input
-                      type="text"
-                      className="form-control"
-                      placeholder="예: 김철수 (본인의 이름을 입력하세요)"
-                      value={eval2Name}
-                      onChange={(e) => setEval2Name(e.target.value)}
-                      disabled={(!eval1Name || !eval1Note) && sensoryStatus !== 'partial' && sensoryStatus !== 'completed'}
-                      style={{ height: '40px', fontSize: '0.88rem' }}
-                    />
-                  </div>
-                </div>
-              </>
+              <SensoryReportForm
+                selectedPlanId={selectedPlanId}
+                sensoryAutoData={sensoryAutoData}
+                selectedPlanDetails={selectedPlanDetails}
+                eval1Note={eval1Note}
+                setEval1Note={setEval1Note}
+                eval1Name={eval1Name}
+                setEval1Name={setEval1Name}
+                eval2Note={eval2Note}
+                setEval2Note={setEval2Note}
+                eval2Name={eval2Name}
+                setEval2Name={setEval2Name}
+                sensoryStatus={sensoryStatus}
+              />
             )}
 
             {/* Signature name for non-sensory reports */}
