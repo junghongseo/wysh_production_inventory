@@ -345,7 +345,7 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
                 </div>
 
                 {/* Table 1: 1 Yogurt Unit */}
-                <div style={{ marginBottom: '24px', background: 'rgba(249, 115, 22, 0.03)', padding: '14px', borderRadius: '10px', border: '1px solid rgba(249, 115, 22, 0.2)' }}>
+                <div className="recipe-card" style={{ marginBottom: '24px', background: 'rgba(249, 115, 22, 0.03)', padding: '14px', borderRadius: '10px', border: '1px solid rgba(249, 115, 22, 0.2)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                     <h4 style={{ fontSize: '0.92rem', fontWeight: 700, color: '#c2410c', margin: 0 }}>
                       1. 요거트 1개 기준 부재료 소요 배합표
@@ -382,7 +382,7 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
                 </div>
 
                 {/* Table 2: 20 Yogurt Units */}
-                <div style={{ marginBottom: '24px', background: 'rgba(249, 115, 22, 0.03)', padding: '14px', borderRadius: '10px', border: '1px solid rgba(249, 115, 22, 0.2)' }}>
+                <div className="recipe-card" style={{ marginBottom: '24px', background: 'rgba(249, 115, 22, 0.03)', padding: '14px', borderRadius: '10px', border: '1px solid rgba(249, 115, 22, 0.2)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                     <h4 style={{ fontSize: '0.92rem', fontWeight: 700, color: '#c2410c', margin: 0 }}>
                       2. 요거트 20개 기준 부재료 소요 배합표
@@ -422,7 +422,7 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
                 </div>
 
                 {/* Table 3: Total Planned Yogurt Units */}
-                <div style={{ marginBottom: '24px', background: 'rgba(249, 115, 22, 0.06)', padding: '14px', borderRadius: '10px', border: '1px solid rgba(249, 115, 22, 0.3)' }}>
+                <div className="recipe-card" style={{ marginBottom: '24px', background: 'rgba(249, 115, 22, 0.06)', padding: '14px', borderRadius: '10px', border: '1px solid rgba(249, 115, 22, 0.3)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                     <h4 style={{ fontSize: '0.92rem', fontWeight: 700, color: '#c2410c', margin: 0 }}>
                       3. 생산계획 총량 기준 부재료 배합표 ({details.targetYogurtQty.toLocaleString()}개분)
@@ -530,50 +530,52 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
                 {/* Individual Item Recipe Tables */}
                 {details.displayItemDetailsList.map((itDetail, idx) => (
                   <div key={idx} style={{ marginBottom: '24px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-                      <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ background: 'var(--color-primary)', color: '#fff', fontSize: '0.7rem', padding: '1px 6px', borderRadius: '10px' }}>
-                          품목 {itDetail.itemIndex}
+                    <div className="recipe-card item-main-recipe">
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                        <h4 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <span style={{ background: 'var(--color-primary)', color: '#fff', fontSize: '0.7rem', padding: '1px 6px', borderRadius: '10px' }}>
+                            품목 {itDetail.itemIndex}
+                          </span>
+                          {itDetail.product.name} 필요 배합표 ({itDetail.itemTotalQty.toLocaleString()}개 전체 수량 기준)
+                        </h4>
+                        <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontFamily: 'var(--font-outfit)' }}>
+                          수량: {itDetail.itemTotalQty.toLocaleString()} 개 | 수율: {itDetail.product.yield}%
                         </span>
-                        {itDetail.product.name} 필요 배합표 ({itDetail.itemTotalQty.toLocaleString()}개 전체 수량 기준)
-                      </h4>
-                      <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', fontFamily: 'var(--font-outfit)' }}>
-                        수량: {itDetail.itemTotalQty.toLocaleString()} 개 | 수율: {itDetail.product.yield}%
-                      </span>
-                    </div>
+                      </div>
 
-                    <div className="wysh-table-wrapper">
-                      <table className="wysh-table">
-                        <thead>
-                          <tr>
-                            <th>원재료명</th>
-                            <th style={{ textAlign: 'right' }}>함량(%)</th>
-                            <th style={{ textAlign: 'right' }}>필요량(g)</th>
-                            <th style={{ textAlign: 'right' }}>참고량(kg)</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {itDetail.computedIngredients.map((ing, ingIdx) => (
-                            <tr key={ingIdx}>
-                              <td style={{ fontWeight: 500 }}>{ing.name}</td>
-                              <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)' }}>{ing.ratio}%</td>
-                              <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', fontWeight: 600 }}>{ing.displayG} g</td>
-                              <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', color: 'var(--text-secondary)', fontStyle: 'italic' }}>({ing.neededQtyKg.toFixed(2)} kg)</td>
+                      <div className="wysh-table-wrapper">
+                        <table className="wysh-table">
+                          <thead>
+                            <tr>
+                              <th>원재료명</th>
+                              <th style={{ textAlign: 'right' }}>함량(%)</th>
+                              <th style={{ textAlign: 'right' }}>필요량(g)</th>
+                              <th style={{ textAlign: 'right' }}>참고량(kg)</th>
                             </tr>
-                          ))}
-                          <tr className="total-row">
-                            <td>합계</td>
-                            <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)' }}>{itDetail.totalRatioSum.toFixed(2)}%</td>
-                            <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)' }}>{Math.round(itDetail.totalWeightSum).toLocaleString()} g</td>
-                            <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', fontStyle: 'italic' }}>({(itDetail.totalWeightSum / 1000).toFixed(2)} kg)</td>
-                          </tr>
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody>
+                            {itDetail.computedIngredients.map((ing, ingIdx) => (
+                              <tr key={ingIdx}>
+                                <td style={{ fontWeight: 500 }}>{ing.name}</td>
+                                <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)' }}>{ing.ratio}%</td>
+                                <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', fontWeight: 600 }}>{ing.displayG} g</td>
+                                <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', color: 'var(--text-secondary)', fontStyle: 'italic' }}>({ing.neededQtyKg.toFixed(2)} kg)</td>
+                              </tr>
+                            ))}
+                            <tr className="total-row">
+                              <td>합계</td>
+                              <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)' }}>{itDetail.totalRatioSum.toFixed(2)}%</td>
+                              <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)' }}>{Math.round(itDetail.totalWeightSum).toLocaleString()} g</td>
+                              <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', fontStyle: 'italic' }}>({(itDetail.totalWeightSum / 1000).toFixed(2)} kg)</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
 
                     {/* 20-Unit Flavor Recipe Table */}
                     {itDetail.details20Qty && (
-                      <div style={{ marginTop: '16px', background: 'rgba(2, 132, 199, 0.04)', padding: '14px', borderRadius: '10px', border: '1px solid rgba(2, 132, 199, 0.2)' }}>
+                      <div className="recipe-card item-20qty-recipe" style={{ marginTop: '16px', background: 'rgba(2, 132, 199, 0.04)', padding: '14px', borderRadius: '10px', border: '1px solid rgba(2, 132, 199, 0.2)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                           <h5 style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--color-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
                             🧪 {itDetail.product.name} (20개 기준 필요 배합표)

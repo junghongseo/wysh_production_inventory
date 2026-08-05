@@ -1739,8 +1739,10 @@ button svg * {
         padding-top: 16px !important;
         border-top: none !important;
     }
+    body.printing-recipe .recipe-card,
     body.printing-recipe .wysh-table-wrapper,
     body.printing-recipe .wysh-table,
+    body.printing-recipe .base-recipe-section,
     body.printing-recipe .note-card {
         page-break-inside: avoid !important;
         break-inside: avoid !important;
