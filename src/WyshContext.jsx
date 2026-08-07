@@ -179,9 +179,18 @@ export const WyshProvider = ({ children }) => {
       const finalMaterials = mappedMaterialCosts || [];
       const finalInventory = mappedInventory || [];
 
-      // Maintain products compatibility (only sync hardcoded defaults if missing)
+      // Maintain products compatibility and preserve local recipeMemo if remote DB column does not exist yet
+      const currentLocalProducts = localInitial.products || [];
       const mergedProductsMap = new Map();
-      mappedProducts.forEach(p => mergedProductsMap.set(p.id, p));
+      mappedProducts.forEach(p => {
+        const localP = currentLocalProducts.find(lp => lp.id === p.id);
+        const localMemo = localP ? (localP.recipeMemo || localP.memo || '') : '';
+        const mergedProduct = {
+          ...p,
+          recipeMemo: p.recipeMemo || localMemo
+        };
+        mergedProductsMap.set(p.id, mergedProduct);
+      });
 
       (DEFAULT_PRODUCTS || []).forEach(lp => {
         const existsById = mergedProductsMap.has(lp.id);
