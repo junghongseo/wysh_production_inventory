@@ -396,7 +396,7 @@ const InventoryView = ({ onDeleteHistory, onOpenMemoModal, isAdminLoggedIn }) =>
                           </span>
                         )}
                       </td>
-                      <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', fontWeight: 700, color: !isReportConfirmed ? 'var(--text-muted)' : (currentStock < 100 ? 'var(--color-danger)' : 'var(--color-primary)'), whiteSpace: 'nowrap' }}>
+                      <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', fontWeight: 700, color: !isReportConfirmed ? 'var(--text-muted)' : (currentStock < 30 ? 'var(--color-danger)' : 'var(--color-primary)'), whiteSpace: 'nowrap' }}>
                         {isReportConfirmed ? currentStock.toLocaleString() : '-'}
                       </td>
                       <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>

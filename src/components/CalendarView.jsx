@@ -857,7 +857,7 @@ const CalendarView = ({
 
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '8px', paddingTop: '6px', borderTop: '1px dashed var(--border-color)' }}>
                             <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>목표 수량: <strong>{(it.plannedQty || 0).toLocaleString()}개</strong></span>
-                            <span style={{ fontSize: '0.82rem', fontWeight: 700, color: (it.currentStock || 0) < 100 ? 'var(--color-danger)' : 'var(--color-primary)' }}>
+                            <span style={{ fontSize: '0.82rem', fontWeight: 700, color: (it.currentStock || 0) < 30 ? 'var(--color-danger)' : 'var(--color-primary)' }}>
                               현재 재고: {(it.currentStock || 0).toLocaleString()}개
                             </span>
                           </div>
