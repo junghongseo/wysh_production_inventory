@@ -134,6 +134,7 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
 
       let baseYogurtNeededG = 0;
       let details20Qty = null;
+      let detailsRemainderQty = null;
       if (product.isFlavor) {
         let baseIng = null;
         if (product.baseProductId) {
@@ -181,6 +182,43 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
           totalRatioSum: totalRatioSum20,
           totalWeightSum: totalWeightSum20
         };
+
+        // Remainder-unit calculation for Flavor Yogurt (if itemTotalQty is not a multiple of 20)
+        const remainderQty = itemTotalQty % 20;
+        if (remainderQty > 0) {
+          const weightRemainderG = remainderQty * product.weight;
+          const inputWeightRemainderG = weightRemainderG / (product.yield / 100);
+
+          let totalRatioSumRemainder = 0;
+          let totalWeightSumRemainder = 0;
+
+          const computedIngredientsRemainder = (product.ingredients || []).map(ing => {
+            const neededQtyG = inputWeightRemainderG * (ing.ratio / 100);
+            const neededQtyKg = neededQtyG / 1000;
+
+            totalRatioSumRemainder += ing.ratio;
+            totalWeightSumRemainder += neededQtyG;
+
+            const isLacticBacteria = ing.name.includes('유산균');
+            const displayG = formatQtyG(neededQtyG, ing.ratio, isLacticBacteria);
+
+            return {
+              name: ing.name,
+              ratio: ing.ratio,
+              displayG,
+              neededQtyKg
+            };
+          });
+
+          detailsRemainderQty = {
+            qty: remainderQty,
+            totalWeightG: weightRemainderG,
+            inputWeightG: inputWeightRemainderG,
+            computedIngredients: computedIngredientsRemainder,
+            totalRatioSum: totalRatioSumRemainder,
+            totalWeightSum: totalWeightSumRemainder
+          };
+        }
       } else {
         baseYogurtNeededG = itemTotalWeightG;
       }
@@ -198,7 +236,8 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
         totalRatioSum,
         totalWeightSum,
         baseYogurtNeededG,
-        details20Qty
+        details20Qty,
+        detailsRemainderQty
       };
     }).filter(Boolean);
 
@@ -608,6 +647,48 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
                                 <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)' }}>{itDetail.details20Qty.totalRatioSum.toFixed(2)}%</td>
                                 <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)' }}>{Math.round(itDetail.details20Qty.totalWeightSum).toLocaleString()} g</td>
                                 <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', fontStyle: 'italic' }}>({(itDetail.details20Qty.totalWeightSum / 1000).toFixed(2)} kg)</td>
+                              </tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Remainder-Unit Flavor Recipe Table */}
+                    {itDetail.detailsRemainderQty && (
+                      <div className="recipe-card item-remainder-recipe recipe-card-page-break" style={{ marginTop: '16px', background: 'rgba(2, 132, 199, 0.04)', padding: '14px', borderRadius: '10px', border: '1px solid rgba(2, 132, 199, 0.2)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                          <h5 style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--color-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            🧪 {itDetail.product.name} ({itDetail.detailsRemainderQty.qty}개 기준 필요 배합표)
+                          </h5>
+                          <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)', fontFamily: 'var(--font-outfit)' }}>
+                            잔여 {itDetail.detailsRemainderQty.qty}개 생산 기준 소요 원재료
+                          </span>
+                        </div>
+                        <div className="wysh-table-wrapper">
+                          <table className="wysh-table">
+                            <thead>
+                              <tr>
+                                <th>원재료명</th>
+                                <th style={{ textAlign: 'right' }}>함량(%)</th>
+                                <th style={{ textAlign: 'right' }}>필요량(g)</th>
+                                <th style={{ textAlign: 'right' }}>참고량(kg)</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {itDetail.detailsRemainderQty.computedIngredients.map((ing, ingIdx) => (
+                                <tr key={ingIdx}>
+                                  <td style={{ fontWeight: 500 }}>{ing.name}</td>
+                                  <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)' }}>{ing.ratio}%</td>
+                                  <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', fontWeight: 600 }}>{ing.displayG} g</td>
+                                  <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', color: 'var(--text-secondary)', fontStyle: 'italic' }}>({ing.neededQtyKg.toFixed(2)} kg)</td>
+                                </tr>
+                              ))}
+                              <tr className="total-row">
+                                <td>합계</td>
+                                <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)' }}>{itDetail.detailsRemainderQty.totalRatioSum.toFixed(2)}%</td>
+                                <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)' }}>{Math.round(itDetail.detailsRemainderQty.totalWeightSum).toLocaleString()} g</td>
+                                <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', fontStyle: 'italic' }}>({(itDetail.detailsRemainderQty.totalWeightSum / 1000).toFixed(2)} kg)</td>
                               </tr>
                             </tbody>
                           </table>
