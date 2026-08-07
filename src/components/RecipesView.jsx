@@ -40,6 +40,7 @@ const RecipesView = ({
   const [defaultInoculationTemp, setDefaultInoculationTemp] = useState(42);
   const [defaultHeatingTemp, setDefaultHeatingTemp] = useState(43);
   const [defaultHeaterTemp, setDefaultHeaterTemp] = useState(44);
+  const [recipeMemo, setRecipeMemo] = useState('');
 
   const subIngredientsList = useMemo(() => products.filter(p => p.isSubIngredient || p.category === 'sub_ingredient'), [products]);
   const plainProducts = useMemo(() => products.filter(p => !p.isFlavor && !p.isSubIngredient && p.id !== selectedProduct?.id), [products, selectedProduct]);
@@ -73,6 +74,7 @@ const RecipesView = ({
       setDefaultInoculationTemp(selectedProduct.defaultInoculationTemp !== undefined ? selectedProduct.defaultInoculationTemp : 42);
       setDefaultHeatingTemp(selectedProduct.defaultHeatingTemp !== undefined ? selectedProduct.defaultHeatingTemp : 43);
       setDefaultHeaterTemp(selectedProduct.defaultHeaterTemp !== undefined ? selectedProduct.defaultHeaterTemp : 44);
+      setRecipeMemo(selectedProduct.recipeMemo || selectedProduct.memo || '');
     } else {
       setProductName('');
       setProductCategory('plain');
@@ -91,6 +93,7 @@ const RecipesView = ({
       setDefaultInoculationTemp(42);
       setDefaultHeatingTemp(43);
       setDefaultHeaterTemp(44);
+      setRecipeMemo('');
     }
   }, [selectedProduct?.id]);
 
@@ -207,6 +210,7 @@ const RecipesView = ({
       setDefaultInoculationTemp(selectedProduct.defaultInoculationTemp !== undefined ? selectedProduct.defaultInoculationTemp : 42);
       setDefaultHeatingTemp(selectedProduct.defaultHeatingTemp !== undefined ? selectedProduct.defaultHeatingTemp : 43);
       setDefaultHeaterTemp(selectedProduct.defaultHeaterTemp !== undefined ? selectedProduct.defaultHeaterTemp : 44);
+      setRecipeMemo(selectedProduct.recipeMemo || selectedProduct.memo || '');
     }
   };
 
@@ -245,7 +249,8 @@ const RecipesView = ({
       defaultCoolingTemp: parseFloat(defaultCoolingTemp) || 40,
       defaultInoculationTemp: parseFloat(defaultInoculationTemp) || 42,
       defaultHeatingTemp: parseFloat(defaultHeatingTemp) || 43,
-      defaultHeaterTemp: parseFloat(defaultHeaterTemp) || 44
+      defaultHeaterTemp: parseFloat(defaultHeaterTemp) || 44,
+      recipeMemo: recipeMemo.trim()
     };
 
     updateProduct(updated);
@@ -820,6 +825,26 @@ const RecipesView = ({
                   </div>
                 </div>
               )}
+
+              {/* Manufacturing Recipe Note / Memo Section */}
+              <div style={{ marginTop: '24px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '16px' }}>
+                <label htmlFor="recipe-memo-textarea" style={{ fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }}>
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--color-primary)' }}>
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                  </svg>
+                  제조 레시피 메모 / 비고 (선택사항)
+                </label>
+                <textarea
+                  id="recipe-memo-textarea"
+                  className="form-control"
+                  rows={4}
+                  value={recipeMemo}
+                  onChange={(e) => setRecipeMemo(e.target.value)}
+                  placeholder="배합 비율 외 제조 순서, 가열/숙성 노하우, 주의사항 등 특이 레시피 내용을 기록해두세요."
+                  style={{ width: '100%', resize: 'vertical', lineHeight: '1.5', fontSize: '0.85rem' }}
+                />
+              </div>
 
               <div style={{ marginTop: '24px', borderTop: '1px solid var(--border-color)', paddingTop: '16px', display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
                 <button type="button" className="btn-secondary btn-reset-recipe" onClick={handleResetRecipe}>원래대로</button>

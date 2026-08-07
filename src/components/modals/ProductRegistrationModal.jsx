@@ -34,6 +34,7 @@ const ProductRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
   const [defaultInoculationTemp, setDefaultInoculationTemp] = useState(42);
   const [defaultHeatingTemp, setDefaultHeatingTemp] = useState(43);
   const [defaultHeaterTemp, setDefaultHeaterTemp] = useState(44);
+  const [recipeMemo, setRecipeMemo] = useState('');
 
   // Available plain base products
   const plainProducts = products.filter(p => !p.isFlavor && !p.isSubIngredient);
@@ -56,6 +57,7 @@ const ProductRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
       setDefaultInoculationTemp(42);
       setDefaultHeatingTemp(43);
       setDefaultHeaterTemp(44);
+      setRecipeMemo('');
     }
   }, [isOpen]);
 
@@ -122,7 +124,8 @@ const ProductRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
       defaultCoolingTemp: parseFloat(defaultCoolingTemp) || 40,
       defaultInoculationTemp: parseFloat(defaultInoculationTemp) || 42,
       defaultHeatingTemp: parseFloat(defaultHeatingTemp) || 43,
-      defaultHeaterTemp: parseFloat(defaultHeaterTemp) || 44
+      defaultHeaterTemp: parseFloat(defaultHeaterTemp) || 44,
+      recipeMemo: recipeMemo.trim()
     };
 
     const added = addProduct(newProduct);

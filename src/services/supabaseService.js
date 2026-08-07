@@ -140,6 +140,7 @@ export const fetchAllRemoteData = async () => {
       isFlavor: isFlavorVal,
       isSubIngredient: isSubIngredientVal,
       baseProductId: baseProdIdVal,
+      recipeMemo: p.recipe_memo || p.recipeMemo || p.memo || '',
       shippingLimitDays: p.shipping_limit_days !== undefined && p.shipping_limit_days !== null ? p.shipping_limit_days : 7,
       expiryDays: p.expiry_days !== undefined && p.expiry_days !== null ? p.expiry_days : 22,
       defaultSterilizationTemp: p.default_sterilization_temp !== undefined && p.default_sterilization_temp !== null ? p.default_sterilization_temp : 85,
@@ -277,6 +278,7 @@ export const pushProductToSupabase = async (product) => {
       category: product.category,
       is_flavor: product.isFlavor,
       base_product_id: product.baseProductId,
+      recipe_memo: product.recipeMemo || product.memo || '',
       shipping_limit_days: product.shippingLimitDays,
       expiry_days: product.expiryDays,
       default_sterilization_temp: product.defaultSterilizationTemp,
@@ -287,7 +289,16 @@ export const pushProductToSupabase = async (product) => {
       default_heater_temp: product.defaultHeaterTemp
     };
     const { error } = await supabase.from('products').upsert(dbProduct);
-    if (error) throw error;
+    if (error) {
+      if (error.message && (error.message.includes('recipe_memo') || error.code === 'PGRST204')) {
+        const fallbackDbProduct = { ...dbProduct };
+        delete fallbackDbProduct.recipe_memo;
+        const { error: fallbackErr } = await supabase.from('products').upsert(fallbackDbProduct);
+        if (fallbackErr) console.error("Supabase Push Fallback Error:", fallbackErr);
+      } else {
+        console.error("Supabase Push Error (Product):", error);
+      }
+    }
   } catch (e) {
     console.error("Supabase Push Error (Product):", e);
   }

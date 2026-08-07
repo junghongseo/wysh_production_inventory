@@ -500,6 +500,21 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
                   </div>
                 </div>
 
+                {(details.subProduct?.recipeMemo || details.subProduct?.memo) && (
+                  <div className="note-card" style={{ marginTop: '16px', flexDirection: 'column', alignItems: 'stretch', gap: '6px', width: '100%', boxSizing: 'border-box' }}>
+                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center', fontWeight: 600, color: '#c2410c', fontSize: '0.85rem' }}>
+                      <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                      </svg>
+                      <span>📝 {details.subProduct.name} 제조 레시피 메모</span>
+                    </div>
+                    <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.5', width: '100%', color: 'var(--text-primary)', fontSize: '0.83rem', textAlign: 'left' }}>
+                      {details.subProduct.recipeMemo || details.subProduct.memo}
+                    </div>
+                  </div>
+                )}
+
                 {details.plan.memo && (
                   <div className="note-card" style={{ marginTop: '20px', flexDirection: 'column', alignItems: 'stretch', gap: '6px', width: '100%', boxSizing: 'border-box' }}>
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center', fontWeight: 600, color: '#c2410c' }}>
@@ -692,6 +707,21 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
                               </tr>
                             </tbody>
                           </table>
+                        </div>
+                      </div>
+                    )}
+                    {/* Item Product Recipe Memo */}
+                    {(itDetail.product.recipeMemo || itDetail.product.memo) && (
+                      <div className="note-card" style={{ marginTop: '14px', flexDirection: 'column', alignItems: 'stretch', gap: '6px', width: '100%', boxSizing: 'border-box' }}>
+                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center', fontWeight: 600, color: 'var(--color-primary)', fontSize: '0.85rem' }}>
+                          <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                          </svg>
+                          <span>📝 {itDetail.product.name} 제조 레시피 메모</span>
+                        </div>
+                        <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.5', width: '100%', color: 'var(--text-primary)', fontSize: '0.83rem', textAlign: 'left' }}>
+                          {itDetail.product.recipeMemo || itDetail.product.memo}
                         </div>
                       </div>
                     )}
