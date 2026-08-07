@@ -18,7 +18,7 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
 
     // 1. Sub-ingredient Plan Recipe Calculations
     if (plan.planType === 'sub_ingredient') {
-      const subProduct = products.find(p => p.id === plan.subProductId);
+      const subProduct = products.find(p => p.id === plan.subProductId || p.id === plan.productId || ( (p.isSubIngredient || p.category === 'sub_ingredient') && (plan.name?.includes(p.name) || p.name?.includes(plan.name)) ));
       const targetYogurt = products.find(p => p.id === plan.targetYogurtProductId);
       const targetYogurtQty = plan.targetYogurtQty || 0;
 
@@ -223,7 +223,14 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
         baseYogurtNeededG = itemTotalWeightG;
       }
 
-      totalCombinedBaseYogurtG += baseYogurtNeededG;
+      const linkedSubProducts = (product.ingredients || [])
+        .map(ing => {
+          if (ing.subProductId) {
+            return products.find(p => p.id === ing.subProductId);
+          }
+          return products.find(p => (p.isSubIngredient || p.category === 'sub_ingredient') && (p.name === ing.name || ing.name.includes(p.name) || p.name.includes(ing.name)));
+        })
+        .filter(Boolean);
 
       return {
         itemIndex: idx + 1,
@@ -237,7 +244,8 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
         totalWeightSum,
         baseYogurtNeededG,
         details20Qty,
-        detailsRemainderQty
+        detailsRemainderQty,
+        linkedSubProducts
       };
     }).filter(Boolean);
 
@@ -725,6 +733,25 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
                         </div>
                       </div>
                     )}
+
+                    {/* Linked Sub-Ingredients Recipe Memos */}
+                    {itDetail.linkedSubProducts && itDetail.linkedSubProducts.map((subP, sIdx) => {
+                      if (!subP.recipeMemo && !subP.memo) return null;
+                      return (
+                        <div key={sIdx} className="note-card" style={{ marginTop: '10px', flexDirection: 'column', alignItems: 'stretch', gap: '6px', width: '100%', boxSizing: 'border-box', border: '1px dashed rgba(249, 115, 22, 0.4)', background: 'rgba(249, 115, 22, 0.03)' }}>
+                          <div style={{ display: 'flex', gap: '6px', alignItems: 'center', fontWeight: 600, color: '#c2410c', fontSize: '0.85rem' }}>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                            </svg>
+                            <span>🍞 [투입 부재료] {subP.name} 제조 레시피 메모</span>
+                          </div>
+                          <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.5', width: '100%', color: 'var(--text-primary)', fontSize: '0.83rem', textAlign: 'left' }}>
+                            {subP.recipeMemo || subP.memo}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 ))}
 
