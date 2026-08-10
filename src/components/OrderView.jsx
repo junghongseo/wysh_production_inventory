@@ -161,7 +161,8 @@ const OrderView = () => {
           }
 
           // Header finding logic
-          const invoiceKeywords = ['송장번호', '송장 번호', '운송장번호', '운송장 번호', '운송장 정보', '배송 번호', '배송번호'];
+          // Note: Exclude '배송 번호' / '배송번호' from invoiceKeywords because they represent item-level IDs in SmartStore, not parcel tracking numbers.
+          const invoiceKeywords = ['송장번호', '송장 번호', '운송장번호', '운송장 번호', '운송장 정보'];
           const orderKeywords = ['주문번호', '주문 번호', '품목 주문 번호', '품목주문번호'];
           const nameKeywords = ['상품명', '상품 이름', '상품이름', '판매처 상품명', '판매처상품명', '상품명(옵션포함)', '품목명'];
           const qtyKeywords = ['수량', '주문수량', '주문 수량', '구매 수량', '구매수량', '배송 수량', '배송수량', '상품수량', '상품 수량'];
