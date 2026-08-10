@@ -40,6 +40,8 @@ const OrderView = () => {
 
   // Section 3 (Analytics) states
   const [analyticsRange, setAnalyticsRange] = useState('14'); // '7' | '14' | '30' | 'all'
+  const [analyticsChartMode, setAnalyticsChartMode] = useState('qty'); // 'qty' | 'percent'
+  const [hiddenProducts, setHiddenProducts] = useState(new Set()); // Set of hidden product names
   const [tablePageSize, setTablePageSize] = useState(10); // 10 | 15
   const [tableCurrentPage, setTableCurrentPage] = useState(1);
 
@@ -469,6 +471,70 @@ const OrderView = () => {
   const sortedAnalyticsTableData = useMemo(() => {
     return [...filteredAnalyticsCharts].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
   }, [filteredAnalyticsCharts]);
+
+  // Color Palette for Products in Analytics Chart
+  const PRODUCT_COLORS = useMemo(() => [
+    '#0284c7', // Sky Blue
+    '#8b5cf6', // Violet
+    '#ec4899', // Pink
+    '#10b981', // Emerald
+    '#f59e0b', // Amber
+    '#6366f1', // Indigo
+    '#14b8a6', // Teal
+    '#ef4444', // Red
+    '#3b82f6', // Blue
+    '#a855f7'  // Purple
+  ], []);
+
+  // Helper to safely get product totals array from saved chart item (with legacy fallback)
+  const getProductTotalsFromChart = useCallback((chart) => {
+    if (Array.isArray(chart?.productTotals) && chart.productTotals.length > 0) {
+      return chart.productTotals;
+    }
+    const totalsMap = {};
+    if (Array.isArray(chart?.results)) {
+      chart.results.forEach(res => {
+        const items = (res.orderType || '').split(',');
+        items.forEach(item => {
+          const match = item.match(/^(.*?)\s*\[(\d+)개\]$/);
+          if (match) {
+            const pName = match[1].trim();
+            const pQty = parseInt(match[2], 10) * (res.count || 1);
+            totalsMap[pName] = (totalsMap[pName] || 0) + pQty;
+          }
+        });
+      });
+    }
+    return Object.entries(totalsMap).map(([name, qty]) => ({ name, qty }));
+  }, []);
+
+  // Extract all unique product names across filtered analytics charts
+  const analyticsProductList = useMemo(() => {
+    const qtyMap = {};
+    filteredAnalyticsCharts.forEach(c => {
+      const pTotals = getProductTotalsFromChart(c);
+      pTotals.forEach(p => {
+        if (p.name) {
+          qtyMap[p.name] = (qtyMap[p.name] || 0) + p.qty;
+        }
+      });
+    });
+    return Object.keys(qtyMap).sort((a, b) => qtyMap[b] - qtyMap[a]);
+  }, [filteredAnalyticsCharts, getProductTotalsFromChart]);
+
+  const toggleProductVisibility = useCallback((pName) => {
+    setHiddenProducts(prev => {
+      const next = new Set(prev);
+      if (next.has(pName)) {
+        next.delete(pName);
+      } else {
+        const visibleCount = analyticsProductList.filter(p => !next.has(p)).length;
+        if (visibleCount <= 1) return prev;
+        next.add(pName);
+      }
+      return next;
+    });
+  }, [analyticsProductList]);
 
   // Total Quantity Breakdown Aggregation for Section 3 Donut Chart & Table Summary
   const overallBreakdown = useMemo(() => {
@@ -1245,7 +1311,7 @@ const OrderView = () => {
               📊 3. 출고 동향 및 수량별 비중 분석
             </h3>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginTop: '4px' }}>
-              일자별 총 출고 건수 추이와 1개·2개·3개 이상 주문 수량의 통합 비중을 원형(도넛) 차트 및 세부 통계로 분석합니다.
+              일자별 제품별 출고 수량 추이와 1개·2개·3개 이상 주문 수량의 통합 비중을 원형(도넛) 차트 및 세부 통계로 분석합니다.
             </p>
           </div>
 
@@ -1293,54 +1359,215 @@ const OrderView = () => {
             <div 
               style={{ 
                 display: 'grid', 
-                gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', 
+                gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', 
                 gap: '20px',
                 alignItems: 'stretch'
               }}
             >
-              {/* Left Chart: Line Chart (Daily Total Orders) - No Horizontal Scroll, Crisp Vector Text */}
+              {/* Left Chart: Line Chart (Product Daily Shipment Quantities with Filter & Mode Switch) */}
               <div style={{ backgroundColor: 'var(--bg-card)', padding: '18px 16px', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column' }}>
-                <h4 style={{ fontSize: '0.98rem', fontWeight: 700, marginBottom: '14px', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                  📈 일별 총 출고 건수 추이
-                </h4>
                 
+                {/* Chart Header & Mode Switch */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+                  <h4 style={{ fontSize: '0.98rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    📈 일별 총 출고 수량 추이
+                  </h4>
+
+                  {/* Mode Selector Tabs (수량 vs 상대비중) */}
+                  <div style={{ display: 'inline-flex', backgroundColor: 'var(--bg-primary, rgba(0,0,0,0.05))', borderRadius: '6px', padding: '2px' }}>
+                    <button
+                      onClick={() => setAnalyticsChartMode('qty')}
+                      style={{
+                        padding: '3px 8px',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        borderRadius: '4px',
+                        border: 'none',
+                        cursor: 'pointer',
+                        backgroundColor: analyticsChartMode === 'qty' ? 'var(--color-primary)' : 'transparent',
+                        color: analyticsChartMode === 'qty' ? '#ffffff' : 'var(--text-secondary)'
+                      }}
+                    >
+                      수량 (개)
+                    </button>
+                    <button
+                      onClick={() => setAnalyticsChartMode('percent')}
+                      style={{
+                        padding: '3px 8px',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        borderRadius: '4px',
+                        border: 'none',
+                        cursor: 'pointer',
+                        backgroundColor: analyticsChartMode === 'percent' ? 'var(--color-primary)' : 'transparent',
+                        color: analyticsChartMode === 'percent' ? '#ffffff' : 'var(--text-secondary)'
+                      }}
+                    >
+                      상대 비중 (%)
+                    </button>
+                  </div>
+                </div>
+
+                {/* Product Filter Chips Bar */}
+                {analyticsProductList.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '14px', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600, marginRight: '2px' }}>제품 필터:</span>
+                    {analyticsProductList.map((pName, pIdx) => {
+                      const color = PRODUCT_COLORS[pIdx % PRODUCT_COLORS.length];
+                      const isHidden = hiddenProducts.has(pName);
+
+                      return (
+                        <button
+                          key={pName}
+                          onClick={() => toggleProductVisibility(pName)}
+                          title={isHidden ? `${pName} 그래프 보기` : `${pName} 그래프 숨기기`}
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '5px',
+                            padding: '3px 8px',
+                            borderRadius: '12px',
+                            fontSize: '0.75rem',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            border: `1px solid ${isHidden ? 'var(--border-color)' : color}`,
+                            backgroundColor: isHidden ? 'transparent' : `${color}15`,
+                            color: isHidden ? 'var(--text-secondary)' : 'var(--text-primary)',
+                            opacity: isHidden ? 0.5 : 1,
+                            textDecoration: isHidden ? 'line-through' : 'none',
+                            transition: 'all 0.2s ease'
+                          }}
+                        >
+                          <span 
+                            style={{ 
+                              width: '8px', 
+                              height: '8px', 
+                              borderRadius: '50%', 
+                              backgroundColor: isHidden ? 'var(--text-secondary)' : color 
+                            }} 
+                          />
+                          {pName}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+                
+                {/* SVG Line Chart Render */}
                 <div style={{ width: '100%', height: '220px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <svg width="100%" height="100%" viewBox="0 0 380 200" preserveAspectRatio="xMidYMid meet" style={{ overflow: 'visible' }}>
+                  <svg width="100%" height="100%" viewBox="0 0 380 210" preserveAspectRatio="xMidYMid meet" style={{ overflow: 'visible' }}>
                     {/* Horizontal Grid lines */}
-                    <line x1="30" y1="20" x2="360" y2="20" stroke="var(--border-color)" strokeDasharray="3 3" opacity="0.5" />
-                    <line x1="30" y1="70" x2="360" y2="70" stroke="var(--border-color)" strokeDasharray="3 3" opacity="0.5" />
-                    <line x1="30" y1="120" x2="360" y2="120" stroke="var(--border-color)" strokeDasharray="3 3" opacity="0.5" />
-                    <line x1="30" y1="170" x2="360" y2="170" stroke="var(--border-color)" strokeOpacity="0.8" />
+                    <line x1="40" y1="20" x2="360" y2="20" stroke="var(--border-color)" strokeDasharray="3 3" opacity="0.5" />
+                    <line x1="40" y1="70" x2="360" y2="70" stroke="var(--border-color)" strokeDasharray="3 3" opacity="0.5" />
+                    <line x1="40" y1="120" x2="360" y2="120" stroke="var(--border-color)" strokeDasharray="3 3" opacity="0.5" />
+                    <line x1="40" y1="170" x2="360" y2="170" stroke="var(--border-color)" strokeOpacity="0.8" />
 
                     {(() => {
-                      const maxCount = Math.max(...filteredAnalyticsCharts.map(c => c.totalCount || 1), 10);
-                      const stepX = 330 / Math.max(filteredAnalyticsCharts.length - 1, 1);
+                      const visibleProducts = analyticsProductList.filter(p => !hiddenProducts.has(p));
+                      
+                      // Calculate per-date product metrics
+                      const dailyData = filteredAnalyticsCharts.map(c => {
+                        const pTotals = getProductTotalsFromChart(c);
+                        const totalsMap = {};
+                        pTotals.forEach(pt => { totalsMap[pt.name] = pt.qty; });
+                        
+                        let activeDayTotal = 0;
+                        visibleProducts.forEach(pName => {
+                          activeDayTotal += (totalsMap[pName] || 0);
+                        });
 
-                      const points = filteredAnalyticsCharts.map((c, i) => {
-                        const x = 30 + i * stepX;
-                        const y = 170 - ((c.totalCount || 0) / maxCount) * 140;
-                        return { x, y, count: c.totalCount, date: c.date };
+                        return {
+                          date: c.date,
+                          totalsMap,
+                          activeDayTotal
+                        };
                       });
 
-                      const pathD = points.reduce((acc, p, i) => i === 0 ? `M ${p.x} ${p.y}` : `${acc} L ${p.x} ${p.y}`, '');
+                      // Determine Max Y value
+                      let maxVal = 10;
+                      if (analyticsChartMode === 'percent') {
+                        maxVal = 100;
+                      } else {
+                        let highestQty = 0;
+                        dailyData.forEach(d => {
+                          visibleProducts.forEach(pName => {
+                            const q = d.totalsMap[pName] || 0;
+                            if (q > highestQty) highestQty = q;
+                          });
+                        });
+                        maxVal = Math.max(highestQty, 10);
+                      }
+
+                      const stepX = 320 / Math.max(dailyData.length - 1, 1);
 
                       return (
                         <>
-                          {/* Line */}
-                          <path d={pathD} fill="none" stroke="var(--color-primary)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
-                          
-                          {/* Data Points */}
-                          {points.map((p, i) => (
-                            <g key={i}>
-                              <circle cx={p.x} cy={p.y} r="4.5" fill="var(--color-primary)" stroke="#ffffff" strokeWidth="2" />
-                              <text x={p.x} y={p.y - 8} textAnchor="middle" fontSize="10" fontWeight="bold" fill="var(--text-primary)">
-                                {p.count}
-                              </text>
-                              <text x={p.x} y="188" textAnchor="middle" fontSize="9" fill="var(--text-secondary)">
-                                {p.date.substring(5)}
-                              </text>
-                            </g>
-                          ))}
+                          {/* Y-axis Value Label Indicators */}
+                          <text x="35" y="24" textAnchor="end" fontSize="9" fill="var(--text-secondary)">
+                            {analyticsChartMode === 'percent' ? '100%' : maxVal}
+                          </text>
+                          <text x="35" y="98" textAnchor="end" fontSize="9" fill="var(--text-secondary)">
+                            {analyticsChartMode === 'percent' ? '50%' : Math.round(maxVal / 2)}
+                          </text>
+                          <text x="35" y="174" textAnchor="end" fontSize="9" fill="var(--text-secondary)">0</text>
+
+                          {/* Render line per visible product */}
+                          {visibleProducts.map((pName) => {
+                            const globalPIdx = analyticsProductList.indexOf(pName);
+                            const color = PRODUCT_COLORS[(globalPIdx >= 0 ? globalPIdx : 0) % PRODUCT_COLORS.length];
+
+                            const points = dailyData.map((d, i) => {
+                              const x = 40 + i * stepX;
+                              const rawQty = d.totalsMap[pName] || 0;
+                              let calcVal = rawQty;
+                              if (analyticsChartMode === 'percent') {
+                                calcVal = d.activeDayTotal > 0 ? (rawQty / d.activeDayTotal) * 100 : 0;
+                              }
+                              const y = 170 - (calcVal / maxVal) * 150;
+                              return { x, y, val: calcVal, rawQty, date: d.date };
+                            });
+
+                            const pathD = points.reduce((acc, p, i) => i === 0 ? `M ${p.x} ${p.y}` : `${acc} L ${p.x} ${p.y}`, '');
+
+                            return (
+                              <g key={pName}>
+                                {/* Line Path */}
+                                <path 
+                                  d={pathD} 
+                                  fill="none" 
+                                  stroke={color} 
+                                  strokeWidth="2.5" 
+                                  strokeLinecap="round" 
+                                  strokeLinejoin="round" 
+                                />
+                                
+                                {/* Data Point Circles and Value Labels */}
+                                {points.map((p, i) => (
+                                  <g key={i}>
+                                    <circle cx={p.x} cy={p.y} r="4" fill={color} stroke="#ffffff" strokeWidth="1.5">
+                                      <title>{`${p.date}: ${pName} ${p.rawQty}개 (${analyticsChartMode === 'percent' ? p.val.toFixed(1) + '%' : p.rawQty + '개'})`}</title>
+                                    </circle>
+                                    <text 
+                                      x={p.x} 
+                                      y={p.y - 7} 
+                                      textAnchor="middle" 
+                                      fontSize="9" 
+                                      fontWeight="bold" 
+                                      fill={color}
+                                    >
+                                      {analyticsChartMode === 'percent' ? `${Math.round(p.val)}%` : p.rawQty}
+                                    </text>
+                                    {/* Date label at bottom (only once per date index) */}
+                                    {globalPIdx === (analyticsProductList.findIndex(p => !hiddenProducts.has(p))) && (
+                                      <text x={p.x} y="190" textAnchor="middle" fontSize="9" fill="var(--text-secondary)">
+                                        {p.date.substring(5)}
+                                      </text>
+                                    )}
+                                  </g>
+                                ))}
+                              </g>
+                            );
+                          })}
                         </>
                       );
                     })()}
