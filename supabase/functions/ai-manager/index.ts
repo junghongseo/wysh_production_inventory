@@ -20,7 +20,13 @@ serve(async (req) => {
       throw new Error("GEMINI_API_KEY가 설정되지 않았습니다.");
     }
 
-    const { userMessage, type = "chat", sessionId } = await req.json();
+    const { userMessage, type = "chat", sessionId, thinkingLevel } = await req.json();
+
+    // 사고 강도 결정 (기본값: chat은 'medium', briefing은 'high')
+    let targetThinkingLevel = thinkingLevel;
+    if (!targetThinkingLevel || !['low', 'medium', 'high'].includes(targetThinkingLevel)) {
+      targetThinkingLevel = type === 'briefing' ? 'high' : 'medium';
+    }
 
     // Supabase DB 클라이언트 생성
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
@@ -151,8 +157,8 @@ ${JSON.stringify(calendarNotes || [])}
       parts: [{ text: `[현재 상황 데이터]\n${contextSummary}\n\n[관리자 질문]\n${currentPrompt}` }]
     });
 
-    // 최신 Gemini 3.6 Flash 모델 사용 (고성능 추론)
-    const MODEL_NAME = Deno.env.get('GEMINI_MODEL') || 'gemini-3.6-flash';
+    // 최신 Gemini 3.7 Flash 모델 사용 (확장 추론 Thinking 지원)
+    const MODEL_NAME = Deno.env.get('GEMINI_MODEL') || 'gemini-3.7-flash';
     const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${GEMINI_API_KEY}`;
     
     const response = await fetch(geminiUrl, {
@@ -164,6 +170,9 @@ ${JSON.stringify(calendarNotes || [])}
         generationConfig: {
           temperature: 0.7,
           maxOutputTokens: 8192,
+          thinkingConfig: {
+            thinkingLevel: targetThinkingLevel
+          }
         }
       })
     });
@@ -174,7 +183,10 @@ ${JSON.stringify(calendarNotes || [])}
     }
 
     const geminiData = await response.json();
-    const replyText = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "답변을 생성하지 못했습니다.";
+    const parts = geminiData.candidates?.[0]?.content?.parts || [];
+    // 사고(thought) 블록을 제외한 실제 최종 답변 파트 추출
+    const answerPart = parts.find((p: any) => !p.thought && p.text) || parts[parts.length - 1];
+    const replyText = answerPart?.text || geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "답변을 생성하지 못했습니다.";
 
     // 사용자 대화 및 AI 답변을 DB 대화 기록에 저장
     const userMsgId = 'msg-u-' + Date.now();

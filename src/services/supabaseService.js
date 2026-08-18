@@ -441,7 +441,7 @@ export const deleteReportFromSupabase = async (id) => {
 };
 
 // AI Manager Edge Function Calling & Event Functions
-export const sendAIManagerMessage = async (userMessage, type = 'chat', sessionId = null, sessionTitle = null) => {
+export const sendAIManagerMessage = async (userMessage, type = 'chat', sessionId = null, sessionTitle = null, thinkingLevel = 'medium') => {
   if (!supabase) {
     throw new Error("Supabase 클라이언트가 초기화되지 않았습니다.");
   }
@@ -449,7 +449,7 @@ export const sendAIManagerMessage = async (userMessage, type = 'chat', sessionId
   try {
     // Supabase Edge Function 'ai-manager' 호출
     const { data, error } = await supabase.functions.invoke('ai-manager', {
-      body: { userMessage, type, sessionId, sessionTitle }
+      body: { userMessage, type, sessionId, sessionTitle, thinkingLevel }
     });
 
     if (error) {

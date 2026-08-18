@@ -52,6 +52,8 @@ export const AIManagerChat = () => {
   const [inputValue, setInputValue] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState(() => 'sess-' + Date.now());
+  const [thinkingLevel, setThinkingLevel] = useState('medium'); // 'low' | 'medium' | 'high'
+  const textareaRef = useRef(null);
 
   // Past History View States
   const [showHistoryView, setShowHistoryView] = useState(false);
@@ -190,12 +192,32 @@ export const AIManagerChat = () => {
     }
   };
 
-  // Trigger Briefing ONLY when user clicks the briefing button
+  const adjustTextareaHeight = () => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+      textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 130)}px`;
+    }
+  };
+
+  const handleInputChange = (e) => {
+    setInputValue(e.target.value);
+    adjustTextareaHeight();
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.nativeEvent?.isComposing) return;
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  // Trigger Briefing ONLY when user clicks the briefing button (always uses high thinking level)
   const triggerBriefing = async () => {
     if (isLoading) return;
     setIsLoading(true);
     try {
-      const reply = await sendAIManagerMessage('', 'briefing', sessionId);
+      const reply = await sendAIManagerMessage('', 'briefing', sessionId, null, 'high');
       const aiMsg = {
         id: 'brief-' + Date.now(),
         sender: 'ai',
@@ -225,6 +247,9 @@ export const AIManagerChat = () => {
 
     const userMsgText = inputValue.trim();
     setInputValue('');
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto';
+    }
 
     const userMsgObj = {
       id: 'usr-' + Date.now(),
@@ -240,7 +265,7 @@ export const AIManagerChat = () => {
     pushChatMessageToSupabase('user', userMsgText, sessionId, userMsgText.substring(0, 30));
 
     try {
-      const reply = await sendAIManagerMessage(userMsgText, 'chat', sessionId);
+      const reply = await sendAIManagerMessage(userMsgText, 'chat', sessionId, null, thinkingLevel);
       const aiReplyObj = {
         id: 'ai-' + Date.now(),
         sender: 'ai',
@@ -780,56 +805,128 @@ export const AIManagerChat = () => {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Chat Input Form */}
-              <form
-                onSubmit={handleSendMessage}
+              {/* Chat Input Container */}
+              <div
                 style={{
-                  padding: '14px 18px',
                   backgroundColor: '#000000',
                   borderTop: '1px solid rgba(255, 255, 255, 0.1)',
                   display: 'flex',
-                  gap: '10px'
+                  flexDirection: 'column',
+                  gap: '8px',
+                  padding: '10px 16px 14px 16px'
                 }}
               >
-                <input
-                  type="text"
-                  value={inputValue}
-                  onChange={(e) => setInputValue(e.target.value)}
-                  placeholder="예: 오늘 발효 리포트 현황 알려줘"
-                  disabled={isLoading}
+                {/* Thinking Mode Selector Chips */}
+                <div
                   style={{
-                    flex: 1,
-                    backgroundColor: '#1A1A1A',
-                    border: '1px solid rgba(255, 255, 255, 0.15)',
-                    borderRadius: '14px',
-                    padding: '12px 16px',
-                    color: '#FFFFFF',
-                    fontSize: '14px',
-                    outline: 'none',
-                    transition: 'border-color 0.2s'
-                  }}
-                  onFocus={(e) => e.target.style.borderColor = '#FFFFFF'}
-                  onBlur={(e) => e.target.style.borderColor = 'rgba(255, 255, 255, 0.15)'}
-                />
-                <button
-                  type="submit"
-                  disabled={isLoading || !inputValue.trim()}
-                  style={{
-                    backgroundColor: '#FFFFFF',
-                    color: '#000000',
-                    border: 'none',
-                    borderRadius: '14px',
-                    padding: '0 18px',
-                    fontWeight: '700',
-                    fontSize: '14px',
-                    cursor: isLoading || !inputValue.trim() ? 'not-allowed' : 'pointer',
-                    opacity: isLoading || !inputValue.trim() ? 0.4 : 1,
-                    transition: 'all 0.2s'
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '0 2px'
                   }}
                 >
-                  전송
-                </button>
-              </form>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <span style={{ fontSize: '11px', color: 'rgba(255, 255, 255, 0.45)', fontWeight: '600', marginRight: '2px' }}>
+                      사고 강도
+                    </span>
+                    {[
+                      { key: 'low', label: '⚡ 빠름', title: '빠른 속도 · 단순 조회용' },
+                      { key: 'medium', label: '⚖️ 표준', title: '균형 잡힌 표준 분석 (기본)' },
+                      { key: 'high', label: '🧠 심층', title: '다단계 확장 사고 (Extended Thinking)' },
+                    ].map(mode => {
+                      const active = thinkingLevel === mode.key;
+                      return (
+                        <button
+                          key={mode.key}
+                          type="button"
+                          onClick={() => setThinkingLevel(mode.key)}
+                          title={mode.title}
+                          style={{
+                            background: active ? 'rgba(56, 189, 248, 0.18)' : 'rgba(255, 255, 255, 0.05)',
+                            color: active ? '#38BDF8' : 'rgba(255, 255, 255, 0.65)',
+                            border: active ? '1px solid rgba(56, 189, 248, 0.55)' : '1px solid rgba(255, 255, 255, 0.1)',
+                            borderRadius: '12px',
+                            padding: '3px 10px',
+                            fontSize: '11.5px',
+                            fontWeight: active ? '700' : '500',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '3px'
+                          }}
+                        >
+                          {mode.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <span style={{ fontSize: '10.5px', color: 'rgba(255, 255, 255, 0.3)' }}>
+                    Gemini 3.7 Flash
+                  </span>
+                </div>
+
+                {/* Input Form with Multi-line Textarea */}
+                <form
+                  onSubmit={handleSendMessage}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'flex-end',
+                    gap: '8px'
+                  }}
+                >
+                  <textarea
+                    ref={textareaRef}
+                    value={inputValue}
+                    onChange={handleInputChange}
+                    onKeyDown={handleKeyDown}
+                    placeholder="생산 일정, 재고, 리포트 등에 대해 질문해 보세요... (Shift+Enter 줄바꿈)"
+                    disabled={isLoading}
+                    rows={1}
+                    style={{
+                      flex: 1,
+                      backgroundColor: '#1A1A1A',
+                      border: '1px solid rgba(255, 255, 255, 0.15)',
+                      borderRadius: '14px',
+                      padding: '10px 14px',
+                      color: '#FFFFFF',
+                      fontSize: '13.5px',
+                      lineHeight: '1.45',
+                      outline: 'none',
+                      resize: 'none',
+                      maxHeight: '130px',
+                      minHeight: '42px',
+                      fontFamily: 'inherit',
+                      overflowY: 'auto',
+                      transition: 'border-color 0.2s',
+                      boxSizing: 'border-box'
+                    }}
+                    onFocus={(e) => e.target.style.borderColor = '#FFFFFF'}
+                    onBlur={(e) => e.target.style.borderColor = 'rgba(255, 255, 255, 0.15)'}
+                  />
+                  <button
+                    type="submit"
+                    disabled={isLoading || !inputValue.trim()}
+                    style={{
+                      backgroundColor: '#FFFFFF',
+                      color: '#000000',
+                      border: 'none',
+                      borderRadius: '14px',
+                      padding: '0 16px',
+                      height: '42px',
+                      fontWeight: '700',
+                      fontSize: '13.5px',
+                      cursor: isLoading || !inputValue.trim() ? 'not-allowed' : 'pointer',
+                      opacity: isLoading || !inputValue.trim() ? 0.4 : 1,
+                      transition: 'all 0.2s',
+                      flexShrink: 0
+                    }}
+                  >
+                    전송
+                  </button>
+                </form>
+              </div>
             </>
           )}
         </div>
