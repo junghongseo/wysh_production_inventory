@@ -310,16 +310,18 @@ const PlanRegistrationModal = ({
     let capacityWarning = null;
 
     if (totalVolumeL > 0) {
-      if (totalVolumeL >= 120 && totalVolumeL <= 280) {
+      if (totalVolumeL >= 120 && totalVolumeL < 300) {
         if (fermenterType === 'large') {
-          capacityWarning = `⚠️ 계산된 원재료 총량(${totalVolumeL.toFixed(2)}L)은 소형 규격(120L~280L)에 해당합니다.`;
+          capacityWarning = `⚠️ 계산된 원재료 총량(${totalVolumeL.toFixed(2)}L)은 소형 규격(120L~300L)에 해당합니다.`;
         }
-      } else if (totalVolumeL >= 300 && totalVolumeL <= 580) {
+      } else if (totalVolumeL > 300 && totalVolumeL <= 580) {
         if (fermenterType === 'small') {
           capacityWarning = `⚠️ 계산된 원재료 총량(${totalVolumeL.toFixed(2)}L)은 대형 규격(300L~580L)에 해당합니다.`;
         }
+      } else if (totalVolumeL === 300) {
+        // 300L는 소형(120L~300L) 및 대형(300L~580L) 모두 수용 가능
       } else {
-        capacityWarning = `⚠️ 계산된 원재료 총량(${totalVolumeL.toFixed(2)}L)이 발효기 적정 용량 범위를 벗어났습니다. (소형: 120L~280L, 대형: 300L~580L)`;
+        capacityWarning = `⚠️ 계산된 원재료 총량(${totalVolumeL.toFixed(2)}L)이 발효기 적정 용량 범위를 벗어났습니다. (소형: 120L~300L, 대형: 300L~580L)`;
       }
     }
 
@@ -867,7 +869,7 @@ const PlanRegistrationModal = ({
                       required
                     >
                       <option value="" disabled>대형/소형 선택</option>
-                      <option value="small">소형 발효기 (120L ~ 280L)</option>
+                      <option value="small">소형 발효기 (120L ~ 300L)</option>
                       <option value="large">대형 발효기 (300L ~ 580L)</option>
                     </select>
                   </div>
