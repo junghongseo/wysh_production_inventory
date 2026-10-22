@@ -33,4 +33,15 @@ assert(parsed.qtyBreakdown.count1 === 1, '1개 주문 1건 (ORD-002)');
 assert(parsed.qtyBreakdown.count3Plus === 2, '3개 이상 주문 2건 (ORD-001, ORD-003)');
 assert(parsed.productTotals.find(p => p.name === '위시그릭 플레인').qty === 3, '위시그릭 플레인 총 3개');
 
+// Test 3: [확장주문검색] 포맷처럼 '주문수량'과 '상품수량' 열이 동시에 존재할 때 '상품수량'을 우선 반영하는지 검증
+const extendedSearchMockData = [
+  ['관리번호', '주문번호', '상품명', '주문수량', '상품수량', '송장번호'],
+  ['1001', 'ORD-101', '위시크림 바닐라', '1', '2', 'INV-9001'],
+  ['1002', 'ORD-102', '위시그릭 플레인', '1', '3', 'INV-9002']
+];
+const parsedExtended = parseRawOrderRows(extendedSearchMockData);
+assert(parsedExtended.totalProductQty === 5, '[확장주문검색] 주문수량(1+1=2)이 아닌 상품수량(2+3=5) 기준으로 집계');
+assert(parsedExtended.qtyBreakdown.count2 === 1, '[확장주문검색] 상품수량 2개 주문건 1건');
+assert(parsedExtended.qtyBreakdown.count3Plus === 1, '[확장주문검색] 상품수량 3개 이상 주문건 1건');
+
 console.log('\n🎉 ALL ORDER PARSER TESTS PASSED!');

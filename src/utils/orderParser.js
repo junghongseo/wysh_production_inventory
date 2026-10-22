@@ -26,11 +26,11 @@ export const parseRawOrderRows = (jsonData) => {
     throw new Error('엑셀 파일에 읽을 데이터가 없습니다.');
   }
 
-  // Header finding logic
+  // Header finding logic ('상품수량'을 '주문수량'보다 최우선으로 선택)
   const invoiceKeywords = ['송장번호', '송장 번호', '운송장번호', '운송장 번호', '운송장 정보'];
   const orderKeywords = ['주문번호', '주문 번호', '품목 주문 번호', '품목주문번호'];
   const nameKeywords = ['상품명', '상품 이름', '상품이름', '판매처 상품명', '판매처상품명', '상품명(옵션포함)', '품목명'];
-  const qtyKeywords = ['수량', '주문수량', '주문 수량', '구매 수량', '구매수량', '배송 수량', '배송수량', '상품수량', '상품 수량'];
+  const qtyKeywords = ['상품수량', '상품 수량', '배송 수량', '배송수량', '구매 수량', '구매수량', '수량', '주문수량', '주문 수량'];
 
   let headerRowIndex = -1;
   let groupCol = -1;
@@ -45,6 +45,7 @@ export const parseRawOrderRows = (jsonData) => {
     let ordCol = -1;
     let n = -1;
     let q = -1;
+    let bestQtyPriority = Infinity;
 
     for (let c = 0; c < row.length; c++) {
       const cellVal = String(row[c] || '').trim();
@@ -57,7 +58,9 @@ export const parseRawOrderRows = (jsonData) => {
       if (n === -1 && nameKeywords.includes(cellVal)) {
         n = c;
       }
-      if (q === -1 && qtyKeywords.includes(cellVal)) {
+      const qPriority = qtyKeywords.indexOf(cellVal);
+      if (qPriority !== -1 && qPriority < bestQtyPriority) {
+        bestQtyPriority = qPriority;
         q = c;
       }
     }
