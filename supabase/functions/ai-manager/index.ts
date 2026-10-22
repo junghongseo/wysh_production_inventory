@@ -12,15 +12,16 @@ serve(async (req) => {
   }
 
   try {
-    const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY');
+    const serverApiKey = Deno.env.get('GEMINI_API_KEY');
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+    const { userMessage, type = "chat", sessionId, thinkingLevel, clientApiKey } = await req.json();
+    const GEMINI_API_KEY = clientApiKey || serverApiKey;
 
     if (!GEMINI_API_KEY) {
       throw new Error("GEMINI_API_KEY가 설정되지 않았습니다.");
     }
-
-    const { userMessage, type = "chat", sessionId, thinkingLevel } = await req.json();
 
     // 사고 강도 결정 (기본값: chat은 'medium', briefing은 'high')
     let targetThinkingLevel = thinkingLevel;
@@ -31,12 +32,12 @@ serve(async (req) => {
     // Supabase DB 클라이언트 생성
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
 
-    // 세션별 대화 기록 쿼리 준비
+    // 세션별 대화 기록 쿼리 준비 (최신 10개 조회 후 시간순 정렬)
     let historyQuery = supabase.from('chat_history').select('*');
     if (sessionId) {
       historyQuery = historyQuery.eq('session_id', sessionId);
     }
-    historyQuery = historyQuery.order('created_at', { ascending: true }).limit(10);
+    historyQuery = historyQuery.order('created_at', { ascending: false }).limit(10);
 
     // 현재 상태 조회를 위해 필요한 데이터들을 병렬로 수집 (레시피, 계획, 재고, 리포트, 메모)
     const [
@@ -135,11 +136,21 @@ ${JSON.stringify(calendarNotes || [])}
 4. 답변이 중간에 잘리지 않도록 핵심 내용 위주로 끝까지 온전하고 완결된 문장으로 마무리지으세요. (문장이 끊긴 채로 응답을 끝내면 절대로 안 됩니다.)
     `.trim();
 
-    // 과거 대화 내역 구성
-    const contents = [];
+    // 과거 대화 내역 구성 (최신 10개를 시간순으로 정렬)
+    const contents: any[] = [];
+
+    let currentPrompt = userMessage;
+    if (type === 'briefing') {
+      currentPrompt = "안녕하세요! 현재 제품 재고, 생산 일정, 다가오는 이벤트를 바탕으로 제가 지금 생각하고 준비해야 할 핵심 생산 관리 이슈 및 추천 계획을 브리핑해 주세요.";
+    }
 
     if (chatHistory && chatHistory.length > 0) {
-      chatHistory.forEach((h: any) => {
+      const orderedHistory = [...chatHistory].reverse();
+      orderedHistory.forEach((h: any, idx: number) => {
+        // 클라이언트에서 방금 먼저 저장한 동일한 사용자 메시지가 마지막에 중복 포함되는 현상 방지
+        if (idx === orderedHistory.length - 1 && h.role === 'user' && h.content === currentPrompt) {
+          return;
+        }
         contents.push({
           role: h.role === 'user' ? 'user' : 'model',
           parts: [{ text: h.content }]
@@ -147,55 +158,108 @@ ${JSON.stringify(calendarNotes || [])}
       });
     }
 
-    let currentPrompt = userMessage;
-    if (type === 'briefing') {
-      currentPrompt = "안녕하세요! 현재 제품 재고, 생산 일정, 다가오는 이벤트를 바탕으로 제가 지금 생각하고 준비해야 할 핵심 생산 관리 이슈 및 추천 계획을 브리핑해 주세요.";
-    }
-
     contents.push({
       role: 'user',
       parts: [{ text: `[현재 상황 데이터]\n${contextSummary}\n\n[관리자 질문]\n${currentPrompt}` }]
     });
 
-    // 최신 Gemini 3.7 Flash 모델 사용 (확장 추론 Thinking 지원)
-    const MODEL_NAME = Deno.env.get('GEMINI_MODEL') || 'gemini-3.7-flash';
-    const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL_NAME}:generateContent?key=${GEMINI_API_KEY}`;
-    
-    const response = await fetch(geminiUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        system_instruction: { parts: [{ text: systemInstruction }] },
-        contents: contents,
-        generationConfig: {
-          temperature: 0.7,
-          maxOutputTokens: 8192,
-          thinkingConfig: {
-            thinkingLevel: targetThinkingLevel
-          }
-        }
-      })
-    });
+    // 최신 Gemini 3.8 Flash 모델 우선 사용 (폴백 체인 포함)
+    const envModel = Deno.env.get('GEMINI_MODEL');
+    const candidateModels = [
+      ...(envModel ? [envModel] : []),
+      'gemini-3.8-flash',
+      'gemini-3.7-flash'
+    ];
 
-    if (!response.ok) {
-      const errText = await response.text();
-      throw new Error(`Gemini API Error: ${errText}`);
+    const thinkingBudgetMap: Record<string, number> = {
+      low: 1024,
+      medium: 4096,
+      high: 8192
+    };
+
+    let geminiData: any = null;
+    let lastErrorStatus = 500;
+    let lastErrorText = '';
+
+    for (const modelName of candidateModels) {
+      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${GEMINI_API_KEY}`;
+
+      const generationConfig: Record<string, any> = {
+        temperature: 0.7,
+        maxOutputTokens: 8192,
+      };
+
+      if (modelName.startsWith('gemini-2.5')) {
+        generationConfig.thinkingConfig = {
+          thinkingBudget: thinkingBudgetMap[targetThinkingLevel] ?? 4096
+        };
+      } else if (modelName.startsWith('gemini-3')) {
+        generationConfig.thinkingConfig = {
+          thinkingLevel: targetThinkingLevel
+        };
+      }
+
+      const response = await fetch(geminiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: systemInstruction }] },
+          contents: contents,
+          generationConfig
+        })
+      });
+
+      if (response.ok) {
+        geminiData = await response.json();
+        break;
+      }
+
+      lastErrorStatus = response.status;
+      lastErrorText = await response.text();
+
+      // 402(크레딧 소진), 401/403(API 키 권한 오류), 429(쿼터 초과)는 모델 변경으로 해결되지 않으므로 즉시 중단
+      if ([401, 402, 403, 429].includes(response.status)) {
+        break;
+      }
     }
 
-    const geminiData = await response.json();
+    if (!geminiData) {
+      let parsedMessage = lastErrorText;
+      try {
+        const parsed = JSON.parse(lastErrorText);
+        if (parsed?.error?.message) {
+          parsedMessage = parsed.error.message;
+        }
+      } catch (_) {
+        // ignore JSON parse error
+      }
+
+      if (lastErrorStatus === 402 || parsedMessage.includes('prepayment credits are depleted')) {
+        throw new Error(
+          `Google AI Studio 선불 크레딧(Prepayment Credits)이 모두 소진되었습니다 (HTTP 402). https://ai.studio/projects 에서 결제/크레딧을 충전하거나 새로운 GEMINI_API_KEY로 교체해 주세요.`
+        );
+      }
+      if (lastErrorStatus === 429) {
+        throw new Error(`Gemini API 호출 한도(Quota)를 초과했습니다 (HTTP 429). 잠시 후 다시 시도하거나 Google AI Studio 결제 플랜을 확인해 주세요.`);
+      }
+      throw new Error(`Gemini API Error (${lastErrorStatus}): ${parsedMessage}`);
+    }
+
     const parts = geminiData.candidates?.[0]?.content?.parts || [];
     // 사고(thought) 블록을 제외한 실제 최종 답변 파트 추출
     const answerPart = parts.find((p: any) => !p.thought && p.text) || parts[parts.length - 1];
     const replyText = answerPart?.text || geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "답변을 생성하지 못했습니다.";
 
-    // 사용자 대화 및 AI 답변을 DB 대화 기록에 저장
-    const userMsgId = 'msg-u-' + Date.now();
-    const aiMsgId = 'msg-a-' + Date.now();
+    // sessionId가 없는 레거시 호출일 때만 서버에서 직접 기록 (클라이언트에서 sessionId와 함께 저장하므로 중복 방지)
+    if (!sessionId) {
+      const userMsgId = 'msg-u-' + Date.now();
+      const aiMsgId = 'msg-a-' + Date.now();
 
-    await supabase.from('chat_history').insert([
-      { id: userMsgId, role: 'user', content: currentPrompt },
-      { id: aiMsgId, role: 'model', content: replyText }
-    ]);
+      await supabase.from('chat_history').insert([
+        { id: userMsgId, role: 'user', content: currentPrompt },
+        { id: aiMsgId, role: 'model', content: replyText }
+      ]);
+    }
 
     return new Response(
       JSON.stringify({ reply: replyText }),

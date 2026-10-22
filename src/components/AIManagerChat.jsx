@@ -227,12 +227,13 @@ export const AIManagerChat = () => {
       setMessages(prev => [...prev, aiMsg]);
       pushChatMessageToSupabase('assistant', reply, sessionId, '생산 현황 브리핑');
     } catch (err) {
+      const errDetail = err?.message ? `\n\n원인: ${err.message}` : '';
       setMessages(prev => [
         ...prev,
         {
           id: 'err-' + Date.now(),
           sender: 'ai',
-          text: "⚠️ 현황 분석 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.",
+          text: `⚠️ 현황 분석 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.${errDetail}`,
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
       ]);
@@ -275,12 +276,13 @@ export const AIManagerChat = () => {
       setMessages(prev => [...prev, aiReplyObj]);
       pushChatMessageToSupabase('assistant', reply, sessionId, userMsgText.substring(0, 30));
     } catch (err) {
+      const errDetail = err?.message ? `\n\n원인: ${err.message}` : '';
       setMessages(prev => [
         ...prev,
         {
           id: 'err-' + Date.now(),
           sender: 'ai',
-          text: "⚠️ 메시지 응답을 받아오지 못했습니다. 잠시 후 다시 시도해 주세요.",
+          text: `⚠️ 메시지 응답을 받아오지 못했습니다. 잠시 후 다시 시도해 주세요.${errDetail}`,
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
       ]);
@@ -863,7 +865,7 @@ export const AIManagerChat = () => {
                   </div>
 
                   <span style={{ fontSize: '10.5px', color: 'rgba(255, 255, 255, 0.3)' }}>
-                    Gemini 3.7 Flash
+                    Gemini 3.8 Flash
                   </span>
                 </div>
 

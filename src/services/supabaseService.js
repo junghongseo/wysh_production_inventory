@@ -447,14 +447,26 @@ export const sendAIManagerMessage = async (userMessage, type = 'chat', sessionId
   }
   
   try {
+    const clientApiKey = import.meta.env.VITE_GEMINI_API_KEY || undefined;
     // Supabase Edge Function 'ai-manager' 호출
     const { data, error } = await supabase.functions.invoke('ai-manager', {
-      body: { userMessage, type, sessionId, sessionTitle, thinkingLevel }
+      body: { userMessage, type, sessionId, sessionTitle, thinkingLevel, clientApiKey }
     });
 
     if (error) {
-      console.warn("Edge Function 호출 실패 (Direct Client Insertion Fallback):", error);
-      throw error;
+      let detailedMessage = error.message || "Edge Function 호출에 실패했습니다.";
+      if (error.context && typeof error.context.json === 'function') {
+        try {
+          const errBody = await error.context.json();
+          if (errBody?.error) {
+            detailedMessage = errBody.error;
+          }
+        } catch (_) {
+          // ignore body parse failure
+        }
+      }
+      console.warn("Edge Function 호출 실패:", detailedMessage);
+      throw new Error(detailedMessage);
     }
 
     return data.reply;
