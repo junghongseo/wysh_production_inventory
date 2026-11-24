@@ -28,7 +28,7 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
     <div className="drawer-overlay open" onClick={onClose} id="recipe-drawer-overlay">
       <div className="drawer-content" onClick={(e) => e.stopPropagation()}>
         <div className="drawer-header">
-          <h3>{details?.isSubIngredientPlan ? '부재료 전용 원재료 배합표' : '원재료 배합표'}</h3>
+          <h3>{details?.isSubIngredientPlan ? '반제품 전용 원재료 배합표' : '원재료 배합표'}</h3>
           <button className="btn-icon" onClick={onClose} aria-label="닫기">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -42,13 +42,13 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
               /* Render Sub-ingredient Plan 3-Table Recipe Drawer */
               <>
                 <div className="info-row" style={{ marginBottom: '12px' }}>
-                  <span className="label">부재료 생산 계획명</span>
+                  <span className="label">반제품 생산 계획명</span>
                   <span className="value" style={{ fontWeight: 600 }}>{details.plan.name}</span>
                 </div>
                 <div className="info-row" style={{ marginBottom: '12px' }}>
-                  <span className="label">대상 부재료</span>
+                  <span className="label">대상 반제품</span>
                   <span className="value highlight" style={{ color: '#c2410c', fontSize: '1rem', fontWeight: 700 }}>
-                    🍞 {details.subProduct ? details.subProduct.name : '부재료'}
+                    🍞 {details.subProduct ? details.subProduct.name : '반제품'}
                   </span>
                 </div>
                 <div className="info-row" style={{ marginBottom: '16px' }}>
@@ -76,7 +76,7 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
                       <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
                       <rect x="6" y="14" width="12" height="8"></rect>
                     </svg>
-                    부재료 배합표 인쇄 / PDF 저장
+                    반제품 배합표 인쇄 / PDF 저장
                   </button>
                 </div>
 
@@ -84,17 +84,17 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
                 <div className="recipe-card" style={{ marginBottom: '24px', background: 'rgba(249, 115, 22, 0.03)', padding: '14px', borderRadius: '10px', border: '1px solid rgba(249, 115, 22, 0.2)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                     <h4 style={{ fontSize: '0.92rem', fontWeight: 700, color: '#c2410c', margin: 0 }}>
-                      1. 요거트 1개 기준 부재료 소요 배합표
+                      1. 요거트 1개 기준 반제품 소요 배합표
                     </h4>
                     <span style={{ fontSize: '0.78rem', background: '#ffedd5', color: '#c2410c', padding: '2px 8px', borderRadius: '6px', fontWeight: 600 }}>
-                      부재료 필요량: {details.subWeightPer1YogurtG.toFixed(1)} g
+                      반제품 필요량: {details.subWeightPer1YogurtG.toFixed(1)} g
                     </span>
                   </div>
                   <div className="wysh-table-wrapper">
                     <table className="wysh-table">
                       <thead>
                         <tr>
-                          <th>부재료 구성 원재료명</th>
+                          <th>반제품 구성 원재료명</th>
                           <th style={{ textAlign: 'right' }}>함량(%)</th>
                           <th style={{ textAlign: 'right' }}>필요량(g)</th>
                         </tr>
@@ -121,17 +121,17 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
                 <div className="recipe-card" style={{ marginBottom: '24px', background: 'rgba(249, 115, 22, 0.03)', padding: '14px', borderRadius: '10px', border: '1px solid rgba(249, 115, 22, 0.2)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                     <h4 style={{ fontSize: '0.92rem', fontWeight: 700, color: '#c2410c', margin: 0 }}>
-                      2. 요거트 20개 기준 부재료 소요 배합표
+                      2. 요거트 20개 기준 반제품 소요 배합표
                     </h4>
                     <span style={{ fontSize: '0.78rem', background: '#ffedd5', color: '#c2410c', padding: '2px 8px', borderRadius: '6px', fontWeight: 600 }}>
-                      부재료 필요량: {Math.round(details.subWeightPer20YogurtG).toLocaleString()} g ({(details.subWeightPer20YogurtG / 1000).toFixed(2)} kg)
+                      반제품 필요량: {Math.round(details.subWeightPer20YogurtG).toLocaleString()} g ({(details.subWeightPer20YogurtG / 1000).toFixed(2)} kg)
                     </span>
                   </div>
                   <div className="wysh-table-wrapper">
                     <table className="wysh-table">
                       <thead>
                         <tr>
-                          <th>부재료 구성 원재료명</th>
+                          <th>반제품 구성 원재료명</th>
                           <th style={{ textAlign: 'right' }}>함량(%)</th>
                           <th style={{ textAlign: 'right' }}>필요량(g)</th>
                           <th style={{ textAlign: 'right' }}>참고량(kg)</th>
@@ -161,17 +161,17 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
                 <div className="recipe-card" style={{ marginBottom: '24px', background: 'rgba(249, 115, 22, 0.06)', padding: '14px', borderRadius: '10px', border: '1px solid rgba(249, 115, 22, 0.3)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
                     <h4 style={{ fontSize: '0.92rem', fontWeight: 700, color: '#c2410c', margin: 0 }}>
-                      3. 생산계획 총량 기준 부재료 배합표 ({details.targetYogurtQty.toLocaleString()}개분)
+                      3. 생산계획 총량 기준 반제품 배합표 ({details.targetYogurtQty.toLocaleString()}개분)
                     </h4>
                     <span style={{ fontSize: '0.8rem', background: '#ea580c', color: '#fff', padding: '2px 9px', borderRadius: '6px', fontWeight: 700 }}>
-                      총 부재료 소요량: {Math.round(details.totalSubWeightG).toLocaleString()} g ({(details.totalSubWeightG / 1000).toFixed(2)} kg)
+                      총 반제품 소요량: {Math.round(details.totalSubWeightG).toLocaleString()} g ({(details.totalSubWeightG / 1000).toFixed(2)} kg)
                     </span>
                   </div>
                   <div className="wysh-table-wrapper">
                     <table className="wysh-table">
                       <thead>
                         <tr>
-                          <th>부재료 구성 원재료명</th>
+                          <th>반제품 구성 원재료명</th>
                           <th style={{ textAlign: 'right' }}>함량(%)</th>
                           <th style={{ textAlign: 'right' }}>필요량(g)</th>
                           <th style={{ textAlign: 'right' }}>참고량(kg)</th>
@@ -215,7 +215,7 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
                 {details.plan.memo && (
                   <div className="note-card" style={{ marginTop: '20px', flexDirection: 'column', alignItems: 'stretch', gap: '6px', width: '100%', boxSizing: 'border-box' }}>
                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center', fontWeight: 600, color: '#c2410c' }}>
-                      <span>부재료 생산 메모</span>
+                      <span>반제품 생산 메모</span>
                     </div>
                     <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.5', width: '100%', color: 'var(--text-primary)', fontSize: '0.85rem', textAlign: 'left' }}>
                       {details.plan.memo}
@@ -433,7 +433,7 @@ const RecipeDrawer = ({ isOpen, onClose, planId }) => {
                               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
                               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
                             </svg>
-                            <span>🍞 [투입 부재료] {subP.name} 제조 레시피 메모</span>
+                            <span>🍞 [투입 반제품] {subP.name} 제조 레시피 메모</span>
                           </div>
                           <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.5', width: '100%', color: 'var(--text-primary)', fontSize: '0.83rem', textAlign: 'left' }}>
                             {subP.recipeMemo || subP.memo}

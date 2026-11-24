@@ -3,7 +3,7 @@
  * 
  * 원재료 배합표 및 생산 계획 수치 계산을 전담하는 순수 함수 모듈입니다.
  * UI 상태나 외부 부작용(Side Effects) 없이, 입력된 계획(plan)과 제품(products) 데이터를 기반으로
- * 원재료 소요량, 20개 단위 배합, 부재료 배합, 베이스 요거트 합산 배합 등을 엄밀하게 계산합니다.
+ * 원재료 소요량, 20개 단위 배합, 반제품 배합, 베이스 요거트 합산 배합 등을 엄밀하게 계산합니다.
  */
 
 /**
@@ -52,7 +52,7 @@ export const computeIngredients = (ingredients = [], inputWeightG = 0) => {
 };
 
 /**
- * 부재료 전용 생산 계획(Sub-ingredient Plan)의 3단 배합표 계산
+ * 반제품 전용 생산 계획(Sub-ingredient Plan)의 3단 배합표 계산
  * Table 1: 요거트 1개 기준 소요 배합
  * Table 2: 요거트 20개 기준 소요 배합
  * Table 3: 생산계획 총량 기준 소요 배합
@@ -68,7 +68,7 @@ export const computeSubIngredientRecipe = (plan, products = []) => {
   const targetYogurt = products.find(p => p.id === plan.targetYogurtProductId);
   const targetYogurtQty = plan.targetYogurtQty || 0;
 
-  // 대상 요거트 레시피 내 부재료 투입 비율 탐색 (기본값 25%)
+  // 대상 요거트 레시피 내 반제품 투입 비율 탐색 (기본값 25%)
   let subRatioInYogurt = 25;
   if (targetYogurt && subProduct) {
     const foundIng = targetYogurt.ingredients?.find(i => 
@@ -225,7 +225,7 @@ export const computeStandardYogurtRecipe = (plan, products = []) => {
     // 각 품목별 베이스 요거트 소요량을 누적
     totalCombinedBaseYogurtG += baseYogurtNeededG;
 
-    // 연계된 부재료 레시피 메모 탐색
+    // 연계된 반제품 레시피 메모 탐색
     const linkedSubProducts = (product.ingredients || [])
       .map(ing => {
         if (ing.subProductId) {

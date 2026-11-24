@@ -166,7 +166,7 @@ const CalendarView = ({
         if (plan.planType === 'sub_ingredient') {
           const subProd = products.find(p => p.id === plan.subProductId);
           const targetYogurt = products.find(p => p.id === plan.targetYogurtProductId);
-          const subProdName = subProd ? subProd.name : '부재료';
+          const subProdName = subProd ? subProd.name : '반제품';
           const targetYogurtName = targetYogurt ? targetYogurt.name : '';
 
           if (cell.dateStr === plan.startDate) {
@@ -176,8 +176,8 @@ const CalendarView = ({
                 plan,
                 prod: subProd,
                 prodName: subProdName,
-                dayLabel: `🍞 [부재료] ${subProdName}`,
-                fullTitle: `🍞 [부재료 생산] ${subProdName} (${targetYogurtName} ${plan.targetYogurtQty || 0}개분)`,
+                dayLabel: `🍞 [반제품] ${subProdName}`,
+                fullTitle: `🍞 [반제품 생산] ${subProdName} (${targetYogurtName} ${plan.targetYogurtQty || 0}개분)`,
                 dayClass: 'event-day-sub',
                 planIdx,
                 isMulti: false
@@ -254,7 +254,7 @@ const CalendarView = ({
         isSubIngredientPlan: true,
         subProduct: subProd,
         targetYogurt,
-        subProdName: subProd ? subProd.name : '부재료',
+        subProdName: subProd ? subProd.name : '반제품',
         targetYogurtName: targetYogurt ? targetYogurt.name : '',
         items: []
       };
@@ -477,7 +477,7 @@ const CalendarView = ({
             </div>
           </div>
 
-          {/* Schedule Type Filter Chips (전체 / 요거트 생산 / 부재료 생산) */}
+          {/* Schedule Type Filter Chips (전체 / 요거트 생산 / 반제품 생산) */}
           <div className="schedule-filter-bar" style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', width: '100%', borderTop: '1px dashed var(--border-color)', paddingTop: '8px', marginTop: '4px' }}>
             <button
               type="button"
@@ -501,7 +501,7 @@ const CalendarView = ({
               onClick={() => setScheduleTypeFilter('sub')}
               style={{ padding: '4px 10px', fontSize: '0.78rem', borderRadius: '12px', background: scheduleTypeFilter === 'sub' ? '#ea580c' : '', borderColor: scheduleTypeFilter === 'sub' ? '#ea580c' : '' }}
             >
-              🍞 부재료 생산 ({currentMonthPlans.filter(p => p.planType === 'sub_ingredient').length})
+              🍞 반제품 생산 ({currentMonthPlans.filter(p => p.planType === 'sub_ingredient').length})
             </button>
           </div>
         </div>
@@ -686,10 +686,10 @@ const CalendarView = ({
                     </div>
                     <div className="info-row">
                       <span className="label">구분</span>
-                      <span className="value highlight" style={{ color: '#ea580c' }}>🍞 부재료 생산계획</span>
+                      <span className="value highlight" style={{ color: '#ea580c' }}>🍞 반제품 생산계획</span>
                     </div>
                     <div className="info-row">
-                      <span className="label">부재료 품목명</span>
+                      <span className="label">반제품 품목명</span>
                       <span className="value" style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{selectedPlanDetails.subProdName}</span>
                     </div>
                     <div className="info-row">
@@ -710,7 +710,7 @@ const CalendarView = ({
                     {selectedPlanDetails.plan.memo && (
                       <div style={{ marginTop: '14px', padding: '12px', background: 'rgba(249, 115, 22, 0.05)', border: '1px solid rgba(249, 115, 22, 0.2)', borderRadius: '8px', fontSize: '0.82rem', color: 'var(--text-secondary)', textAlign: 'left', whiteSpace: 'pre-wrap' }}>
                         <div style={{ fontSize: '0.78rem', fontWeight: 600, color: '#ea580c', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          💡 부재료 생산 메모
+                          💡 반제품 생산 메모
                         </div>
                         <div style={{ lineHeight: '1.4', color: 'var(--text-primary)' }}>{selectedPlanDetails.plan.memo}</div>
                       </div>
@@ -725,7 +725,7 @@ const CalendarView = ({
                           <path d="M2 17l10 5 10-5"></path>
                           <path d="M2 12l10 5 10-5"></path>
                         </svg>
-                        부재료 배합표 보기
+                        반제품 배합표 보기
                       </button>
                       <button className="btn-primary" onClick={() => onOpenEditModal(selectedPlanDetails.plan.id)} style={{ flex: 1.2, justifyContent: 'center', fontSize: '0.85rem', padding: '8px 4px' }}>
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

@@ -219,7 +219,7 @@ const RecipesView = ({
     e.preventDefault();
     if (!selectedProduct) return;
     if (!productName.trim()) {
-      alert('제품/부재료 이름을 입력하세요.');
+      alert('제품/반제품 이름을 입력하세요.');
       return;
     }
     if (!isRatioValid) {
@@ -255,7 +255,7 @@ const RecipesView = ({
 
     updateProduct(updated);
     setSelectedProduct(updated);
-    alert('제품/부재료 설정 및 레시피 정보가 안전하게 저장되었습니다.');
+    alert('제품/반제품 설정 및 레시피 정보가 안전하게 저장되었습니다.');
   };
 
   const selectedBaseProduct = useMemo(() => {
@@ -329,7 +329,7 @@ const RecipesView = ({
       <div className="glass-card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 600 }}>제품 및 부재료 목록</h3>
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 600 }}>제품 및 반제품 목록</h3>
             <span style={{ fontSize: '0.7rem', background: 'rgba(2, 132, 199, 0.1)', color: 'var(--color-primary)', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>Admin</span>
           </div>
           <div style={{ display: 'flex', gap: '8px' }}>
@@ -360,7 +360,7 @@ const RecipesView = ({
             onClick={() => setFilterTab('sub_ingredient')}
             style={{ flex: 1, padding: '6px', fontSize: '0.78rem', borderRadius: '6px', border: 'none', background: filterTab === 'sub_ingredient' ? 'var(--bg-secondary)' : 'transparent', fontWeight: filterTab === 'sub_ingredient' ? 700 : 500, color: filterTab === 'sub_ingredient' ? 'var(--color-primary)' : 'var(--text-secondary)', cursor: 'pointer' }}
           >
-            부재료 ({subIngredientsList.length})
+            반제품 ({subIngredientsList.length})
           </button>
         </div>
 
@@ -383,7 +383,7 @@ const RecipesView = ({
                       <span className="name">{p.name}</span>
                       {isSub ? (
                         <span style={{ fontSize: '0.65rem', background: 'rgba(249, 115, 22, 0.12)', color: '#c2410c', padding: '1px 5px', borderRadius: '4px', fontWeight: 600 }}>
-                          부재료
+                          반제품
                         </span>
                       ) : p.isFlavor ? (
                         <span style={{ fontSize: '0.65rem', background: 'rgba(168, 85, 247, 0.12)', color: 'var(--color-accent, #a855f7)', padding: '1px 5px', borderRadius: '4px', fontWeight: 600 }}>
@@ -423,7 +423,7 @@ const RecipesView = ({
       <div className="glass-card">
         <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h3 id="recipe-editor-title" style={{ fontSize: '1.15rem', fontWeight: 600 }}>
-            {productIsSubIngredient ? '부재료 설정 및 레시피' : '제품별 설정 및 레시피'}
+            {productIsSubIngredient ? '반제품 설정 및 레시피' : '제품별 설정 및 레시피'}
           </h3>
           <span 
             id="recipe-product-badge" 
@@ -447,7 +447,7 @@ const RecipesView = ({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
-              <p>왼쪽 목록에서 특정 요거트 제품이나 부재료를 클릭하면 레시피를 편집할 수 있습니다.</p>
+              <p>왼쪽 목록에서 특정 요거트 제품이나 반제품을 클릭하면 레시피를 편집할 수 있습니다.</p>
             </div>
           ) : (
             <form id="recipe-editor-form" onSubmit={handleRecipeSave}>
@@ -518,13 +518,13 @@ const RecipesView = ({
 
               {productIsSubIngredient && (
                 <div style={{ background: 'rgba(249, 115, 22, 0.06)', padding: '12px', borderRadius: '8px', border: '1px solid rgba(249, 115, 22, 0.2)', marginBottom: '16px', fontSize: '0.85rem', color: '#c2410c', fontWeight: 600 }}>
-                  🍞 부재료 레시피 관리 모드: 부재료의 자체 원재료 비율(합계 100%)을 구성합니다. 요거트 생산 시 투입재료로 선택되어 1개/20개/총량 기준 배합표로 출력됩니다.
+                  🍞 반제품 레시피 관리 모드: 반제품의 자체 원재료 비율(합계 100%)을 구성합니다. 요거트 생산 시 투입재료로 선택되어 1개/20개/총량 기준 배합표로 출력됩니다.
                 </div>
               )}
 
               <div className="form-group-grid" style={{ gridTemplateColumns: productIsSubIngredient ? '1fr' : '2fr 1fr 1fr' }}>
                 <div className="form-group">
-                  <label htmlFor="edit-product-name">{productIsSubIngredient ? '부재료 이름' : '제품 이름'}</label>
+                  <label htmlFor="edit-product-name">{productIsSubIngredient ? '반제품 이름' : '제품 이름'}</label>
                   <input 
                     type="text" 
                     className="form-control" 
@@ -694,7 +694,7 @@ const RecipesView = ({
               )}
 
               <h4 style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span>{productIsSubIngredient ? '부재료 구성 원재료 비율 (%)' : '원재료 배합 비율 (%)'}</span>
+                <span>{productIsSubIngredient ? '반제품 구성 원재료 비율 (%)' : '원재료 배합 비율 (%)'}</span>
                 <button 
                   type="button" 
                   className="btn-secondary btn-add-ing-row" 
@@ -716,7 +716,7 @@ const RecipesView = ({
                           className="form-control ing-name-input" 
                           value={ing.name} 
                           onChange={(e) => handleIngredientChange(idx, 'name', e.target.value)}
-                          placeholder={isBaseIngredient ? "연동된 베이스 제품명" : (productIsSubIngredient ? "부재료 구성 원재료명 (예: 아몬드 페이스트)" : "원재료명 (예: 원유, 과일 퓨레 등)")} 
+                          placeholder={isBaseIngredient ? "연동된 베이스 제품명" : (productIsSubIngredient ? "반제품 구성 원재료명 (예: 아몬드 페이스트)" : "원재료명 (예: 원유, 과일 퓨레 등)")} 
                           required 
                           readOnly={isBaseIngredient}
                           style={{
@@ -743,9 +743,9 @@ const RecipesView = ({
                             style={{ width: '130px', fontSize: '0.75rem', padding: '4px 6px' }}
                             value={ing.subProductId || ''}
                             onChange={(e) => handleSelectSubIngredient(idx, e.target.value)}
-                            title="등록된 부재료에서 선택"
+                            title="등록된 반제품에서 선택"
                           >
-                            <option value="">+ 부재료 선택</option>
+                            <option value="">+ 반제품 선택</option>
                             {subIngredientsList.map(subP => (
                               <option key={subP.id} value={subP.id}>{subP.name}</option>
                             ))}

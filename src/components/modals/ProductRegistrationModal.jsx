@@ -141,7 +141,7 @@ const ProductRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
     <div className="modal-overlay open" id="product-registration-modal">
       <div className="modal-content" style={{ width: '540px' }}>
         <div className="modal-header">
-          <h3>신규 요거트 제품 / 부재료 등록</h3>
+          <h3>신규 요거트 제품 / 반제품 등록</h3>
           <button className="btn-icon" onClick={onClose} aria-label="닫기">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -179,7 +179,7 @@ const ProductRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
                     checked={categoryType === 'sub_ingredient'} 
                     onChange={() => handleCategoryChange('sub_ingredient')} 
                   />
-                  🍞 부재료 (Pre-mix)
+                  🍞 반제품 (Pre-mix)
                 </label>
               </div>
             </div>
@@ -203,7 +203,7 @@ const ProductRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
             )}
 
             <div className="form-group">
-              <label htmlFor="new-product-name">{categoryType === 'sub_ingredient' ? '부재료명' : '제품명'}</label>
+              <label htmlFor="new-product-name">{categoryType === 'sub_ingredient' ? '반제품명' : '제품명'}</label>
               <input 
                 type="text" 
                 className="form-control" 
@@ -381,8 +381,8 @@ const ProductRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
               </svg>
               <p style={{ fontSize: '0.8rem', lineHeight: '1.4' }}>
                 {categoryType === 'sub_ingredient' 
-                  ? "부재료 등록 완료 후 '제품 및 레시피 설정' 탭에서 구성 원재료 비율(합계 100%)을 세부 설정할 수 있습니다."
-                  : "제품 등록 완료 후 '제품 및 레시피 설정' 탭에서 각 원재료 및 부재료의 상세 배합 비율(합계 100%)을 구성할 수 있습니다."
+                  ? "반제품 등록 완료 후 '제품 및 레시피 설정' 탭에서 구성 원재료 비율(합계 100%)을 세부 설정할 수 있습니다."
+                  : "제품 등록 완료 후 '제품 및 레시피 설정' 탭에서 각 원재료 및 반제품의 상세 배합 비율(합계 100%)을 구성할 수 있습니다."
                 }
               </p>
             </div>

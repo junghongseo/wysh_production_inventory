@@ -135,13 +135,13 @@ const subPlan = {
   targetYogurtQty: 100
 };
 const subResult = calculateRecipeDetails(subPlan, mockProducts);
-assert(subResult.isSubIngredientPlan === true, '부재료 계획 플래그 true');
-assert(subResult.table1Items.length === 2, '부재료 원재료 2개 (Table 1)');
+assert(subResult.isSubIngredientPlan === true, '반제품 계획 플래그 true');
+assert(subResult.table1Items.length === 2, '반제품 원재료 2개 (Table 1)');
 assert(subResult.table2Items.length === 2, 'Table 2 2개');
 assert(subResult.table3Items.length === 2, 'Table 3 2개');
 // 1 yogurt = 130g, subRatio = 30% => 39g sub per 1 yogurt
-assert(subResult.subWeightPer1YogurtG === 39, '1개당 부재료 39g');
-assert(subResult.subWeightPer20YogurtG === 780, '20개당 부재료 780g');
-assert(subResult.totalSubWeightG === 3900, '100개분 총 부재료 3,900g');
+assert(subResult.subWeightPer1YogurtG === 39, '1개당 반제품 39g');
+assert(subResult.subWeightPer20YogurtG === 780, '20개당 반제품 780g');
+assert(subResult.totalSubWeightG === 3900, '100개분 총 반제품 3,900g');
 
 console.log(`\n🎉 ALL TESTS PASSED! Total: ${totalPassed}, Failed: ${totalFailed}`);

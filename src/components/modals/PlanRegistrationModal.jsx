@@ -297,9 +297,9 @@ const PlanRegistrationModal = ({
     if (planType === 'sub_ingredient') {
       const hasValidSub = !!subProductId && !!targetYogurtProductId && parseInt(targetYogurtQty) > 0 && !!startDate;
       if (!hasValidSub) {
-        return { valid: false, success: false, message: '⚠️ 부재료, 연동 요거트 제품, 수량 및 생산일자를 입력하세요.' };
+        return { valid: false, success: false, message: '⚠️ 반제품, 연동 요거트 제품, 수량 및 생산일자를 입력하세요.' };
       }
-      return { valid: true, success: true, message: '✓ 부재료 생산계획 정보가 정상 입력되었습니다.' };
+      return { valid: true, success: true, message: '✓ 반제품 생산계획 정보가 정상 입력되었습니다.' };
     }
 
     const hasValidProducts = items.every(it => !!it.productId);
@@ -362,7 +362,7 @@ const PlanRegistrationModal = ({
     if (planType === 'sub_ingredient') {
       const subProd = subIngredients.find(p => p.id === subProductId);
       const targetYogurt = yogurtProducts.find(p => p.id === targetYogurtProductId);
-      const nameStr = planName.trim() || `[부재료] ${subProd ? subProd.name : '부재료'} (${targetYogurt ? targetYogurt.name : ''} ${targetYogurtQty}개분)`;
+      const nameStr = planName.trim() || `[반제품] ${subProd ? subProd.name : '반제품'} (${targetYogurt ? targetYogurt.name : ''} ${targetYogurtQty}개분)`;
 
       const subPlanData = {
         name: nameStr,
@@ -449,7 +449,7 @@ const PlanRegistrationModal = ({
       if (subProd) {
         setTimeout(() => {
           const userConfirm = window.confirm(
-            `등록한 요거트 생산계획 '${prod.name}'에는 부재료 '${subProd.name}'가 포함되어 있습니다.\n\n이 제품에 필요한 부재료의 생산계획을 지금 연동 등록하시겠습니까?`
+            `등록한 요거트 생산계획 '${prod.name}'에는 반제품 '${subProd.name}'가 포함되어 있습니다.\n\n이 제품에 필요한 반제품의 생산계획을 지금 연동 등록하시겠습니까?`
           );
           if (userConfirm && onRequestSubPlanModal) {
             onRequestSubPlanModal({
@@ -518,7 +518,7 @@ const PlanRegistrationModal = ({
                     cursor: 'pointer'
                   }}
                 >
-                  🍞 부재료 생산계획
+                  🍞 반제품 생산계획
                 </button>
               </div>
             </div>
@@ -538,7 +538,7 @@ const PlanRegistrationModal = ({
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 <div className="form-group-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
                   <div className="form-group">
-                    <label htmlFor="sub-product-select" style={{ fontWeight: 600 }}>대상 부재료 선택</label>
+                    <label htmlFor="sub-product-select" style={{ fontWeight: 600 }}>대상 반제품 선택</label>
                     <select
                       id="sub-product-select"
                       className="form-control"
@@ -546,7 +546,7 @@ const PlanRegistrationModal = ({
                       onChange={(e) => setSubProductId(e.target.value)}
                       required
                     >
-                      <option value="" disabled>부재료를 선택하세요</option>
+                      <option value="" disabled>반제품을 선택하세요</option>
                       {subIngredients.map(s => (
                         <option key={s.id} value={s.id}>{s.name}</option>
                       ))}
@@ -584,7 +584,7 @@ const PlanRegistrationModal = ({
                     />
                   </div>
                   <div className="form-group">
-                    <label htmlFor="sub-plan-start-date" style={{ fontWeight: 600 }}>부재료 생산 일자</label>
+                    <label htmlFor="sub-plan-start-date" style={{ fontWeight: 600 }}>반제품 생산 일자</label>
                     <input
                       type="date"
                       className="form-control"
@@ -597,12 +597,12 @@ const PlanRegistrationModal = ({
                 </div>
 
                 <div className="form-group">
-                  <label htmlFor="sub-plan-name">부재료 생산 계획명 (자동 작성 가능)</label>
+                  <label htmlFor="sub-plan-name">반제품 생산 계획명 (자동 작성 가능)</label>
                   <input
                     type="text"
                     className="form-control"
                     id="sub-plan-name"
-                    placeholder="비워둘 경우 '[부재료] 부재료명 (제품명 N개분)'으로 자동 설정됩니다"
+                    placeholder="비워둘 경우 '[반제품] 반제품명 (제품명 N개분)'으로 자동 설정됩니다"
                     value={planName}
                     onChange={(e) => setPlanName(e.target.value)}
                   />
@@ -614,7 +614,7 @@ const PlanRegistrationModal = ({
                     className="form-control"
                     id="sub-plan-memo"
                     rows="3"
-                    placeholder="부재료 소분/전처리 작업 관련 특이사항이나 메모를 입력하세요..."
+                    placeholder="반제품 소분/전처리 작업 관련 특이사항이나 메모를 입력하세요..."
                     value={planMemo}
                     onChange={(e) => setPlanMemo(e.target.value)}
                     style={{ resize: 'vertical', minHeight: '70px' }}
