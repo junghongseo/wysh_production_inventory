@@ -1,6 +1,8 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 
 const MaterialCostModal = ({ isOpen, onClose, onSave, editingMaterial }) => {
+  const overlayPressRef = useRef(false); // 마우스를 배경(창 바깥)에서 눌렀는지
   const [category, setCategory] = useState('raw'); // 'raw' (원재료) | 'packaging' (부자재)
   const [name, setName] = useState('');
   const [manufacturer, setManufacturer] = useState('');
@@ -155,8 +157,19 @@ const MaterialCostModal = ({ isOpen, onClose, onSave, editingMaterial }) => {
     onClose();
   };
 
-  return (
-    <div className={`modal-overlay ${isOpen ? 'open' : ''}`} onClick={onClose} style={{
+  // body로 포털 렌더링: 부모 .tab-content의 transform 때문에 position:fixed가
+  // 화면이 아닌 탭 영역 기준이 되어 창이 페이지 아래쪽에 뜨는 문제 방지
+  return createPortal(
+    <div
+      className={`modal-overlay ${isOpen ? 'open' : ''}`}
+      // 배경에서 누르고 배경에서 뗀 경우에만 닫기.
+      // 입력칸에서 드래그를 시작해 배경 위에서 떼면 브라우저가 click을 배경에 보내므로 onClick만으로는 창이 닫혀버림
+      onMouseDown={(e) => { overlayPressRef.current = e.target === e.currentTarget; }}
+      onClick={(e) => {
+        if (overlayPressRef.current && e.target === e.currentTarget) onClose();
+        overlayPressRef.current = false;
+      }}
+      style={{
       position: 'fixed',
       top: 0,
       left: 0,
@@ -197,7 +210,9 @@ const MaterialCostModal = ({ isOpen, onClose, onSave, editingMaterial }) => {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        {/* 전역 .modal-content form { overflow: hidden; min-height: 0 } 규칙이 폼을 창 높이로 줄이고
+            넘친 저장 버튼을 잘라내므로, 이 폼은 줄어들지 않게 하고 스크롤은 바깥 창(overflowY: auto)이 담당 */}
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px', overflow: 'visible', flexShrink: 0 }}>
           
           {/* Category Toggle */}
           <div className="form-group">
@@ -465,7 +480,8 @@ const MaterialCostModal = ({ isOpen, onClose, onSave, editingMaterial }) => {
 
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
