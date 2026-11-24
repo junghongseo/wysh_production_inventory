@@ -141,6 +141,7 @@ export const fetchAllRemoteData = async () => {
       isSubIngredient: isSubIngredientVal,
       baseProductId: baseProdIdVal,
       recipeMemo: p.recipe_memo || p.recipeMemo || p.memo || '',
+      salePrice: p.sale_price !== undefined && p.sale_price !== null ? parseFloat(p.sale_price) : null,
       shippingLimitDays: p.shipping_limit_days !== undefined && p.shipping_limit_days !== null ? p.shipping_limit_days : 7,
       expiryDays: p.expiry_days !== undefined && p.expiry_days !== null ? p.expiry_days : 22,
       defaultSterilizationTemp: p.default_sterilization_temp !== undefined && p.default_sterilization_temp !== null ? p.default_sterilization_temp : 85,
@@ -279,6 +280,7 @@ export const pushProductToSupabase = async (product) => {
       is_flavor: product.isFlavor,
       base_product_id: product.baseProductId,
       recipe_memo: product.recipeMemo || product.memo || '',
+      sale_price: product.salePrice ?? null,
       shipping_limit_days: product.shippingLimitDays,
       expiry_days: product.expiryDays,
       default_sterilization_temp: product.defaultSterilizationTemp,
@@ -288,17 +290,20 @@ export const pushProductToSupabase = async (product) => {
       default_heating_temp: product.defaultHeatingTemp,
       default_heater_temp: product.defaultHeaterTemp
     };
-    const { error } = await supabase.from('products').upsert(dbProduct);
-    if (error) {
-      if (error.message && (error.message.includes('recipe_memo') || error.code === 'PGRST204')) {
-        const fallbackDbProduct = { ...dbProduct };
-        delete fallbackDbProduct.recipe_memo;
-        const { error: fallbackErr } = await supabase.from('products').upsert(fallbackDbProduct);
-        if (fallbackErr) console.error("Supabase Push Fallback Error:", fallbackErr);
-      } else {
-        console.error("Supabase Push Error (Product):", error);
-      }
+    // 마이그레이션이 아직 적용되지 않은 선택 컬럼은 빼고 다시 시도 (값은 로컬에 유지됨)
+    const OPTIONAL_COLUMNS = ['recipe_memo', 'sale_price'];
+    let payload = { ...dbProduct };
+    let { error } = await supabase.from('products').upsert(payload);
+    for (let attempt = 0; error && attempt < OPTIONAL_COLUMNS.length; attempt++) {
+      const msg = error.message || '';
+      const missingCols = OPTIONAL_COLUMNS.filter(c => c in payload && msg.includes(c));
+      if (missingCols.length === 0 && error.code !== 'PGRST204') break;
+      const toDrop = missingCols.length > 0 ? missingCols : OPTIONAL_COLUMNS.filter(c => c in payload);
+      if (toDrop.length === 0) break;
+      toDrop.forEach(c => { delete payload[c]; });
+      ({ error } = await supabase.from('products').upsert(payload));
     }
+    if (error) console.error("Supabase Push Error (Product):", error);
   } catch (e) {
     console.error("Supabase Push Error (Product):", e);
   }

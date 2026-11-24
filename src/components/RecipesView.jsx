@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useWysh } from '../WyshContext';
 import MaterialCostListSection from './recipes/MaterialCostListSection';
+import RecipeCostSummary from './recipes/RecipeCostSummary';
+import IngredientCostLine from './recipes/IngredientCostLine';
+import { computeProductUnitCost, FREE_MATERIAL_ID } from '../utils/costCalculator';
 
 const RecipesView = ({ 
   selectedProduct, 
@@ -41,6 +44,7 @@ const RecipesView = ({
   const [defaultHeatingTemp, setDefaultHeatingTemp] = useState(43);
   const [defaultHeaterTemp, setDefaultHeaterTemp] = useState(44);
   const [recipeMemo, setRecipeMemo] = useState('');
+  const [productSalePrice, setProductSalePrice] = useState('');
 
   const subIngredientsList = useMemo(() => products.filter(p => p.isSubIngredient || p.category === 'sub_ingredient'), [products]);
   const plainProducts = useMemo(() => products.filter(p => !p.isFlavor && !p.isSubIngredient && p.id !== selectedProduct?.id), [products, selectedProduct]);
@@ -75,6 +79,7 @@ const RecipesView = ({
       setDefaultHeatingTemp(selectedProduct.defaultHeatingTemp !== undefined ? selectedProduct.defaultHeatingTemp : 43);
       setDefaultHeaterTemp(selectedProduct.defaultHeaterTemp !== undefined ? selectedProduct.defaultHeaterTemp : 44);
       setRecipeMemo(selectedProduct.recipeMemo || selectedProduct.memo || '');
+      setProductSalePrice(selectedProduct.salePrice ?? '');
     } else {
       setProductName('');
       setProductCategory('plain');
@@ -94,6 +99,7 @@ const RecipesView = ({
       setDefaultHeatingTemp(43);
       setDefaultHeaterTemp(44);
       setRecipeMemo('');
+      setProductSalePrice('');
     }
   }, [selectedProduct?.id]);
 
@@ -104,6 +110,28 @@ const RecipesView = ({
   }, [ingredients]);
 
   const isRatioValid = Math.abs(ratioSum - 100) < 0.001 || ratioSum === 100;
+
+  // 편집 중인 값으로 실시간 원가 계산 (저장 전 상태 반영)
+  const costResult = useMemo(() => {
+    if (!selectedProduct) return null;
+    const draft = {
+      ...selectedProduct,
+      isFlavor: !productIsSubIngredient && productIsFlavor,
+      isSubIngredient: productIsSubIngredient,
+      category: productIsSubIngredient ? 'sub_ingredient' : (productIsFlavor ? 'flavor' : 'plain'),
+      baseProductId: (!productIsSubIngredient && productIsFlavor) ? productBaseProductId : null,
+      weight: parseFloat(productWeight) || 0,
+      yield: parseFloat(productYield) || 100,
+      ingredients
+    };
+    const productsWithDraft = products.map(p => (p.id === draft.id ? draft : p));
+    return computeProductUnitCost(draft, productsWithDraft, materialCosts);
+  }, [selectedProduct, products, materialCosts, ingredients, productWeight, productYield, productIsFlavor, productIsSubIngredient, productBaseProductId]);
+
+  const rawMaterials = useMemo(
+    () => materialCosts.filter(m => m.category === 'raw').sort((a, b) => String(a.name).localeCompare(String(b.name), 'ko')),
+    [materialCosts]
+  );
 
   // Swatch colors list
   const colors = ['blue', 'purple', 'green', 'orange', 'pink', 'red', 'brown', 'black', 'gray', 'teal', 'yellow', 'indigo'];
@@ -185,8 +213,9 @@ const RecipesView = ({
     if (!subProd) return;
     const nextIngredients = ingredients.map((ing, idx) => {
       if (idx === index) {
+        const { materialId, ...rest } = ing;
         return {
-          ...ing,
+          ...rest,
           name: subProd.name,
           subProductId: subProd.id
         };
@@ -194,6 +223,61 @@ const RecipesView = ({
       return ing;
     });
     setIngredients(nextIngredients);
+  };
+
+  // 원재료 이름 입력. 자동완성 목록에서 고른 경우(insertReplacementText)에는 단가표/반제품 연결까지 함께 설정
+  // 직접 타이핑 중에는 연결을 바꾸지 않음 (예: '카카오'까지 쳤을 때 '카카오'에 잘못 고정되는 것 방지)
+  const handleIngredientNameInput = (index, value, inputType) => {
+    const pickedFromList = inputType === 'insertReplacementText' || inputType === undefined;
+    if (pickedFromList) {
+      const mat = rawMaterials.find(m => m.name === value);
+      if (mat) {
+        setIngredients(prev => prev.map((ing, idx) => {
+          if (idx !== index) return ing;
+          const { subProductId: _sub, ...rest } = ing;
+          return { ...rest, name: value, materialId: mat.id };
+        }));
+        return;
+      }
+      const sub = !productIsSubIngredient && subIngredientsList.find(s => s.name === value && s.id !== selectedProduct?.id);
+      if (sub) {
+        handleSelectSubIngredient(index, sub.id);
+        return;
+      }
+    }
+    handleIngredientChange(index, 'name', value);
+  };
+
+  // 줄 아래 통합 연결 선택: '' (연결 해제) | 'sub:<반제품 id>' | 'mat:<단가표 id>' | FREE_MATERIAL_ID
+  const handleSelectLink = (index, value) => {
+    if (value.startsWith('sub:')) {
+      handleSelectSubIngredient(index, value.slice(4));
+    } else if (value.startsWith('mat:')) {
+      handleSelectMaterial(index, value.slice(4));
+    } else {
+      handleSelectMaterial(index, value); // FREE_MATERIAL_ID 또는 '' (해제)
+    }
+  };
+
+  // 원재료 행을 단가표 항목에 연결 ('' 이면 연결 해제 → 이름 자동 매칭으로 복귀)
+  const handleSelectMaterial = (index, materialId) => {
+    setIngredients(prev => prev.map((ing, idx) => {
+      if (idx !== index) return ing;
+      const { materialId: _old, subProductId: _sub, ...rest } = ing;
+      if (!materialId) return rest;
+      const mat = materialCosts.find(m => m.id === materialId);
+      if (!mat) return { ...rest, materialId }; // 0원 처리: 이름 유지
+      // 단가표 이름으로 변경. 바꾸기 전 이름은 originalName으로 기억 →
+      // 다른 제품에 같은 옛 이름으로 적힌 재료도 이 연결을 따라갈 수 있음
+      const prevName = String(rest.name || '').trim();
+      const originalName = rest.originalName || (prevName && prevName !== mat.name ? prevName : undefined);
+      return {
+        ...rest,
+        name: mat.name,
+        materialId,
+        ...(originalName ? { originalName } : {})
+      };
+    }));
   };
 
   // Reset recipe form
@@ -211,6 +295,7 @@ const RecipesView = ({
       setDefaultHeatingTemp(selectedProduct.defaultHeatingTemp !== undefined ? selectedProduct.defaultHeatingTemp : 43);
       setDefaultHeaterTemp(selectedProduct.defaultHeaterTemp !== undefined ? selectedProduct.defaultHeaterTemp : 44);
       setRecipeMemo(selectedProduct.recipeMemo || selectedProduct.memo || '');
+      setProductSalePrice(selectedProduct.salePrice ?? '');
     }
   };
 
@@ -239,11 +324,29 @@ const RecipesView = ({
       color: productColor,
       shippingLimitDays: parseInt(productShippingLimitDays) || 7,
       expiryDays: parseInt(productExpiryDays) || 22,
-      ingredients: ingredients.map(ing => ({
-        name: ing.name.trim(),
-        ratio: ing.ratio,
-        ...(ing.subProductId ? { subProductId: ing.subProductId } : {})
-      })),
+      ingredients: ingredients.map((ing, idx) => {
+        // 자동 매칭·다른 제품 연결로 찾은 단가표 항목도 ID로 고정 저장 → 이후 이름이 바뀌어도 연결 유지
+        const source = costResult?.lines[idx]?.source;
+        let autoMaterialId = null;
+        if (!ing.subProductId) {
+          if (source?.type === 'material') autoMaterialId = source.material.id;
+          if (source?.type === 'free') autoMaterialId = FREE_MATERIAL_ID;
+        }
+        const materialId = ing.subProductId ? null : (ing.materialId || autoMaterialId);
+        // 단가표 원재료에 연결된 줄은 이름을 단가표 이름으로 통일 (0원 처리·반제품·베이스 줄은 그대로)
+        const prevName = ing.name.trim();
+        const linkedMaterial = !ing.subProductId && source?.type === 'material' ? source.material : null;
+        const name = linkedMaterial ? linkedMaterial.name : prevName;
+        const originalName = ing.originalName || (linkedMaterial && prevName && prevName !== linkedMaterial.name ? prevName : undefined);
+        return {
+          name,
+          ratio: ing.ratio,
+          ...(ing.subProductId ? { subProductId: ing.subProductId } : {}),
+          ...(materialId ? { materialId } : {}),
+          ...(materialId && originalName ? { originalName } : {})
+        };
+      }),
+      salePrice: productSalePrice === '' || productSalePrice === null ? null : (parseFloat(productSalePrice) || null),
       defaultSterilizationTemp: parseFloat(defaultSterilizationTemp) || 85,
       defaultSterilizationTime: parseInt(defaultSterilizationTime) || 30,
       defaultCoolingTemp: parseFloat(defaultCoolingTemp) || 40,
@@ -255,6 +358,8 @@ const RecipesView = ({
 
     updateProduct(updated);
     setSelectedProduct(updated);
+    // 저장 시 단가표 이름으로 바뀐 원재료명을 편집 화면에도 반영
+    setIngredients(JSON.parse(JSON.stringify(updated.ingredients)));
     alert('제품/반제품 설정 및 레시피 정보가 안전하게 저장되었습니다.');
   };
 
@@ -705,17 +810,32 @@ const RecipesView = ({
                 </button>
               </h4>
 
+              {/* 원재료 이름 자동완성 목록: 단가표 원재료 + 등록된 반제품 */}
+              <datalist id="recipe-ingredient-name-suggestions">
+                {rawMaterials.map(m => (
+                  <option key={`m-${m.id}`} value={m.name}>단가표 원재료</option>
+                ))}
+                {!productIsSubIngredient && subIngredientsList
+                  .filter(s => s.id !== selectedProduct?.id)
+                  .map(s => (
+                    <option key={`s-${s.id}`} value={s.name}>반제품</option>
+                  ))}
+              </datalist>
+
               <div id="recipe-ingredients-grid">
                 {ingredients.map((ing, idx) => {
                   const isBaseIngredient = !productIsSubIngredient && productIsFlavor && idx === 0;
                   return (
-                    <div key={idx} className="recipe-ingredient-row" id={`recipe-ing-row-${idx}`}>
+                    <div key={idx} style={{ marginBottom: '10px' }}>
+                    <div className="recipe-ingredient-row" id={`recipe-ing-row-${idx}`} style={{ marginBottom: 0 }}>
                       <div style={{ position: 'relative', flex: 1, display: 'flex', gap: '6px' }}>
                         <input 
                           type="text" 
                           className="form-control ing-name-input" 
-                          value={ing.name} 
-                          onChange={(e) => handleIngredientChange(idx, 'name', e.target.value)}
+                          value={ing.name}
+                          list={isBaseIngredient ? undefined : 'recipe-ingredient-name-suggestions'}
+                          autoComplete="off"
+                          onChange={(e) => handleIngredientNameInput(idx, e.target.value, e.nativeEvent?.inputType)}
                           placeholder={isBaseIngredient ? "연동된 베이스 제품명" : (productIsSubIngredient ? "반제품 구성 원재료명 (예: 아몬드 페이스트)" : "원재료명 (예: 원유, 과일 퓨레 등)")} 
                           required 
                           readOnly={isBaseIngredient}
@@ -734,22 +854,6 @@ const RecipesView = ({
                               <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
                             </svg>
                           </span>
-                        )}
-
-                        {/* Quick Select for Registered Sub-ingredients when editing Yogurt Products */}
-                        {!productIsSubIngredient && !isBaseIngredient && subIngredientsList.length > 0 && (
-                          <select
-                            className="form-control"
-                            style={{ width: '130px', fontSize: '0.75rem', padding: '4px 6px' }}
-                            value={ing.subProductId || ''}
-                            onChange={(e) => handleSelectSubIngredient(idx, e.target.value)}
-                            title="등록된 반제품에서 선택"
-                          >
-                            <option value="">+ 반제품 선택</option>
-                            {subIngredientsList.map(subP => (
-                              <option key={subP.id} value={subP.id}>{subP.name}</option>
-                            ))}
-                          </select>
                         )}
                       </div>
 
@@ -786,9 +890,30 @@ const RecipesView = ({
                         </svg>
                       </button>
                     </div>
+                    {isAdminLoggedIn && costResult?.lines[idx] && (
+                      <IngredientCostLine
+                        line={costResult.lines[idx]}
+                        ingredient={ing}
+                        rawMaterials={rawMaterials}
+                        subProducts={productIsSubIngredient ? [] : subIngredientsList.filter(s => s.id !== selectedProduct?.id)}
+                        lockLink={isBaseIngredient}
+                        showPerUnit={!productIsSubIngredient}
+                        onSelectLink={(value) => handleSelectLink(idx, value)}
+                      />
+                    )}
+                    </div>
                   );
                 })}
               </div>
+
+              {isAdminLoggedIn && costResult && (
+                <RecipeCostSummary
+                  costResult={costResult}
+                  isSubIngredient={productIsSubIngredient}
+                  salePrice={productSalePrice}
+                  onSalePriceChange={setProductSalePrice}
+                />
+              )}
 
               {/* Linked Base Product Recipe Preview */}
               {selectedBaseProduct && (

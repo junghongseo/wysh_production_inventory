@@ -187,7 +187,9 @@ export const WyshProvider = ({ children }) => {
         const localMemo = localP ? (localP.recipeMemo || localP.memo || '') : '';
         const mergedProduct = {
           ...p,
-          recipeMemo: p.recipeMemo || localMemo
+          recipeMemo: p.recipeMemo || localMemo,
+          // sale_price 컬럼이 아직 없으면 원격 값이 null → 로컬 판매가 유지
+          salePrice: p.salePrice ?? (localP ? localP.salePrice ?? null : null)
         };
         mergedProductsMap.set(p.id, mergedProduct);
       });
