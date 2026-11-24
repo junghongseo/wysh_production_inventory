@@ -21,9 +21,9 @@ const InventoryView = ({ onDeleteHistory, onOpenMemoModal, isAdminLoggedIn }) =>
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
-  // History Pagination
-  const [historyPage, setHistoryPage] = useState(1);
-  const historyItemsPerPage = 10;
+  // History range: show recent N days by default, extend by 30 days with "더보기"
+  const HISTORY_DAYS_STEP = 30;
+  const [historyDays, setHistoryDays] = useState(HISTORY_DAYS_STEP);
 
   // Local-time safe today string
   const todayStr = useMemo(() => {
@@ -48,9 +48,9 @@ const InventoryView = ({ onDeleteHistory, onOpenMemoModal, isAdminLoggedIn }) =>
     setCurrentPage(1);
   }, [statusFilter, monthFilter, searchTerm]);
 
-  // Reset history page when plan selection changes
+  // Reset history range to the recent 30 days when plan selection changes
   React.useEffect(() => {
-    setHistoryPage(1);
+    setHistoryDays(HISTORY_DAYS_STEP);
   }, [selectedInventoryPlanId]);
 
   // Set default outflow date to todayStr
@@ -202,12 +202,19 @@ const InventoryView = ({ onDeleteHistory, onOpenMemoModal, isAdminLoggedIn }) =>
     return historyList.sort((a, b) => new Date(b.date.replace(/-/g, '/')) - new Date(a.date.replace(/-/g, '/')));
   }, [inventory, plans, products, selectedInventoryPlanId]);
 
-  // History Pagination Slice
-  const totalHistoryPages = Math.ceil(outflowHistory.length / historyItemsPerPage);
-  const paginatedOutflowHistory = useMemo(() => {
-    const startIdx = (historyPage - 1) * historyItemsPerPage;
-    return outflowHistory.slice(startIdx, startIdx + historyItemsPerPage);
-  }, [outflowHistory, historyPage, historyItemsPerPage]);
+  // History range slice: recent `historyDays` days (all records when a specific batch is selected)
+  const historyCutoffStr = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - historyDays);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }, [historyDays]);
+
+  const visibleOutflowHistory = useMemo(() => {
+    if (selectedInventoryPlanId) return outflowHistory;
+    return outflowHistory.filter(item => (item.date || '').slice(0, 10) >= historyCutoffStr);
+  }, [outflowHistory, selectedInventoryPlanId, historyCutoffStr]);
+
+  const olderHistoryCount = outflowHistory.length - visibleOutflowHistory.length;
 
   // Handle start/cancel edit outflow
   const handleStartEdit = useCallback((item) => {
@@ -576,7 +583,9 @@ const InventoryView = ({ onDeleteHistory, onOpenMemoModal, isAdminLoggedIn }) =>
             <h3 style={{ fontSize: '1.1rem', fontWeight: 600 }}>출고 히스토리</h3>
             <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
               <span id="history-filter-badge" style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                {selectedInventoryPlanId ? `[${selectedInventoryPlanId}] 내역` : '전체 내역'}
+                {selectedInventoryPlanId
+                  ? `[${selectedInventoryPlanId}] 내역 · ${visibleOutflowHistory.length}건`
+                  : `최근 ${historyDays}일 · ${visibleOutflowHistory.length}건`}
               </span>
               {selectedInventoryPlanId && (
                 <button 
@@ -590,12 +599,16 @@ const InventoryView = ({ onDeleteHistory, onOpenMemoModal, isAdminLoggedIn }) =>
             </div>
           </div>
           <div className="history-timeline" id="inventory-history-timeline" style={{ flexGrow: 1 }}>
-            {paginatedOutflowHistory.length === 0 ? (
+            {visibleOutflowHistory.length === 0 ? (
               <div className="empty-state" style={{ padding: '20px' }}>
-                <p>출고 내역이 없습니다. 양식을 작성하여 반영해 보세요.</p>
+                <p>
+                  {olderHistoryCount > 0
+                    ? `최근 ${historyDays}일 동안 출고 내역이 없습니다. 아래 '더보기'로 이전 내역을 확인하세요.`
+                    : '출고 내역이 없습니다. 양식을 작성하여 반영해 보세요.'}
+                </p>
               </div>
             ) : (
-              paginatedOutflowHistory.map(item => {
+              visibleOutflowHistory.map(item => {
                 const isUnverified = item.verified === false;
                 return (
                   <div 
@@ -701,32 +714,25 @@ const InventoryView = ({ onDeleteHistory, onOpenMemoModal, isAdminLoggedIn }) =>
             )}
           </div>
 
-          {/* Outflow History Pagination */}
-          {totalHistoryPages > 1 && (
-            <div className="pagination-wrapper" style={{ marginTop: '16px' }}>
-              <button 
-                className="pagination-btn" 
-                disabled={historyPage === 1}
-                onClick={() => setHistoryPage(prev => Math.max(prev - 1, 1))}
-              >
-                이전
-              </button>
-              {Array.from({ length: totalHistoryPages }, (_, i) => i + 1).map(pageNum => (
-                 <button 
-                   key={pageNum}
-                   className={`pagination-btn ${historyPage === pageNum ? 'active' : ''}`}
-                   onClick={() => setHistoryPage(pageNum)}
-                 >
-                   {pageNum}
-                 </button>
-              ))}
-              <button 
-                className="pagination-btn" 
-                disabled={historyPage === totalHistoryPages}
-                onClick={() => setHistoryPage(prev => Math.min(prev + 1, totalHistoryPages))}
-              >
-                다음
-              </button>
+          {/* Outflow History Range Controls (최근 30일 기본 + 더보기) */}
+          {!selectedInventoryPlanId && (olderHistoryCount > 0 || historyDays > HISTORY_DAYS_STEP) && (
+            <div className="pagination-wrapper" style={{ marginTop: '16px', flexWrap: 'wrap' }}>
+              {olderHistoryCount > 0 && (
+                <button
+                  className="pagination-btn"
+                  onClick={() => setHistoryDays(prev => prev + HISTORY_DAYS_STEP)}
+                >
+                  이전 {HISTORY_DAYS_STEP}일 더보기 (남은 {olderHistoryCount}건)
+                </button>
+              )}
+              {historyDays > HISTORY_DAYS_STEP && (
+                <button
+                  className="pagination-btn"
+                  onClick={() => setHistoryDays(HISTORY_DAYS_STEP)}
+                >
+                  최근 {HISTORY_DAYS_STEP}일만 보기
+                </button>
+              )}
             </div>
           )}
         </div>

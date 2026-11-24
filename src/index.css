@@ -994,7 +994,8 @@ input[type="date"]::-webkit-date-and-time-value {
 
 @media (min-width: 1024px) {
     .inventory-grid-split {
-        grid-template-columns: 3fr 2fr;
+        /* minmax(0, …) keeps the 3:2 ratio even when content (e.g. long button rows) is wider */
+        grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
     }
 }
 
