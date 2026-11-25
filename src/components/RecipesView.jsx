@@ -3,6 +3,7 @@ import { useWysh } from '../WyshContext';
 import MaterialCostListSection from './recipes/MaterialCostListSection';
 import RecipeCostSummary from './recipes/RecipeCostSummary';
 import IngredientCostLine from './recipes/IngredientCostLine';
+import PackagingEditor from './recipes/PackagingEditor';
 import { computeProductUnitCost, FREE_MATERIAL_ID } from '../utils/costCalculator';
 
 const RecipesView = ({ 
@@ -45,6 +46,7 @@ const RecipesView = ({
   const [defaultHeaterTemp, setDefaultHeaterTemp] = useState(44);
   const [recipeMemo, setRecipeMemo] = useState('');
   const [productSalePrice, setProductSalePrice] = useState('');
+  const [productPackaging, setProductPackaging] = useState([]);
 
   const subIngredientsList = useMemo(() => products.filter(p => p.isSubIngredient || p.category === 'sub_ingredient'), [products]);
   const plainProducts = useMemo(() => products.filter(p => !p.isFlavor && !p.isSubIngredient && p.id !== selectedProduct?.id), [products, selectedProduct]);
@@ -80,6 +82,7 @@ const RecipesView = ({
       setDefaultHeaterTemp(selectedProduct.defaultHeaterTemp !== undefined ? selectedProduct.defaultHeaterTemp : 44);
       setRecipeMemo(selectedProduct.recipeMemo || selectedProduct.memo || '');
       setProductSalePrice(selectedProduct.salePrice ?? '');
+      setProductPackaging(Array.isArray(selectedProduct.packaging) ? selectedProduct.packaging.map(p => ({ ...p })) : []);
     } else {
       setProductName('');
       setProductCategory('plain');
@@ -100,6 +103,7 @@ const RecipesView = ({
       setDefaultHeaterTemp(44);
       setRecipeMemo('');
       setProductSalePrice('');
+      setProductPackaging([]);
     }
   }, [selectedProduct?.id]);
 
@@ -122,14 +126,20 @@ const RecipesView = ({
       baseProductId: (!productIsSubIngredient && productIsFlavor) ? productBaseProductId : null,
       weight: parseFloat(productWeight) || 0,
       yield: parseFloat(productYield) || 100,
-      ingredients
+      ingredients,
+      packaging: productPackaging
     };
     const productsWithDraft = products.map(p => (p.id === draft.id ? draft : p));
     return computeProductUnitCost(draft, productsWithDraft, materialCosts);
-  }, [selectedProduct, products, materialCosts, ingredients, productWeight, productYield, productIsFlavor, productIsSubIngredient, productBaseProductId]);
+  }, [selectedProduct, products, materialCosts, ingredients, productWeight, productYield, productIsFlavor, productIsSubIngredient, productBaseProductId, productPackaging]);
 
   const rawMaterials = useMemo(
     () => materialCosts.filter(m => m.category === 'raw').sort((a, b) => String(a.name).localeCompare(String(b.name), 'ko')),
+    [materialCosts]
+  );
+
+  const packagingMaterials = useMemo(
+    () => materialCosts.filter(m => m.category === 'packaging').sort((a, b) => String(a.name).localeCompare(String(b.name), 'ko')),
     [materialCosts]
   );
 
@@ -296,6 +306,7 @@ const RecipesView = ({
       setDefaultHeaterTemp(selectedProduct.defaultHeaterTemp !== undefined ? selectedProduct.defaultHeaterTemp : 44);
       setRecipeMemo(selectedProduct.recipeMemo || selectedProduct.memo || '');
       setProductSalePrice(selectedProduct.salePrice ?? '');
+      setProductPackaging(Array.isArray(selectedProduct.packaging) ? selectedProduct.packaging.map(p => ({ ...p })) : []);
     }
   };
 
@@ -346,6 +357,12 @@ const RecipesView = ({
           ...(materialId && originalName ? { originalName } : {})
         };
       }),
+      // 부자재 구성: 수량 0 이하 줄은 제외하고 숫자로 저장 (반제품은 부자재 없음)
+      packaging: productIsSubIngredient
+        ? (selectedProduct.packaging ?? null)
+        : productPackaging
+          .map(p => ({ materialId: p.materialId, qty: parseFloat(p.qty) || 0 }))
+          .filter(p => p.materialId && p.qty > 0),
       salePrice: productSalePrice === '' || productSalePrice === null ? null : (parseFloat(productSalePrice) || null),
       defaultSterilizationTemp: parseFloat(defaultSterilizationTemp) || 85,
       defaultSterilizationTime: parseInt(defaultSterilizationTime) || 30,
@@ -360,6 +377,7 @@ const RecipesView = ({
     setSelectedProduct(updated);
     // 저장 시 단가표 이름으로 바뀐 원재료명을 편집 화면에도 반영
     setIngredients(JSON.parse(JSON.stringify(updated.ingredients)));
+    setProductPackaging(Array.isArray(updated.packaging) ? updated.packaging.map(p => ({ ...p })) : []);
     alert('제품/반제품 설정 및 레시피 정보가 안전하게 저장되었습니다.');
   };
 
@@ -905,6 +923,17 @@ const RecipesView = ({
                   );
                 })}
               </div>
+
+              {isAdminLoggedIn && costResult && !productIsSubIngredient && (
+                <PackagingEditor
+                  packaging={productPackaging}
+                  onChange={setProductPackaging}
+                  packagingMaterials={packagingMaterials}
+                  costLines={costResult.packagingLines}
+                  packagingCost={costResult.packagingCost}
+                  partialPackagingCost={costResult.partialPackagingCost}
+                />
+              )}
 
               {isAdminLoggedIn && costResult && (
                 <RecipeCostSummary

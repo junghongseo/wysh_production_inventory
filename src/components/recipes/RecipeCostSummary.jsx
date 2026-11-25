@@ -10,21 +10,24 @@ const DISCOUNTS = [
 
 // 레시피 편집기 하단 원가·원가율 요약 카드 (관리자 전용)
 const RecipeCostSummary = ({ costResult, isSubIngredient, salePrice, onSalePriceChange }) => {
-  const { complete, missing, unitCost, partialUnitCost, costPerGram, partialCostPerGram, weight } = costResult;
+  const {
+    complete, missing, unitCost, partialUnitCost, costPerGram, partialCostPerGram, weight,
+    ingredientsComplete, ingredientUnitCost, packagingCost, packagingLines = []
+  } = costResult;
   const priceNum = parseFloat(salePrice) || 0;
 
   return (
     <div style={{ marginTop: '24px', background: 'rgba(16, 185, 129, 0.04)', border: '1px solid rgba(16, 185, 129, 0.25)', borderRadius: '8px', padding: '16px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: '6px', marginBottom: '12px' }}>
         <h5 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 700 }}>💰 원가 분석</h5>
-        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>원재료비만 포함 · 단가표 VAT 제외 단가 기준</span>
+        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>{isSubIngredient ? '원재료비만 포함' : '원재료비 + 부자재비'} · 단가표 VAT 제외 단가 기준</span>
       </div>
 
       {!complete && (
         <div style={{ background: 'rgba(245, 158, 11, 0.08)', border: '1px solid rgba(245, 158, 11, 0.35)', color: '#b45309', borderRadius: '6px', padding: '8px 10px', fontSize: '0.8rem', marginBottom: '12px' }}>
           <strong>⚠ 원가 미완성 — 단가 확인 필요 {missing.length}건:</strong> {missing.join(', ')}
           <div style={{ marginTop: '2px', color: 'var(--text-secondary)' }}>
-            연결된 원재료만 합산한 부분 원가 (VAT 제외):{isSubIngredient ? `1kg당 ${formatWon(partialCostPerGram * 1000)}원` : `1개당 ${formatWon(partialUnitCost)}원`}
+            단가를 확인할 수 있는 항목만 합산한 부분 원가 (VAT 제외):{isSubIngredient ? `1kg당 ${formatWon(partialCostPerGram * 1000)}원` : `1개당 ${formatWon(partialUnitCost)}원`}
           </div>
         </div>
       )}
@@ -36,8 +39,17 @@ const RecipeCostSummary = ({ costResult, isSubIngredient, salePrice, onSalePrice
         </div>
       ) : (
         <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px', marginBottom: '10px' }}>
+            <Stat label={`1개 원재료비 (${weight || 0}g 기준)`} value={ingredientsComplete ? `${formatWon(ingredientUnitCost)}원` : '-'} />
+            <Stat label={`1개 부자재비 (${packagingLines.length}개 항목)`} value={packagingCost !== null && packagingCost !== undefined ? `${formatWon(packagingCost)}원` : '-'} />
+            <Stat label="1개 총원가 (VAT 제외)" value={complete ? `${formatWon(unitCost)}원` : '-'} highlight />
+          </div>
+          {packagingLines.length === 0 && (
+            <p style={{ margin: '0 0 10px 0', fontSize: '0.78rem', color: '#b45309' }}>
+              부자재 구성이 비어 있어 원재료비만으로 원가율을 계산합니다.
+            </p>
+          )}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
-            <Stat label={`1개 원재료비 (VAT 제외, ${weight || 0}g 기준)`} value={complete ? `${formatWon(unitCost)}원` : '-'} />
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label htmlFor="edit-product-sale-price" style={{ fontSize: '0.78rem' }}>판매가 (VAT 포함, 원)</label>
               <input
@@ -62,13 +74,15 @@ const RecipeCostSummary = ({ costResult, isSubIngredient, salePrice, onSalePrice
                     <th>구분</th>
                     <th style={{ textAlign: 'right' }}>판매가 (VAT 포함)</th>
                     <th style={{ textAlign: 'right' }}>공급가 (VAT 제외)</th>
-                    <th style={{ textAlign: 'right' }}>원가율</th>
+                    <th style={{ textAlign: 'right' }}>원가율 (원·부자재)</th>
+                    <th style={{ textAlign: 'right' }}>원가율 (원재료만)</th>
                     <th style={{ textAlign: 'right' }}>개당 마진 (VAT 제외)</th>
                   </tr>
                 </thead>
                 <tbody>
                   {DISCOUNTS.map(d => {
                     const r = computeCostRatio(complete ? unitCost : null, priceNum, d.rate);
+                    const rIng = computeCostRatio(ingredientsComplete ? ingredientUnitCost : null, priceNum, d.rate);
                     const netPrice = priceNum * (1 - d.rate) / 1.1;
                     return (
                       <tr key={d.label}>
@@ -77,6 +91,9 @@ const RecipeCostSummary = ({ costResult, isSubIngredient, salePrice, onSalePrice
                         <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)' }}>{formatWon(netPrice)}원</td>
                         <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', fontWeight: 800, color: 'var(--color-primary)' }}>
                           {r ? `${formatPercent(r.costRatio)}%` : '-'}
+                        </td>
+                        <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)', color: 'var(--text-secondary)' }}>
+                          {rIng ? `${formatPercent(rIng.costRatio)}%` : '-'}
                         </td>
                         <td style={{ textAlign: 'right', fontFamily: 'var(--font-outfit)' }}>{r ? `${formatWon(r.margin)}원` : '-'}</td>
                       </tr>
@@ -96,8 +113,8 @@ const RecipeCostSummary = ({ costResult, isSubIngredient, salePrice, onSalePrice
   );
 };
 
-const Stat = ({ label, value }) => (
-  <div style={{ padding: '10px 12px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+const Stat = ({ label, value, highlight }) => (
+  <div style={{ padding: '10px 12px', background: 'var(--bg-secondary)', border: highlight ? '1px solid rgba(16, 185, 129, 0.5)' : '1px solid var(--border-color)', borderRadius: '8px' }}>
     <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{label}</div>
     <div style={{ fontSize: '1.15rem', fontWeight: 800, fontFamily: 'var(--font-outfit)', color: 'var(--text-primary)' }}>{value}</div>
   </div>

@@ -228,7 +228,38 @@ export const computeProductCostPerGram = (product, products = [], materials = []
   };
 };
 
-// 제품 1개 원가 (단일 용량 중량 기준)
+// ---- 부자재 ----
+
+// 부자재 단가표 항목의 개당 단가 (VAT 제외). 계산 불가 시 null
+export const getPackagingCostPerPiece = (material) => {
+  if (!material || material.category !== 'packaging') return null;
+  const qty = parseFloat(material.packageQty) || 0;
+  const price = parseFloat(material.priceVatInclusive) || 0;
+  if (qty <= 0 || price <= 0) return null;
+  return excludeVat(price, material.taxType) / qty;
+};
+
+// 제품 1개에 들어가는 부자재비 (VAT 제외)
+// product.packaging: [{ materialId, qty }] — 제품 1개(판매 단위) 기준 사용량
+// 부자재비는 제품 1개 단위로만 더한다 (g당 원가에 섞지 않음 → 베이스 제품의 용기값이 플레이버로 전파되지 않음)
+export const computePackagingCost = (product, materials = []) => {
+  const missing = [];
+  let total = 0;
+  const lines = (Array.isArray(product?.packaging) ? product.packaging : []).map(item => {
+    const qty = parseFloat(item?.qty) || 0;
+    const material = materials.find(m => m.id === item?.materialId) || null;
+    const costPerPiece = getPackagingCostPerPiece(material);
+    if (!material) missing.push('삭제된 부자재 (구성에서 제거 필요)');
+    else if (costPerPiece === null) missing.push(`${material.name} (단가표 가격/포장량 확인 필요)`);
+    const cost = costPerPiece === null ? null : costPerPiece * qty;
+    if (cost !== null) total += cost;
+    return { materialId: item?.materialId, material, qty, costPerPiece, cost };
+  });
+  const complete = missing.length === 0;
+  return { lines, complete, missing, packagingCost: complete ? total : null, partialPackagingCost: total };
+};
+
+// 제품 1개 원가 (단일 용량 중량 기준) = 원재료비 + 부자재비
 export const computeProductUnitCost = (product, products = [], materials = []) => {
   const weight = parseFloat(product?.weight) || 0;
   const result = computeProductCostPerGram(product, products, materials);
@@ -237,12 +268,27 @@ export const computeProductUnitCost = (product, products = [], materials = []) =
     gramsPerUnit: l.gramsPerOutputGram * weight,
     costPerUnit: l.costPerOutputGram === null ? null : l.costPerOutputGram * weight
   }));
+  const isSub = product && (product.isSubIngredient || product.category === 'sub_ingredient');
+  const packaging = isSub
+    ? { lines: [], complete: true, missing: [], packagingCost: 0, partialPackagingCost: 0 }
+    : computePackagingCost(product, materials);
+  const ingredientUnitCost = result.complete ? result.costPerGram * weight : null;
+  const partialIngredientUnitCost = result.partialCostPerGram * weight;
+  const complete = result.complete && packaging.complete;
   return {
     ...result,
     weight,
     lines,
-    unitCost: result.complete ? result.costPerGram * weight : null,
-    partialUnitCost: result.partialCostPerGram * weight
+    complete,
+    missing: [...new Set([...result.missing, ...packaging.missing])],
+    ingredientsComplete: result.complete,
+    ingredientUnitCost,
+    partialIngredientUnitCost,
+    packagingLines: packaging.lines,
+    packagingCost: packaging.packagingCost,
+    partialPackagingCost: packaging.partialPackagingCost,
+    unitCost: complete ? ingredientUnitCost + packaging.packagingCost : null,
+    partialUnitCost: partialIngredientUnitCost + packaging.partialPackagingCost
   };
 };
 

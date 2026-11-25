@@ -142,6 +142,8 @@ export const fetchAllRemoteData = async () => {
       baseProductId: baseProdIdVal,
       recipeMemo: p.recipe_memo || p.recipeMemo || p.memo || '',
       salePrice: p.sale_price !== undefined && p.sale_price !== null ? parseFloat(p.sale_price) : null,
+      // packaging 컬럼이 없거나 미설정이면 null → 로컬 값 유지 (WyshContext 병합)
+      packaging: Array.isArray(p.packaging) ? p.packaging : null,
       shippingLimitDays: p.shipping_limit_days !== undefined && p.shipping_limit_days !== null ? p.shipping_limit_days : 7,
       expiryDays: p.expiry_days !== undefined && p.expiry_days !== null ? p.expiry_days : 22,
       defaultSterilizationTemp: p.default_sterilization_temp !== undefined && p.default_sterilization_temp !== null ? p.default_sterilization_temp : 85,
@@ -281,6 +283,8 @@ export const pushProductToSupabase = async (product) => {
       base_product_id: product.baseProductId,
       recipe_memo: product.recipeMemo || product.memo || '',
       sale_price: product.salePrice ?? null,
+      // 부자재 구성을 모르는(설정 전) 로컬 제품은 키를 빼서 원격 값을 null로 덮어쓰지 않음
+      ...(Array.isArray(product.packaging) ? { packaging: product.packaging } : {}),
       shipping_limit_days: product.shippingLimitDays,
       expiry_days: product.expiryDays,
       default_sterilization_temp: product.defaultSterilizationTemp,
@@ -291,7 +295,7 @@ export const pushProductToSupabase = async (product) => {
       default_heater_temp: product.defaultHeaterTemp
     };
     // 마이그레이션이 아직 적용되지 않은 선택 컬럼은 빼고 다시 시도 (값은 로컬에 유지됨)
-    const OPTIONAL_COLUMNS = ['recipe_memo', 'sale_price'];
+    const OPTIONAL_COLUMNS = ['recipe_memo', 'sale_price', 'packaging'];
     let payload = { ...dbProduct };
     let { error } = await supabase.from('products').upsert(payload);
     for (let attempt = 0; error && attempt < OPTIONAL_COLUMNS.length; attempt++) {

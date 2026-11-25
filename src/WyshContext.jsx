@@ -189,7 +189,9 @@ export const WyshProvider = ({ children }) => {
           ...p,
           recipeMemo: p.recipeMemo || localMemo,
           // sale_price 컬럼이 아직 없으면 원격 값이 null → 로컬 판매가 유지
-          salePrice: p.salePrice ?? (localP ? localP.salePrice ?? null : null)
+          salePrice: p.salePrice ?? (localP ? localP.salePrice ?? null : null),
+          // packaging 컬럼이 아직 없으면 원격 값이 null → 로컬 부자재 구성 유지
+          packaging: p.packaging ?? (localP ? localP.packaging ?? null : null)
         };
         mergedProductsMap.set(p.id, mergedProduct);
       });

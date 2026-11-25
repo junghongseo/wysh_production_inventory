@@ -6,7 +6,9 @@ import {
   computeProductCostPerGram,
   computeProductUnitCost,
   computeCostRatio,
-  buildLearnedLinks
+  buildLearnedLinks,
+  getPackagingCostPerPiece,
+  computePackagingCost
 } from './costCalculator.js';
 
 let totalPassed = 0;
@@ -152,5 +154,36 @@ assert(renamedCost.lines[0].source.matchStatus === 'learned' && renamedCost.line
 
 const deletedLink =buildLearnedLinks([{ id: 'x', ingredients: [{ name: '없는재료', ratio: 100, materialId: 'm-deleted' }] }], materials);
 assert(!deletedLink.has(normalizeName('없는재료')), '삭제된 단가표 항목 연결은 학습하지 않음');
+
+// 7. 부자재 원가
+console.log('\n--- 7. 부자재 원가 ---');
+const packMaterials = [
+  ...materials,
+  { id: 'p-box', category: 'packaging', name: '택배박스', unit: '개', packageQty: 10, priceVatInclusive: 11000, taxType: 'taxable' }, // 1,000원/개
+  { id: 'p-cushion', category: 'packaging', name: '완충재', unit: '개', packageQty: 5000, priceVatInclusive: 41800, taxType: 'taxable' }, // 7.6원/개
+  { id: 'p-noprice', category: 'packaging', name: '가격없음', unit: '개', packageQty: 10, priceVatInclusive: 0, taxType: 'taxable' }
+];
+assert(near(getPackagingCostPerPiece(materials[5]), 100), '부자재 개당 단가: 11,000원/100개 → VAT 제외 100원');
+assert(getPackagingCostPerPiece(materials[0]) === null, '원재료는 개당 단가 없음');
+const packed = computePackagingCost({ packaging: [{ materialId: 'm-cup', qty: 1 }, { materialId: 'p-cushion', qty: 12 }] }, packMaterials);
+assert(packed.complete && near(packed.packagingCost, 100 + 7.6 * 12), '부자재비 = 컵 1개 + 완충재 12개');
+const emptyPack = computePackagingCost({}, packMaterials);
+assert(emptyPack.complete && emptyPack.packagingCost === 0, '부자재 구성 없으면 0원');
+
+const plainPacked = { ...plain, packaging: [{ materialId: 'm-cup', qty: 1 }, { materialId: 'p-box', qty: 1 }] };
+const flavorPacked = { ...flavor, packaging: [{ materialId: 'p-box', qty: 1 }] };
+const packedProducts = [plainPacked, paste, flavorPacked];
+const plainPackedUnit = computeProductUnitCost(plainPacked, packedProducts, packMaterials);
+assert(near(plainPackedUnit.ingredientUnitCost, plainUnit.unitCost), '원재료비는 부자재와 무관');
+assert(near(plainPackedUnit.packagingCost, 1100) && near(plainPackedUnit.unitCost, plainUnit.unitCost + 1100), '제품 1개 원가 = 원재료비 + 부자재비');
+const flavorPackedUnit = computeProductUnitCost(flavorPacked, packedProducts, packMaterials);
+assert(near(flavorPackedUnit.unitCost, flavorUnit.unitCost + 1000), '베이스 제품의 부자재는 플레이버 원가에 섞이지 않음');
+
+const pasteWithPack = { ...paste, packaging: [{ materialId: 'p-box', qty: 1 }] };
+assert(computeProductUnitCost(pasteWithPack, [plain, pasteWithPack, flavor], packMaterials).packagingCost === 0, '반제품은 부자재비 제외');
+
+const badPack = computeProductUnitCost({ ...plain, packaging: [{ materialId: 'p-noprice', qty: 1 }, { materialId: 'p-deleted', qty: 1 }] }, products, packMaterials);
+assert(!badPack.complete && badPack.unitCost === null, '부자재 단가 확인 불가면 원가 미완성');
+assert(badPack.missing.length === 2 && near(badPack.partialUnitCost, plainUnit.unitCost), '부분 원가에는 계산 가능한 값만 합산');
 
 console.log(`\n🎉 Total: ${totalPassed} passed, ${totalFailed} failed`);
