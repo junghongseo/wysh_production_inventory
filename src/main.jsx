@@ -20,10 +20,28 @@ ReactDOM.createRoot(document.getElementById('root')).render(
 // so remove any previously registered worker and its caches instead.
 if ('serviceWorker' in navigator) {
   if (import.meta.env.PROD) {
+    // 새 서비스 워커가 페이지 제어를 넘겨받으면(= 새 버전 배포) 한 번만 새로고침해 새 화면을 띄운다.
+    // 처음 설치될 때(이전 제어자 없음)는 새로고침하지 않는다.
+    let hadController = !!navigator.serviceWorker.controller;
+    let reloading = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!hadController) { hadController = true; return; }
+      if (reloading) return;
+      reloading = true;
+      window.location.reload();
+    });
+
     window.addEventListener('load', () => {
-      navigator.serviceWorker.register('/sw.js').catch((err) => {
-        console.error('Service Worker registration failed:', err);
-      });
+      navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' })
+        .then((reg) => {
+          // 앱을 다시 화면에 띄울 때마다 새 버전이 있는지 확인 (PWA는 오래 켜 둔 채 쓰는 경우가 많음)
+          document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') reg.update().catch(() => {});
+          });
+        })
+        .catch((err) => {
+          console.error('Service Worker registration failed:', err);
+        });
     });
   } else {
     navigator.serviceWorker.getRegistrations().then((regs) => regs.forEach((reg) => reg.unregister()));
