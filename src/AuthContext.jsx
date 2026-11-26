@@ -21,6 +21,27 @@ const LAST_ACTIVITY_KEY = 'wysh_last_activity';
 
 const AuthContext = createContext(null);
 
+// 로그인·토큰 갱신 직후에는 DB API 서버 시계가 인증 서버보다 조금 늦어
+// "JWT issued at future"(PGRST303)로 거부될 수 있다. 잠시 기다렸다가 다시 시도한다.
+const isTokenTooNewError = (error) =>
+  !!error && (error.code === 'PGRST303' || /issued at future/i.test(error.message || ''));
+
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+// 한 번 거부된 토큰은 계속 거부되므로 새 토큰을 받아서 다시 시도한다.
+// (새 토큰은 supabaseClient 의 settlingFetch 가 몇 초 기다린 뒤 보낸다)
+const retryWhileTokenTooNew = async (run, maxAttempts = 3) => {
+  let result = await run();
+  for (let attempt = 0; attempt < maxAttempts && isTokenTooNewError(result?.error); attempt++) {
+    console.warn('[auth] token rejected, refreshing session and retrying:', result.error);
+    await sleep(500);
+    const { error: refreshError } = await supabase.auth.refreshSession();
+    if (refreshError) return result;
+    result = await run();
+  }
+  return result;
+};
+
 const translateAuthError = (error) => {
   const msg = (error?.message || '').toLowerCase();
   if (msg.includes('invalid login credentials')) return '아이디 또는 비밀번호가 올바르지 않습니다.';
@@ -70,7 +91,9 @@ export const AuthProvider = ({ children }) => {
   // 2. 프로필 목록 (본인 프로필 + 작업자 이름 표시용)
   const refreshProfiles = useCallback(async () => {
     if (!supabase || !userId) return null;
-    const { data, error } = await supabase.from('profiles').select(PROFILE_COLUMNS).order('created_at');
+    const { data, error } = await retryWhileTokenTooNew(
+      () => supabase.from('profiles').select(PROFILE_COLUMNS).order('created_at')
+    );
     if (error) throw error;
     setProfiles(data || []);
     const mine = (data || []).find(p => p.id === userId) || null;
@@ -163,7 +186,7 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     if (!supabase || !userId || !profile?.is_active) return;
     const touch = () => {
-      supabase.rpc('touch_presence', { p_version: APP_VERSION }).then(({ error }) => {
+      retryWhileTokenTooNew(() => supabase.rpc('touch_presence', { p_version: APP_VERSION })).then(({ error }) => {
         if (error) console.warn('touch_presence failed:', error);
       });
     };
@@ -224,12 +247,14 @@ export const AuthProvider = ({ children }) => {
     });
     if (error) return { error: translateAuthError(error) };
 
-    const { data: prof, error: profErr } = await supabase
-      .from('profiles')
-      .select('is_active')
-      .eq('id', data.user.id)
-      .maybeSingle();
-    if (profErr || !prof || !prof.is_active) {
+    const { data: prof, error: profErr } = await retryWhileTokenTooNew(
+      () => supabase.from('profiles').select('is_active').eq('id', data.user.id).maybeSingle()
+    );
+    if (profErr) {
+      await supabase.auth.signOut().catch(() => {});
+      return { error: `계정 정보를 확인하지 못했습니다: ${translateAuthError(profErr)}` };
+    }
+    if (!prof || !prof.is_active) {
       await supabase.auth.signOut().catch(() => {});
       return { error: !prof ? '계정 정보가 없습니다. 관리자에게 문의하세요.' : '비활성화된 계정입니다. 관리자에게 문의하세요.' };
     }
@@ -249,7 +274,7 @@ export const AuthProvider = ({ children }) => {
       if (msg.includes('different from the old')) return { error: '이전 비밀번호와 다른 비밀번호를 입력해 주세요.' };
       return { error: translateAuthError(error) };
     }
-    const { error: rpcErr } = await supabase.rpc('complete_password_change');
+    const { error: rpcErr } = await retryWhileTokenTooNew(() => supabase.rpc('complete_password_change'));
     if (rpcErr) return { error: rpcErr.message };
     await refreshProfiles().catch(() => {});
     return { error: null };
