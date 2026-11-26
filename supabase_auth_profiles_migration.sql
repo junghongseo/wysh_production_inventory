@@ -129,6 +129,11 @@ AS $$
   UPDATE public.profiles SET must_change_password = false WHERE id = auth.uid();
 $$;
 
+ALTER FUNCTION public.permission_parent(text) SET search_path = public;
+REVOKE ALL ON FUNCTION public.is_admin() FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.has_permission(text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated;
+GRANT EXECUTE ON FUNCTION public.has_permission(text) TO authenticated;
 REVOKE ALL ON FUNCTION public.touch_presence(text) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.complete_password_change() FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.touch_presence(text) TO authenticated;
