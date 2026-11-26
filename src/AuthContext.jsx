@@ -28,8 +28,7 @@ const isTokenTooNewError = (error) =>
 
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
-// 한 번 거부된 토큰은 계속 거부되므로 새 토큰을 받아서 다시 시도한다.
-// (새 토큰은 supabaseClient 의 settlingFetch 가 몇 초 기다린 뒤 보낸다)
+// 서버 시계 차이로 토큰이 거부되면 잠시 뒤 새 토큰을 받아서 다시 시도한다.
 const retryWhileTokenTooNew = async (run, maxAttempts = 3) => {
   let result = await run();
   for (let attempt = 0; attempt < maxAttempts && isTokenTooNewError(result?.error); attempt++) {
