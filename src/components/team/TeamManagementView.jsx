@@ -117,7 +117,7 @@ const CreateUserForm = ({ onDone }) => {
         <span style={labelStyle}>권한</span>
         <PermissionPicker value={permissions} onChange={setPermissions} isAdmin={isAdmin} idPrefix="new" />
       </div>
-      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-start' }}>
         <button type="button" className="btn-secondary" style={smallBtn} onClick={() => onDone('')}>취소</button>
         <button type="submit" className="btn-primary" style={smallBtn} disabled={submitting}>{submitting ? '만드는 중...' : '계정 만들기'}</button>
       </div>
@@ -232,7 +232,7 @@ const UserRow = ({ member, isMe, onMessage }) => {
             {isMe && <span style={{ fontSize: '0.75rem', fontWeight: 400, color: 'var(--text-secondary)' }}>(자기 자신의 관리자 권한은 해제할 수 없습니다)</span>}
           </label>
           <PermissionPicker value={permissions} onChange={setPermissions} isAdmin={isAdmin} idPrefix={`edit-${member.id}`} />
-          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '12px' }}>
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-start', marginTop: '12px' }}>
             <button type="button" className="btn-secondary" style={smallBtn} onClick={() => setEditing(false)} disabled={busy}>취소</button>
             <button type="button" className="btn-primary" style={smallBtn} onClick={handleSave} disabled={busy}>{busy ? '저장 중...' : '저장'}</button>
           </div>
@@ -256,7 +256,7 @@ const TeamManagementView = () => {
   const showMessage = (tone, text) => setMessage({ tone, text });
 
   return (
-    <div style={{ maxWidth: '900px' }}>
+    <div style={{ maxWidth: '900px', paddingBottom: '96px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', flexWrap: 'wrap', marginBottom: '16px' }}>
         <div>
           <h2 style={{ margin: 0, fontSize: '1.2rem' }}>팀원 관리</h2>
