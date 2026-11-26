@@ -11,71 +11,7 @@ const STORAGE_KEYS = {
 export const DEFAULT_MATERIAL_COSTS = [];
 
 
-export const DEFAULT_PRODUCTS = [
-  {
-    id: 'prod-1',
-    name: '위시그릭 019',
-    category: 'plain',
-    isFlavor: false,
-    isSubIngredient: false,
-    baseProductId: null,
-    weight: 150,
-    yield: 28,
-    color: 'blue',
-    shippingLimitDays: 7,
-    expiryDays: 22,
-    ingredients: [
-      { name: '원유', ratio: 95 },
-      { name: '유산균', ratio: 5 }
-    ],
-    defaultSterilizationTemp: 85,
-    defaultSterilizationTime: 30,
-    defaultCoolingTemp: 40,
-    defaultInoculationTemp: 42,
-    defaultHeatingTemp: 43,
-    defaultHeaterTemp: 44
-  },
-  {
-    id: 'prod-2',
-    name: '위시크림 블랙카카오밀키웨이',
-    category: 'flavor',
-    isFlavor: true,
-    isSubIngredient: false,
-    baseProductId: 'prod-1',
-    weight: 130,
-    yield: 100,
-    color: 'purple',
-    shippingLimitDays: 7,
-    expiryDays: 22,
-    ingredients: [
-      { name: '위시그릭 019', ratio: 70 },
-      { name: '아몬드초코페이스트(블랙카카오밀키웨이 용)', ratio: 28, subProductId: 'prod-sub-2' },
-      { name: '초코칩', ratio: 2 }
-    ],
-    defaultSterilizationTemp: 85,
-    defaultSterilizationTime: 30,
-    defaultCoolingTemp: 40,
-    defaultInoculationTemp: 42,
-    defaultHeatingTemp: 43,
-    defaultHeaterTemp: 44
-  },
-  // Sub-ingredients
-  {
-    id: 'prod-sub-2',
-    name: '아몬드초코페이스트(블랙카카오밀키웨이 용)',
-    category: 'sub_ingredient',
-    isFlavor: false,
-    isSubIngredient: true,
-    baseProductId: null,
-    weight: 0,
-    yield: 100,
-    color: 'brown',
-    ingredients: [
-      { name: '아몬드 페이스트', ratio: 50 },
-      { name: '블랙 카카오 퓨레', ratio: 50 }
-    ]
-  }
-];
+export const DEFAULT_PRODUCTS = [];
 
 export const DEFAULT_PLANS = [];
 
@@ -107,11 +43,10 @@ export const loadInitialLocalStorageData = () => {
       p.category = p.isSubIngredient ? 'sub_ingredient' : (p.isFlavor ? 'flavor' : 'plain');
     }
     if (p.baseProductId === undefined) {
-      p.baseProductId = p.isFlavor ? 'prod-1' : null;
+      p.baseProductId = null;
     }
     if (p.yield === undefined) {
-      if (p.id === 'prod-1') p.yield = 28;
-      else if (p.isFlavor || p.isSubIngredient) p.yield = 100;
+      if (p.isFlavor || p.isSubIngredient) p.yield = 100;
       else p.yield = 28;
     }
     if (p.shippingLimitDays === undefined) p.shippingLimitDays = 7;
