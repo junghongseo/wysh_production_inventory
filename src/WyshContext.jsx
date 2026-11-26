@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { supabase } from './supabaseClient';
-import { loadInitialLocalStorageData, saveStorageItems, DEFAULT_PRODUCTS } from './services/storageService';
+import { loadInitialLocalStorageData, saveStorageItems } from './services/storageService';
 import {
   fetchAllRemoteData,
   pushProductToSupabase,
@@ -196,14 +196,6 @@ export const WyshProvider = ({ children }) => {
         mergedProductsMap.set(p.id, mergedProduct);
       });
 
-      (DEFAULT_PRODUCTS || []).forEach(lp => {
-        const existsById = mergedProductsMap.has(lp.id);
-        const existsByName = Array.from(mergedProductsMap.values()).some(p => p.name === lp.name);
-        if (!existsById && !existsByName) {
-          mergedProductsMap.set(lp.id, lp);
-          pushProductToSupabase(lp);
-        }
-      });
       const finalProducts = Array.from(mergedProductsMap.values());
 
       // Shipping charts merge

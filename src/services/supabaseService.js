@@ -127,7 +127,7 @@ export const fetchAllRemoteData = async () => {
       ? p.is_flavor 
       : (p.id === 'prod-2' || p.id === 'prod-3' || (p.name && (p.name.includes('블랙카카오') || p.name.includes('피스타치오') || p.name.includes('블루베리') || p.name.includes('딸기')))));
     const categoryVal = p.category || (isSubIngredientVal ? 'sub_ingredient' : (isFlavorVal ? 'flavor' : 'plain'));
-    const baseProdIdVal = p.base_product_id !== undefined ? p.base_product_id : (isFlavorVal ? 'prod-1' : null);
+    const baseProdIdVal = p.base_product_id !== undefined ? p.base_product_id : null;
 
     return {
       id: p.id,
