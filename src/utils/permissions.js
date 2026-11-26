@@ -7,7 +7,7 @@ export const IDLE_LOGOUT_MS = 30 * 60 * 1000;
 
 // 메뉴 권한 (켜면 탭이 보이고 기본 기능을 쓸 수 있다)
 export const MENU_PERMISSIONS = [
-  { key: 'menu.calendar', label: '캘린더', description: '생산 일정·배합표 보기', tab: 'calendar-view' },
+  { key: 'menu.calendar', label: '캘린더', description: '생산 일정 보기', tab: 'calendar-view' },
   { key: 'menu.inventory', label: '재고', description: '재고 보기, 출고 등록(미검증)', tab: 'inventory-view' },
   { key: 'menu.reports', label: '보고서', description: '보기, 작성, 관능 보고서 확인', tab: 'reports-view' },
   { key: 'menu.orders', label: '주문 정리 및 분석', description: '주문 파일 정리·분석', tab: 'order-view' },
@@ -16,6 +16,7 @@ export const MENU_PERMISSIONS = [
 
 // 기능 권한 (parent 메뉴 권한이 함께 있어야 유효)
 export const FEATURE_PERMISSIONS = [
+  { key: 'calendar.recipe', parent: 'menu.calendar', label: '배합표 보기', description: '생산계획별 원재료 배합표(배합 비율) 열람' },
   { key: 'calendar.plans', parent: 'menu.calendar', label: '생산계획 관리', description: '생산계획 등록·수정·삭제' },
   { key: 'calendar.notes', parent: 'menu.calendar', label: '일정 메모 작성', description: '캘린더 일정 메모 작성·수정·삭제' },
   { key: 'inventory.verify', parent: 'menu.inventory', label: '출고 검증 및 취소', description: '출고 검증, 출고 취소, 출고 메모 수정' },

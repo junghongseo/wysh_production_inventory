@@ -437,7 +437,7 @@ const App = () => {
 
       {/* Slide-out Drawer: Raw Material Recipe (원재료 배합표) */}
       <RecipeDrawer
-        isOpen={recipeDrawer.isOpen}
+        isOpen={recipeDrawer.isOpen && can('calendar.recipe')}
         onClose={() => setRecipeDrawer({ isOpen: false, planId: null })}
         planId={recipeDrawer.planId}
       />

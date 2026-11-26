@@ -29,6 +29,7 @@ const CalendarView = ({
 }) => {
   const { can } = useAuth();
   const canManagePlans = can('calendar.plans');
+  const canViewRecipe = can('calendar.recipe');
   const canEditNotes = can('calendar.notes');
   const { plans, products, inventory, reports, calendarNotes } = useWysh();
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -720,8 +721,9 @@ const CalendarView = ({
                     )}
                   </div>
 
-                  {canManagePlans && (
+                  {(canManagePlans || canViewRecipe) && (
                     <div style={{ marginTop: '16px', display: 'flex', gap: '10px' }}>
+                      {canViewRecipe && (
                       <button className="btn-success" onClick={() => onOpenRecipeDrawer(selectedPlanDetails.plan.id)} style={{ flex: 1.2, justifyContent: 'center', fontSize: '0.85rem', padding: '8px 4px', background: '#ea580c', borderColor: '#c2410c' }}>
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
@@ -730,6 +732,9 @@ const CalendarView = ({
                         </svg>
                         반제품 배합표 보기
                       </button>
+                      )}
+                      {canManagePlans && (
+                      <>
                       <button className="btn-primary" onClick={() => onOpenEditModal(selectedPlanDetails.plan.id)} style={{ flex: 1.2, justifyContent: 'center', fontSize: '0.85rem', padding: '8px 4px' }}>
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
@@ -745,6 +750,8 @@ const CalendarView = ({
                           <line x1="14" y1="11" x2="14" y2="17"></line>
                         </svg>
                       </button>
+                      </>
+                      )}
                     </div>
                   )}
                 </>
@@ -882,8 +889,9 @@ const CalendarView = ({
                     )}
                   </div>
                   
-                  {canManagePlans && (
+                  {(canManagePlans || canViewRecipe) && (
                     <div style={{ marginTop: '16px', display: 'flex', gap: '10px' }}>
+                      {canViewRecipe && (
                       <button className="btn-success" onClick={() => onOpenRecipeDrawer(selectedPlanDetails.plan.id)} style={{ flex: 1.2, justifyContent: 'center', fontSize: '0.85rem', padding: '6px 4px' }}>
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
@@ -892,6 +900,9 @@ const CalendarView = ({
                         </svg>
                         배합표 보기
                       </button>
+                      )}
+                      {canManagePlans && (
+                      <>
                       <button className="btn-primary" onClick={() => onOpenEditModal(selectedPlanDetails.plan.id)} style={{ flex: 1.2, justifyContent: 'center', fontSize: '0.85rem', padding: '6px 4px' }}>
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                           <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
@@ -907,6 +918,8 @@ const CalendarView = ({
                           <line x1="14" y1="11" x2="14" y2="17"></line>
                         </svg>
                       </button>
+                      </>
+                      )}
                     </div>
                   )}
                 </>
