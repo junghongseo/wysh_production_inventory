@@ -160,6 +160,22 @@ export const loadInitialLocalStorageData = () => {
   };
 };
 
+// 로그아웃(공용 기기) 시 앞사람이 받아 둔 데이터를 남기지 않는다. 테마 등 기기 설정은 유지.
+export const clearLocalDataCache = () => {
+  try {
+    [
+      ...Object.values(STORAGE_KEYS),
+      'wysh_banner_settings',
+      'wysh_deleted_notes',
+      'wysh_deleted_reports',
+      'wysh_deleted_plans',
+      'wysh_deleted_material_costs'
+    ].forEach(key => localStorage.removeItem(key));
+  } catch (e) {
+    console.error('Failed to clear local data cache:', e);
+  }
+};
+
 export const saveStorageItems = (key, data) => {
   localStorage.setItem(STORAGE_KEYS[key] || key, JSON.stringify(data));
 };

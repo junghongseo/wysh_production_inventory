@@ -2,15 +2,24 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.jsx';
 import { WyshProvider } from './WyshContext.jsx';
+import { AuthProvider } from './AuthContext.jsx';
+import AuthGate from './components/auth/AuthGate.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import './index.css';
+
+// 로그인 화면에도 저장된 테마를 적용 (App 마운트 전)
+document.documentElement.setAttribute('data-theme', localStorage.getItem('wysh-theme') || 'wysh-bw');
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <ErrorBoundary>
-      <WyshProvider>
-        <App />
-      </WyshProvider>
+      <AuthProvider>
+        <AuthGate>
+          <WyshProvider>
+            <App />
+          </WyshProvider>
+        </AuthGate>
+      </AuthProvider>
     </ErrorBoundary>
   </React.StrictMode>
 );

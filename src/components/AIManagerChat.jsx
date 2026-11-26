@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useWysh } from '../WyshContext';
+import { useAuth } from '../AuthContext';
 import { 
   sendAIManagerMessage, 
   pushChatMessageToSupabase,
@@ -46,7 +46,8 @@ const formatChatMessage = (text) => {
 };
 
 export const AIManagerChat = () => {
-  const { isAdminLoggedIn } = useWysh();
+  const { can } = useAuth();
+  const canUseAI = can('ai.manager');
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([]);
   const [inputValue, setInputValue] = useState('');
@@ -326,7 +327,7 @@ export const AIManagerChat = () => {
     }
   };
 
-  if (!isAdminLoggedIn) return null;
+  if (!canUseAI) return null;
 
   return (
     <>
