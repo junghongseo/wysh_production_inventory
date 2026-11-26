@@ -16,6 +16,33 @@ serve(async (req) => {
     const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
+    // 호출한 사람 확인: 로그인한 활성 계정 + 'AI 매니저' 권한(또는 관리자)만 허용
+    // (데이터를 호출자 권한 범위로 제한하는 것은 RLS를 켜는 2단계에서 적용)
+    const authClient = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+    const callerToken = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
+    const { data: callerData, error: callerErr } = await authClient.auth.getUser(callerToken);
+    if (callerErr || !callerData?.user) {
+      return new Response(JSON.stringify({ error: '로그인이 필요합니다.' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    const { data: callerProfile } = await authClient
+      .from('profiles')
+      .select('is_admin, is_active, permissions')
+      .eq('id', callerData.user.id)
+      .maybeSingle();
+    const allowed = !!callerProfile?.is_active &&
+      (callerProfile.is_admin || (callerProfile.permissions || []).includes('ai.manager'));
+    if (!allowed) {
+      return new Response(JSON.stringify({ error: 'AI 매니저 사용 권한이 없습니다.' }), {
+        status: 403,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
     const { userMessage, type = "chat", sessionId, thinkingLevel, clientApiKey } = await req.json();
     const GEMINI_API_KEY = clientApiKey || serverApiKey;
 

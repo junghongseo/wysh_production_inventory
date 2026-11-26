@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useWysh } from '../WyshContext';
+import { useAuth } from '../AuthContext';
 import AgitatorConfirmModal from './modals/AgitatorConfirmModal';
 import FermentationReportForm from './reports/FermentationReportForm';
 import WheyReportForm from './reports/WheyReportForm';
@@ -24,7 +25,10 @@ import {
 } from '../utils/reportCalculations';
 
 const ReportsView = () => {
-  const { plans, products, reports, addReport, updateReport, deleteReport, updateActualQty, isAdminLoggedIn } = useWysh();
+  const { plans, products, reports, addReport, updateReport, deleteReport, updateActualQty } = useWysh();
+  const { can, profile } = useAuth();
+  const canConfirmAll = can('reports.confirm');
+  const myName = profile?.display_name || '';
 
   const lastInitializedPlanIdRef = useRef(null);
 
@@ -38,7 +42,7 @@ const ReportsView = () => {
 
   // Form states - General
   const [selectedPlanId, setSelectedPlanId] = useState('');
-  const [workerName, setWorkerName] = useState('');
+  const [workerName, setWorkerName] = useState(myName);
   
   // Checkbox states (Fermentation)
   const [checkedSterilization, setCheckedSterilization] = useState(false);
@@ -307,7 +311,7 @@ const ReportsView = () => {
     setSelectedReportId(null);
     setIsEditing(false);
     setSelectedPlanId('');
-    setWorkerName('');
+    setWorkerName(myName);
     
     // Fermentation resets
     setCheckedSterilization(false);
@@ -619,8 +623,8 @@ const ReportsView = () => {
   // Report confirmation handler
   const handleConfirmReport = (report, e) => {
     if (e) e.stopPropagation();
-    if (!isAdminLoggedIn && report.type !== 'sensory') {
-      alert('관리자 로그인 후에 확인 처리를 진행할 수 있습니다.');
+    if (!canConfirmAll && report.type !== 'sensory') {
+      alert('보고서 확인 처리 권한이 없습니다. 관리자에게 문의하세요.');
       return;
     }
 
@@ -684,7 +688,7 @@ const ReportsView = () => {
         activeReportType={activeReportType}
         onSelect={handleSelectReportType}
         reports={reports}
-        isAdminLoggedIn={isAdminLoggedIn}
+        canConfirmAll={canConfirmAll}
       />
 
       {/* Mobile-only sub-tab selector (신규 작성 / 이력 보기) */}
@@ -707,7 +711,7 @@ const ReportsView = () => {
           selectedReportId={selectedReportId}
           plans={plans}
           products={products}
-          isAdminLoggedIn={isAdminLoggedIn}
+          canConfirmAll={canConfirmAll}
           onSelect={handleSelectReport}
           onConfirm={handleConfirmReport}
           onDelete={handleDelete}

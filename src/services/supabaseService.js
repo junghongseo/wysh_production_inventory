@@ -1,4 +1,18 @@
 import { supabase } from '../supabaseClient';
+import { recordPushFailure } from './pushTracker';
+
+// 작업자 기록 컬럼: 값이 있을 때만 보낸다 (과거 기록의 NULL 유지)
+const attributionColumns = (record) => {
+  const cols = {};
+  if (record.createdBy) cols.created_by = record.createdBy;
+  if (record.updatedBy) cols.updated_by = record.updatedBy;
+  return cols;
+};
+
+const reportPushError = (label, err) => {
+  recordPushFailure();
+  console.error(label, err);
+};
 
 export const fetchAllRemoteData = async () => {
   if (!supabase) {
@@ -36,7 +50,9 @@ export const fetchAllRemoteData = async () => {
         .map(n => ({
           dateStr: n.date_str,
           title: n.title,
-          content: n.content
+          content: n.content,
+          createdBy: n.created_by || null,
+          updatedBy: n.updated_by || null
         }));
     }
   } catch (errNotesFetch) {
@@ -64,7 +80,9 @@ export const fetchAllRemoteData = async () => {
           confirmedAt: confirmedAt,
           checkedItems: r.checked_items,
           details: r.details,
-          createdAt: r.created_at
+          createdAt: r.created_at,
+          createdBy: r.created_by || null,
+          updatedBy: r.updated_by || null
         };
       });
     }
@@ -197,7 +215,9 @@ export const fetchAllRemoteData = async () => {
       fermenterType: p.fermenter_type,
       totalVolumeL: parseFloat(p.total_volume_l) || 0,
       memo: p.memo || '',
-      items
+      items,
+      createdBy: p.created_by || null,
+      updatedBy: p.updated_by || null
     };
   });
 
@@ -229,12 +249,12 @@ export const pushBannerSettingsToSupabase = async (bannerSettings) => {
       content: JSON.stringify(bannerSettings)
     }, { onConflict: 'date_str' });
     if (error) {
-      console.warn("Failed to push banner settings to Supabase:", error);
+      reportPushError("Failed to push banner settings to Supabase:", error);
     } else {
       console.log("Successfully synced banner settings to Supabase cloud DB.");
     }
   } catch (err) {
-    console.warn("Error pushing banner settings to Supabase:", err);
+    reportPushError("Error pushing banner settings to Supabase:", err);
   }
 };
 
@@ -254,7 +274,7 @@ export const pushShippingChartToSupabase = async (chart) => {
     const { error } = await supabase.from('shipping_charts').upsert(dbChart);
     if (error) console.warn("Supabase Push Warn (ShippingChart):", error);
   } catch (e) {
-    console.error("Supabase Push Error (ShippingChart):", e);
+    reportPushError("Supabase Push Error (ShippingChart):", e);
   }
 };
 
@@ -264,7 +284,7 @@ export const deleteShippingChartFromSupabase = async (date) => {
     const { error } = await supabase.from('shipping_charts').delete().eq('date', date);
     if (error) console.warn("Supabase Push Warn (Delete ShippingChart):", error);
   } catch (e) {
-    console.error("Supabase Push Error (Delete ShippingChart):", e);
+    reportPushError("Supabase Push Error (Delete ShippingChart):", e);
   }
 };
 
@@ -307,9 +327,9 @@ export const pushProductToSupabase = async (product) => {
       toDrop.forEach(c => { delete payload[c]; });
       ({ error } = await supabase.from('products').upsert(payload));
     }
-    if (error) console.error("Supabase Push Error (Product):", error);
+    if (error) reportPushError("Supabase Push Error (Product):", error);
   } catch (e) {
-    console.error("Supabase Push Error (Product):", e);
+    reportPushError("Supabase Push Error (Product):", e);
   }
 };
 
@@ -319,7 +339,7 @@ export const deleteProductFromSupabase = async (id) => {
     const { error } = await supabase.from('products').delete().eq('id', id);
     if (error) throw error;
   } catch (e) {
-    console.error("Supabase Push Error (Delete Product):", e);
+    reportPushError("Supabase Push Error (Delete Product):", e);
   }
 };
 
@@ -345,12 +365,13 @@ export const pushPlanToSupabase = async (plan) => {
       fermenter_type: plan.fermenterType || null,
       total_volume_l: plan.totalVolumeL || 0,
       memo: plan.memo || '',
-      items: plan.items || []
+      items: plan.items || [],
+      ...attributionColumns(plan)
     };
     const { error } = await supabase.from('plans').upsert(dbPlan);
     if (error) throw error;
   } catch (e) {
-    console.error("Supabase Push Error (Plan):", e);
+    reportPushError("Supabase Push Error (Plan):", e);
   }
 };
 
@@ -360,7 +381,7 @@ export const deletePlanFromSupabase = async (id) => {
     const { error } = await supabase.from('plans').delete().eq('id', id);
     if (error) throw error;
   } catch (e) {
-    console.error("Supabase Push Error (Delete Plan):", e);
+    reportPushError("Supabase Push Error (Delete Plan):", e);
   }
 };
 
@@ -376,7 +397,7 @@ export const pushInventoryToSupabase = async (record) => {
     const { error } = await supabase.from('inventory').upsert(dbInventory);
     if (error) throw error;
   } catch (e) {
-    console.error("Supabase Push Error (Inventory):", e);
+    reportPushError("Supabase Push Error (Inventory):", e);
   }
 };
 
@@ -386,12 +407,13 @@ export const pushCalendarNoteToSupabase = async (note) => {
     const dbNote = {
       date_str: note.dateStr,
       title: note.title,
-      content: note.content
+      content: note.content,
+      ...attributionColumns(note)
     };
     const { error } = await supabase.from('calendar_notes').upsert(dbNote);
     if (error) throw error;
   } catch (e) {
-    console.error("Supabase Push Error (CalendarNote):", e);
+    reportPushError("Supabase Push Error (CalendarNote):", e);
   }
 };
 
@@ -401,7 +423,7 @@ export const deleteCalendarNoteFromSupabase = async (dateStr) => {
     const { error } = await supabase.from('calendar_notes').delete().eq('date_str', dateStr);
     if (error) throw error;
   } catch (e) {
-    console.error("Supabase Push Error (Delete CalendarNote):", e);
+    reportPushError("Supabase Push Error (Delete CalendarNote):", e);
   }
 };
 
@@ -423,7 +445,8 @@ export const pushReportToSupabase = async (report) => {
       confirmed_at: report.confirmedAt || null,
       checked_items: report.checkedItems,
       details: reportDetails,
-      created_at: report.createdAt
+      created_at: report.createdAt,
+      ...attributionColumns(report)
     };
     
     const { error } = await supabase.from('reports').upsert(dbReport);
@@ -435,7 +458,7 @@ export const pushReportToSupabase = async (report) => {
       if (fallbackErr) throw fallbackErr;
     }
   } catch (e) {
-    console.error("Supabase Push Error (Report):", e);
+    reportPushError("Supabase Push Error (Report):", e);
   }
 };
 
@@ -445,7 +468,7 @@ export const deleteReportFromSupabase = async (id) => {
     const { error } = await supabase.from('reports').delete().eq('id', id);
     if (error) throw error;
   } catch (e) {
-    console.error("Supabase Push Error (Delete Report):", e);
+    reportPushError("Supabase Push Error (Delete Report):", e);
   }
 };
 
@@ -598,10 +621,10 @@ export const pushMaterialCostToSupabase = async (materialCost) => {
     };
     const { error } = await supabase.from('material_costs').upsert(dbMaterial);
     if (error) {
-      console.warn("Supabase push material_costs warning:", error);
+      reportPushError("Supabase push material_costs warning:", error);
     }
   } catch (e) {
-    console.error("Supabase Push Error (Material Cost):", e);
+    reportPushError("Supabase Push Error (Material Cost):", e);
   }
 };
 
@@ -611,7 +634,7 @@ export const deleteMaterialCostFromSupabase = async (id) => {
     const { error } = await supabase.from('material_costs').delete().eq('id', id);
     if (error) throw error;
   } catch (e) {
-    console.error("Supabase Push Error (Delete Material Cost):", e);
+    reportPushError("Supabase Push Error (Delete Material Cost):", e);
   }
 };
 

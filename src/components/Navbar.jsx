@@ -1,20 +1,20 @@
 import React from 'react';
 import { useWysh } from '../WyshContext';
+import { useAuth } from '../AuthContext';
+import { canViewTab, countUnconfirmedReports, countUnverifiedOutflows } from '../utils/permissions';
 
-const Navbar = ({ activeTab, setActiveTab, isAdminLoggedIn, onOpenAppSettings, appSettingsModalOpen }) => {
+const Navbar = ({ activeTab, setActiveTab, onOpenAppSettings, appSettingsModalOpen }) => {
   const { reports, inventory } = useWysh();
+  const { profile, can } = useAuth();
+  const isAdmin = can('admin');
+  const showTab = (tab) => canViewTab(profile, tab);
 
-  const unconfirmedReportsCount = reports.filter(r => !r.confirmed).length;
-  const unconfirmedSensoryCount = reports.filter(r => r.type === 'sensory' && !r.confirmed).length;
-  const visibleUnconfirmedReportsCount = isAdminLoggedIn ? unconfirmedReportsCount : unconfirmedSensoryCount;
-
-  const unverifiedInventoryCount = inventory.reduce(
-    (acc, inv) => acc + (inv.history ? inv.history.filter(h => h.verified === false).length : 0),
-    0
-  );
+  const visibleUnconfirmedReportsCount = countUnconfirmedReports(profile, reports);
+  const unverifiedInventoryCount = countUnverifiedOutflows(profile, inventory);
 
   return (
     <nav className="app-nav">
+      {showTab('calendar-view') && (
       <button 
         className={`nav-tab ${activeTab === 'calendar-view' ? 'active' : ''}`} 
         id="tab-calendar" 
@@ -28,6 +28,8 @@ const Navbar = ({ activeTab, setActiveTab, isAdminLoggedIn, onOpenAppSettings, a
         </svg>
         생산 일정 및 배합표
       </button>
+      )}
+      {showTab('inventory-view') && (
       <button 
         className={`nav-tab ${activeTab === 'inventory-view' ? 'active' : ''}`} 
         id="tab-inventory" 
@@ -39,7 +41,7 @@ const Navbar = ({ activeTab, setActiveTab, isAdminLoggedIn, onOpenAppSettings, a
           <line x1="12" y1="22.08" x2="12" y2="12"></line>
         </svg>
         <span>차수별 재고 관리</span>
-        {isAdminLoggedIn && unverifiedInventoryCount > 0 && (
+        {unverifiedInventoryCount > 0 && (
           <span style={{
             backgroundColor: '#ef4444',
             color: '#ffffff',
@@ -58,6 +60,8 @@ const Navbar = ({ activeTab, setActiveTab, isAdminLoggedIn, onOpenAppSettings, a
           </span>
         )}
       </button>
+      )}
+      {showTab('reports-view') && (
       <button 
         className={`nav-tab ${activeTab === 'reports-view' ? 'active' : ''}`} 
         id="tab-reports" 
@@ -90,6 +94,8 @@ const Navbar = ({ activeTab, setActiveTab, isAdminLoggedIn, onOpenAppSettings, a
           </span>
         )}
       </button>
+      )}
+      {showTab('order-view') && (
       <button 
         className={`nav-tab ${activeTab === 'order-view' ? 'active' : ''}`} 
         id="tab-order" 
@@ -104,7 +110,8 @@ const Navbar = ({ activeTab, setActiveTab, isAdminLoggedIn, onOpenAppSettings, a
         </svg>
         주문 정리 및 분석
       </button>
-      {isAdminLoggedIn && (
+      )}
+      {showTab('recipes-view') && (
         <button 
           className={`nav-tab ${activeTab === 'recipes-view' ? 'active' : ''}`} 
           id="tab-recipes" 
@@ -117,7 +124,22 @@ const Navbar = ({ activeTab, setActiveTab, isAdminLoggedIn, onOpenAppSettings, a
           제품 및 레시피 설정
         </button>
       )}
-      {isAdminLoggedIn && onOpenAppSettings && (
+      {isAdmin && (
+        <button
+          className={`nav-tab ${activeTab === 'team-view' ? 'active' : ''}`}
+          id="tab-team"
+          onClick={() => setActiveTab('team-view')}
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+          </svg>
+          팀원 관리
+        </button>
+      )}
+      {isAdmin && onOpenAppSettings && (
         <button 
           className={`nav-tab ${appSettingsModalOpen ? 'active' : ''}`}
           id="tab-settings" 

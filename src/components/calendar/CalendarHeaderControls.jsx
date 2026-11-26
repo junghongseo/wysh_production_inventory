@@ -6,7 +6,7 @@ const CalendarHeaderControls = ({
   onNextMonth, 
   onSetToday, 
   onOpenRegisterModal, 
-  isAdminLoggedIn 
+  canEdit 
 }) => {
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth() + 1;
@@ -42,7 +42,7 @@ const CalendarHeaderControls = ({
         </div>
       </div>
 
-      {isAdminLoggedIn && (
+      {canEdit && (
         <button 
           className="btn-primary" 
           onClick={() => onOpenRegisterModal()}

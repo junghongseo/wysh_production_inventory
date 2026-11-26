@@ -1,27 +1,36 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { supabase } from './supabaseClient';
 import { loadInitialLocalStorageData, saveStorageItems } from './services/storageService';
-import {
-  fetchAllRemoteData,
-  pushProductToSupabase,
-  deleteProductFromSupabase,
-  pushPlanToSupabase,
-  deletePlanFromSupabase,
-  pushInventoryToSupabase,
-  pushCalendarNoteToSupabase,
-  deleteCalendarNoteFromSupabase,
-  pushReportToSupabase,
-  deleteReportFromSupabase,
-  pushShippingChartToSupabase,
-  deleteShippingChartFromSupabase,
-  pushMaterialCostToSupabase,
-  deleteMaterialCostFromSupabase,
-  pushBannerSettingsToSupabase
-} from './services/supabaseService';
+import * as remote from './services/supabaseService';
+import { tracked } from './services/pushTracker';
+import { useAuth } from './AuthContext';
+
+const { fetchAllRemoteData } = remote;
+
+// 저장 요청은 추적해서, 로그아웃 직전에 전송 중인 요청이 끝나기를 기다릴 수 있게 한다.
+const pushProductToSupabase = tracked(remote.pushProductToSupabase);
+const deleteProductFromSupabase = tracked(remote.deleteProductFromSupabase);
+const pushPlanToSupabase = tracked(remote.pushPlanToSupabase);
+const deletePlanFromSupabase = tracked(remote.deletePlanFromSupabase);
+const pushInventoryToSupabase = tracked(remote.pushInventoryToSupabase);
+const pushCalendarNoteToSupabase = tracked(remote.pushCalendarNoteToSupabase);
+const deleteCalendarNoteFromSupabase = tracked(remote.deleteCalendarNoteFromSupabase);
+const pushReportToSupabase = tracked(remote.pushReportToSupabase);
+const deleteReportFromSupabase = tracked(remote.deleteReportFromSupabase);
+const pushShippingChartToSupabase = tracked(remote.pushShippingChartToSupabase);
+const deleteShippingChartFromSupabase = tracked(remote.deleteShippingChartFromSupabase);
+const pushMaterialCostToSupabase = tracked(remote.pushMaterialCostToSupabase);
+const deleteMaterialCostFromSupabase = tracked(remote.deleteMaterialCostFromSupabase);
+const pushBannerSettingsToSupabase = tracked(remote.pushBannerSettingsToSupabase);
 
 const WyshContext = createContext();
 
 export const WyshProvider = ({ children }) => {
+  // 작업자 기록용: 현재 로그인한 계정 id (콜백 의존성을 늘리지 않도록 ref 로 읽는다)
+  const { user } = useAuth();
+  const actorRef = useRef(null);
+  actorRef.current = user?.id || null;
+
   const [products, setProducts] = useState([]);
   const [plans, setPlans] = useState([]);
   const [inventory, setInventory] = useState([]);
@@ -372,7 +381,9 @@ export const WyshProvider = ({ children }) => {
     const newPlan = {
       ...planData,
       planType: planData.planType || 'yogurt',
-      id: newId
+      id: newId,
+      createdBy: actorRef.current,
+      updatedBy: actorRef.current
     };
 
     setPlans(prev => {
@@ -401,7 +412,8 @@ export const WyshProvider = ({ children }) => {
     return newPlan;
   }, [plans]);
 
-  const updatePlan = useCallback((updatedPlan) => {
+  const updatePlan = useCallback((planChanges) => {
+    const updatedPlan = { ...planChanges, updatedBy: actorRef.current };
     setPlans(prevPlans => {
       const index = prevPlans.findIndex(p => p.id === updatedPlan.id);
       if (index === -1) return prevPlans;
@@ -503,8 +515,12 @@ export const WyshProvider = ({ children }) => {
       purpose: purpose,
       memo: memo || '',
       signer: signer || '',
-      verified: verified !== undefined ? verified : true
+      verified: verified !== undefined ? verified : true,
+      createdBy: actorRef.current
     };
+    if (newHistory.verified) {
+      newHistory.verifiedBy = actorRef.current;
+    }
 
     setInventory(prev => {
       let updatedRecord = null;
@@ -565,7 +581,7 @@ export const WyshProvider = ({ children }) => {
         if (i.planId === planId) {
           updatedRecord = {
             ...i,
-            history: i.history.map(h => h.id === historyId ? { ...h, memo: newMemo } : h)
+            history: i.history.map(h => h.id === historyId ? { ...h, memo: newMemo, updatedBy: actorRef.current } : h)
           };
           return updatedRecord;
         }
@@ -581,25 +597,28 @@ export const WyshProvider = ({ children }) => {
   }, []);
 
   const updateOutflow = useCallback((planId, historyId, qty, purpose, dateString, memo, signer, verified) => {
+    const actor = actorRef.current;
     setInventory(prev => {
       let updatedRecord = null;
       const updatedInventory = prev.map(i => {
         if (i.planId === planId) {
           updatedRecord = {
             ...i,
-            history: i.history.map(h => 
-              h.id === historyId 
-                ? { 
-                    ...h, 
-                    qty, 
-                    purpose, 
-                    date: dateString, 
-                    memo: memo || '',
-                    signer: signer !== undefined ? signer : (h.signer || ''),
-                    verified: verified !== undefined ? verified : (h.verified !== undefined ? h.verified : true)
-                  } 
-                : h
-            )
+            history: i.history.map(h => {
+              if (h.id !== historyId) return h;
+              const nextVerified = verified !== undefined ? verified : (h.verified !== undefined ? h.verified : true);
+              return {
+                ...h,
+                qty,
+                purpose,
+                date: dateString,
+                memo: memo || '',
+                signer: signer !== undefined ? signer : (h.signer || ''),
+                verified: nextVerified,
+                updatedBy: actor,
+                verifiedBy: nextVerified && !h.verified ? actor : (h.verifiedBy || null)
+              };
+            })
           };
           return updatedRecord;
         }
@@ -621,7 +640,7 @@ export const WyshProvider = ({ children }) => {
         if (i.planId === planId) {
           updatedRecord = {
             ...i,
-            history: i.history.map(h => h.id === historyId ? { ...h, verified: true } : h)
+            history: i.history.map(h => h.id === historyId ? { ...h, verified: true, verifiedBy: actorRef.current } : h)
           };
           return updatedRecord;
         }
@@ -653,7 +672,15 @@ export const WyshProvider = ({ children }) => {
 
   // 4. Calendar Notes Actions
   const saveCalendarNote = useCallback((dateStr, title, content) => {
-    const newNote = { dateStr, title, content };
+    const existing = calendarNotes.find(n => n.dateStr === dateStr);
+    const newNote = {
+      dateStr,
+      title,
+      content,
+      // 새 메모면 작성자 기록, 기존 메모면 원래 작성자는 DB 값을 그대로 둔다
+      createdBy: existing ? (existing.createdBy || null) : actorRef.current,
+      updatedBy: actorRef.current
+    };
     setCalendarNotes(prev => {
       const updatedNotes = [...prev];
       const existingIdx = updatedNotes.findIndex(n => n.dateStr === dateStr);
@@ -666,7 +693,7 @@ export const WyshProvider = ({ children }) => {
       return updatedNotes;
     });
     pushCalendarNoteToSupabase(newNote);
-  }, []);
+  }, [calendarNotes]);
 
   const deleteCalendarNote = useCallback((dateStr) => {
     setCalendarNotes(prev => {
@@ -682,7 +709,9 @@ export const WyshProvider = ({ children }) => {
     const newReport = {
       ...reportData,
       id: 'rep-' + Date.now(),
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      createdBy: actorRef.current,
+      updatedBy: actorRef.current
     };
     setReports(prev => {
       const updatedReports = [newReport, ...prev];
@@ -693,7 +722,8 @@ export const WyshProvider = ({ children }) => {
     return newReport;
   }, []);
 
-  const updateReport = useCallback((updatedRep) => {
+  const updateReport = useCallback((reportChanges) => {
+    const updatedRep = { ...reportChanges, updatedBy: actorRef.current };
     setReports(prev => {
       const updatedReports = prev.map(r => r.id === updatedRep.id ? updatedRep : r);
       saveStorageItems('REPORTS', updatedReports);
@@ -709,28 +739,6 @@ export const WyshProvider = ({ children }) => {
       return updatedReports;
     });
     deleteReportFromSupabase(id);
-  }, []);
-
-  // 6. Admin Authentication
-  const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(() => {
-    return sessionStorage.getItem('wysh_admin_logged_in') === 'true';
-  });
-
-  const loginAdmin = useCallback((id, password) => {
-    const adminId = (import.meta.env.VITE_ADMIN_ID || 'wysh').trim();
-    const adminPassword = (import.meta.env.VITE_ADMIN_PASSWORD || 'wysh0926!').trim();
-
-    if (id.trim() === adminId && password.trim() === adminPassword) {
-      setIsAdminLoggedIn(true);
-      sessionStorage.setItem('wysh_admin_logged_in', 'true');
-      return true;
-    }
-    return false;
-  }, []);
-
-  const logoutAdmin = useCallback(() => {
-    setIsAdminLoggedIn(false);
-    sessionStorage.removeItem('wysh_admin_logged_in');
   }, []);
 
   const addMaterialCost = useCallback((newMaterial) => {
@@ -806,9 +814,6 @@ export const WyshProvider = ({ children }) => {
     bannerSettings,
     updateBannerSettings,
     resetBannerSettings,
-    isAdminLoggedIn,
-    loginAdmin,
-    logoutAdmin,
     isDbConnected,
     dbError
   }), [
@@ -848,9 +853,6 @@ export const WyshProvider = ({ children }) => {
     addMaterialCost,
     updateMaterialCost,
     deleteMaterialCost,
-    isAdminLoggedIn,
-    loginAdmin,
-    logoutAdmin,
     isDbConnected,
     dbError
   ]);

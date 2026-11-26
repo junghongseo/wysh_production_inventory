@@ -1,4 +1,5 @@
 import React from 'react';
+import { useAuth } from '../../AuthContext';
 import { formatReportDate } from '../../utils/reportCalculations';
 
 // Whey separation summary badges
@@ -120,7 +121,10 @@ const SensorySummary = ({ details }) => (
 );
 
 // 리포트 이력 카드 1건
-const ReportHistoryItem = ({ rep, isSelected, planName, productColor, isAdminLoggedIn, onSelect, onConfirm, onDelete }) => {
+const ReportHistoryItem = ({ rep, isSelected, planName, productColor, canConfirmAll, onSelect, onConfirm, onDelete }) => {
+  const { profilesById } = useAuth();
+  // 실제로 입력한 계정 (과거 기록은 없음 → 확인자 텍스트만 표시)
+  const enteredBy = rep.createdBy ? profilesById[rep.createdBy]?.display_name || null : null;
   const displayName = rep.type === 'sensory' && rep.details?.productName && rep.details?.isMultiItem
     ? `${planName}_${rep.details.productName}`
     : planName;
@@ -174,7 +178,7 @@ const ReportHistoryItem = ({ rep, isSelected, planName, productColor, isAdminLog
           )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-          {(isAdminLoggedIn || rep.type === 'sensory') && !rep.confirmed && (
+          {(canConfirmAll || rep.type === 'sensory') && !rep.confirmed && (
             <button
               className="btn-primary"
               onClick={(e) => onConfirm(rep, e)}
@@ -211,7 +215,7 @@ const ReportHistoryItem = ({ rep, isSelected, planName, productColor, isAdminLog
       {rep.type === 'sensory' && rep.details && <SensorySummary details={rep.details} />}
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem', color: 'var(--text-secondary)', borderTop: '1px dashed var(--border-color)', paddingTop: '6px', flexWrap: 'wrap', gap: '4px' }}>
-        <span>확인자: <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{rep.workerName}</strong></span>
+        <span>확인자: <strong style={{ color: 'var(--text-primary)', fontWeight: 600 }}>{rep.workerName || '—'}</strong>{enteredBy && enteredBy !== rep.workerName && <> · 입력: {enteredBy}</>}</span>
         <span style={{ fontFamily: 'var(--font-outfit)', color: 'var(--text-secondary)', fontWeight: 500 }}>{formatReportDate(rep.createdAt)}</span>
       </div>
     </div>

@@ -10,7 +10,7 @@ const ReportHistoryList = ({
   selectedReportId,
   plans,
   products,
-  isAdminLoggedIn,
+  canConfirmAll,
   onSelect,
   onConfirm,
   onDelete
@@ -53,7 +53,7 @@ const ReportHistoryList = ({
               isSelected={selectedReportId === rep.id}
               planName={getPlanName(rep.planId)}
               productColor={getProductColor(rep.planId)}
-              isAdminLoggedIn={isAdminLoggedIn}
+              canConfirmAll={canConfirmAll}
               onSelect={onSelect}
               onConfirm={onConfirm}
               onDelete={onDelete}

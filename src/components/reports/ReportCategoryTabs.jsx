@@ -25,13 +25,13 @@ const badgeStyle = {
   whiteSpace: 'nowrap'
 };
 
-const ReportCategoryTabs = ({ activeReportType, onSelect, reports, isAdminLoggedIn }) => (
+const ReportCategoryTabs = ({ activeReportType, onSelect, reports, canConfirmAll }) => (
   <div className="glass-card" style={{ padding: '16px' }}>
     <div className="report-category-grid" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
       {CATEGORIES.map(({ type, label, adminOnlyBadge }) => {
         const isActive = activeReportType === type;
         const unconfirmedCount = reports.filter(r => r.type === type && !r.confirmed).length;
-        const showBadge = (!adminOnlyBadge || isAdminLoggedIn) && unconfirmedCount > 0;
+        const showBadge = (!adminOnlyBadge || canConfirmAll) && unconfirmedCount > 0;
 
         return (
           <button

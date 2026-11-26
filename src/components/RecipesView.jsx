@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useWysh } from '../WyshContext';
+import { useAuth } from '../AuthContext';
 import MaterialCostListSection from './recipes/MaterialCostListSection';
 import RecipeCostSummary from './recipes/RecipeCostSummary';
 import IngredientCostLine from './recipes/IngredientCostLine';
@@ -19,9 +20,10 @@ const RecipesView = ({
     materialCosts, 
     addMaterialCost, 
     updateMaterialCost, 
-    deleteMaterialCost, 
-    isAdminLoggedIn 
+    deleteMaterialCost
   } = useWysh();
+  const { can } = useAuth();
+  const canSeeCost = can('recipes.cost');
 
   const [activeSubTab, setActiveSubTab] = useState('recipe'); // 'recipe' | 'material_costs'
   const [filterTab, setFilterTab] = useState('all'); // 'all' | 'yogurt' | 'sub_ingredient'
@@ -390,7 +392,7 @@ const RecipesView = ({
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       
       {/* Admin Sub-Tab Navigation Bar */}
-      {isAdminLoggedIn && (
+      {canSeeCost && (
         <div style={{ display: 'flex', gap: '8px', background: 'var(--bg-tertiary)', padding: '4px', borderRadius: '12px', width: 'fit-content' }}>
           <button
             type="button"
@@ -439,7 +441,7 @@ const RecipesView = ({
       )}
 
       {/* Main Sub-Tab Views */}
-      {activeSubTab === 'material_costs' && isAdminLoggedIn ? (
+      {activeSubTab === 'material_costs' && canSeeCost ? (
         <MaterialCostListSection
           materialCosts={materialCosts}
           onAddMaterial={addMaterialCost}
@@ -908,7 +910,7 @@ const RecipesView = ({
                         </svg>
                       </button>
                     </div>
-                    {isAdminLoggedIn && costResult?.lines[idx] && (
+                    {canSeeCost && costResult?.lines[idx] && (
                       <IngredientCostLine
                         line={costResult.lines[idx]}
                         ingredient={ing}
@@ -924,7 +926,7 @@ const RecipesView = ({
                 })}
               </div>
 
-              {isAdminLoggedIn && costResult && !productIsSubIngredient && (
+              {canSeeCost && costResult && !productIsSubIngredient && (
                 <PackagingEditor
                   packaging={productPackaging}
                   onChange={setProductPackaging}
@@ -935,7 +937,7 @@ const RecipesView = ({
                 />
               )}
 
-              {isAdminLoggedIn && costResult && (
+              {canSeeCost && costResult && (
                 <RecipeCostSummary
                   costResult={costResult}
                   isSubIngredient={productIsSubIngredient}

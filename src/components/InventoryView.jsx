@@ -1,15 +1,19 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { useWysh } from '../WyshContext';
+import { useAuth } from '../AuthContext';
 import { calculateItemStock } from '../utils/stockUtils';
 
-const InventoryView = ({ onDeleteHistory, onOpenMemoModal, isAdminLoggedIn }) => {
+const InventoryView = ({ onDeleteHistory, onOpenMemoModal }) => {
+  const { can, profile, profilesById } = useAuth();
+  const canVerify = can('inventory.verify');
+  const myName = profile?.display_name || '';
   const { plans, products, inventory, reports, addOutflow, updateOutflow, verifyOutflow, getInventoryRecord } = useWysh();
 
   const [outflowPlanId, setOutflowPlanId] = useState('');
   const [outflowQty, setOutflowQty] = useState('');
   const [outflowPurpose, setOutflowPurpose] = useState('');
   const [outflowDate, setOutflowDate] = useState('');
-  const [outflowSigner, setOutflowSigner] = useState('');
+  const [outflowSigner, setOutflowSigner] = useState(myName);
   const [outflowMemo, setOutflowMemo] = useState('');
   const [selectedInventoryPlanId, setSelectedInventoryPlanId] = useState(null);
   const [editingHistoryId, setEditingHistoryId] = useState(null);
@@ -233,10 +237,10 @@ const InventoryView = ({ onDeleteHistory, onOpenMemoModal, isAdminLoggedIn }) =>
     setOutflowPlanId('');
     setOutflowQty('');
     setOutflowPurpose('');
-    setOutflowSigner('');
+    setOutflowSigner(myName);
     setOutflowMemo('');
     setOutflowDate(todayStr);
-  }, [todayStr]);
+  }, [todayStr, myName]);
 
 
   // Handle Outflow submission
@@ -298,7 +302,7 @@ const InventoryView = ({ onDeleteHistory, onOpenMemoModal, isAdminLoggedIn }) =>
     const timeStr = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
     const finalDateStr = `${outflowDate} ${timeStr}`;
 
-    const isVerified = isAdminLoggedIn;
+    const isVerified = canVerify;
 
     if (editingHistoryId) {
       updateOutflow(targetPlanId, editingHistoryId, qty, outflowPurpose.trim(), finalDateStr, outflowMemo.trim(), outflowSigner.trim(), isVerified);
@@ -308,11 +312,11 @@ const InventoryView = ({ onDeleteHistory, onOpenMemoModal, isAdminLoggedIn }) =>
       // Reset inputs
       setOutflowQty('');
       setOutflowPurpose('');
-      setOutflowSigner('');
+      setOutflowSigner(myName);
       setOutflowMemo('');
       setOutflowDate(todayStr);
     }
-  }, [outflowPlanId, outflowQty, outflowPurpose, outflowDate, outflowSigner, outflowMemo, todayStr, editingHistoryId, getInventoryRecord, updateOutflow, addOutflow, handleCancelEdit, allInventoryData, isAdminLoggedIn]);
+  }, [outflowPlanId, outflowQty, outflowPurpose, outflowDate, outflowSigner, outflowMemo, todayStr, editingHistoryId, getInventoryRecord, updateOutflow, addOutflow, handleCancelEdit, allInventoryData, canVerify, myName]);
 
   return (
     <div className="inventory-layout">
@@ -643,7 +647,7 @@ const InventoryView = ({ onDeleteHistory, onOpenMemoModal, isAdminLoggedIn }) =>
                             ✓ 확인완료
                           </span>
                         )}
-                        {isAdminLoggedIn && isUnverified && (
+                        {canVerify && isUnverified && (
                           <button
                             type="button"
                             className="btn-success"
@@ -675,6 +679,12 @@ const InventoryView = ({ onDeleteHistory, onOpenMemoModal, isAdminLoggedIn }) =>
                       </span>
                       <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'flex', gap: '8px', alignItems: 'center', marginTop: '2px' }}>
                         <span>🖋️ 서명: <strong>{item.signer || '미입력'}</strong></span>
+                        {item.createdBy && profilesById[item.createdBy] && profilesById[item.createdBy].display_name !== item.signer && (
+                          <span>· 입력: {profilesById[item.createdBy].display_name}</span>
+                        )}
+                        {item.verifiedBy && profilesById[item.verifiedBy] && (
+                          <span>· 검증: {profilesById[item.verifiedBy].display_name}</span>
+                        )}
                       </div>
                     </div>
                     <div className="timeline-item-values" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
@@ -695,7 +705,7 @@ const InventoryView = ({ onDeleteHistory, onOpenMemoModal, isAdminLoggedIn }) =>
                         </button>
                       )}
                       <span className="qty" style={{ fontWeight: 700 }}>-{item.qty}개</span>
-                      {isAdminLoggedIn && (
+                      {canVerify && (
                         <button 
                           className="btn-delete-tiny" 
                           title="출고 취소"

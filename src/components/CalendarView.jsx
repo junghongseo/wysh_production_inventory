@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { useWysh } from '../WyshContext';
+import { useAuth } from '../AuthContext';
 import { calculateItemStock } from '../utils/stockUtils';
 
 // Local-time safe YYYY-MM-DD formatter
@@ -24,9 +25,11 @@ const CalendarView = ({
   onOpenEditModal, 
   onOpenRecipeDrawer, 
   onDeletePlan,
-  onOpenNoteModal,
-  isAdminLoggedIn
+  onOpenNoteModal
 }) => {
+  const { can } = useAuth();
+  const canManagePlans = can('calendar.plans');
+  const canEditNotes = can('calendar.notes');
   const { plans, products, inventory, reports, calendarNotes } = useWysh();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDateNote, setSelectedDateNote] = useState(null);
@@ -717,7 +720,7 @@ const CalendarView = ({
                     )}
                   </div>
 
-                  {isAdminLoggedIn && (
+                  {canManagePlans && (
                     <div style={{ marginTop: '16px', display: 'flex', gap: '10px' }}>
                       <button className="btn-success" onClick={() => onOpenRecipeDrawer(selectedPlanDetails.plan.id)} style={{ flex: 1.2, justifyContent: 'center', fontSize: '0.85rem', padding: '8px 4px', background: '#ea580c', borderColor: '#c2410c' }}>
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -879,7 +882,7 @@ const CalendarView = ({
                     )}
                   </div>
                   
-                  {isAdminLoggedIn && (
+                  {canManagePlans && (
                     <div style={{ marginTop: '16px', display: 'flex', gap: '10px' }}>
                       <button className="btn-success" onClick={() => onOpenRecipeDrawer(selectedPlanDetails.plan.id)} style={{ flex: 1.2, justifyContent: 'center', fontSize: '0.85rem', padding: '6px 4px' }}>
                         <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -946,10 +949,10 @@ const CalendarView = ({
                       style={{ width: '100%', justifyContent: 'center' }}
                       onClick={() => onOpenNoteModal(selectedDate, selectedDateNote)}
                     >
-                      📝 {isAdminLoggedIn ? '메모 수정 / 삭제' : '메모 상세보기'}
+                      📝 {canEditNotes ? '메모 수정 / 삭제' : '메모 상세보기'}
                     </button>
                   ) : (
-                    isAdminLoggedIn && (
+                    canEditNotes && (
                       <button 
                         className="btn-primary"
                         style={{ width: '100%', justifyContent: 'center' }}
@@ -964,7 +967,7 @@ const CalendarView = ({
             )}
           </div>
           
-          {isAdminLoggedIn && (
+          {canManagePlans && (
             <div style={{ marginTop: '20px' }}>
               <button className="btn-primary" onClick={() => onOpenRegisterModal(selectedPlan ? null : selectedDate)} style={{ width: '100%', justifyContent: 'center' }}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

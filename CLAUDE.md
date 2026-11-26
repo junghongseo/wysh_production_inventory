@@ -6,7 +6,7 @@ UI 텍스트와 사용자 응대는 한국어로 한다.
 ## 명령어
 - `npm run dev` — 개발 서버 (http://localhost:3000)
 - `npm run build` — 프로덕션 빌드 (`dist/`)
-- `node src/utils/orderParser.test.js` / `node src/utils/recipeCalculator.test.js` — 테스트 (프레임워크 없이 node로 직접 실행)
+- `node src/utils/orderParser.test.js` / `node src/utils/recipeCalculator.test.js` / `node src/utils/permissions.test.js` — 테스트 (프레임워크 없이 node로 직접 실행)
 
 계산·파싱 로직을 수정하면 위 테스트를 돌리고, 새 동작에는 같은 파일에 테스트 케이스를 추가한다.
 
@@ -27,7 +27,8 @@ UI 텍스트와 사용자 응대는 한국어로 한다.
 - 동기화 로직을 수정할 때는 다른 기기의 변경이나 로컬 전용 필드(예: 레시피 메모)가 덮어써지지 않는지 확인한다.
 
 ## 기타
-- `.env`(VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, VITE_ADMIN_ID, VITE_ADMIN_PASSWORD)는 커밋하지 않는다.
-- 관리자 로그인은 클라이언트 측 비교 방식이다 (`VITE_*` 값은 번들에 노출됨).
+- `.env`(VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY)는 커밋하지 않는다.
+- 로그인은 Supabase Auth 개인 계정(아이디 → `아이디@wysh.local`). 권한은 `profiles.permissions`, 규칙은 `src/utils/permissions.js`와 SQL `has_permission()`이 같아야 한다. 화면에서는 `useAuth().can('권한키')`로 검사한다.
+- 계정 생성·비밀번호 초기화·비활성화는 `supabase/functions/admin-users` Edge Function(관리자만)으로 한다.
 - `sample data/`의 엑셀 파일은 주문 파서 확인용 실제 주문 데이터 샘플이다.
 - 커밋 메시지는 conventional 스타일 (`feat:`, `fix(scope):` 등).

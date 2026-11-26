@@ -1,5 +1,7 @@
 import React, { useState, lazy, Suspense } from 'react';
 import { useWysh } from './WyshContext';
+import { useAuth } from './AuthContext';
+import { canViewTab, firstAllowedTab, countUnconfirmedReports, countUnverifiedOutflows } from './utils/permissions';
 import HeaderStats from './components/HeaderStats';
 import Navbar from './components/Navbar';
 import RecipeDrawer from './components/RecipeDrawer';
@@ -11,7 +13,6 @@ import ModifyQtyModal from './components/modals/ModifyQtyModal';
 import ConfirmModal from './components/modals/ConfirmModal';
 import MemoModal from './components/modals/MemoModal';
 import CalendarNoteModal from './components/modals/CalendarNoteModal';
-import AdminLoginModal from './components/modals/AdminLoginModal';
 import AppSettingsModal from './components/modals/AppSettingsModal';
 import { AIManagerChat } from './components/AIManagerChat';
 
@@ -21,6 +22,7 @@ const InventoryView = lazy(() => import('./components/InventoryView'));
 const RecipesView = lazy(() => import('./components/RecipesView'));
 const ReportsView = lazy(() => import('./components/ReportsView'));
 const OrderView = lazy(() => import('./components/OrderView'));
+const TeamManagementView = lazy(() => import('./components/team/TeamManagementView'));
 
 const ViewFallback = () => (
   <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '300px', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
@@ -32,10 +34,13 @@ const ViewFallback = () => (
 );
 
 const App = () => {
-  const { reports, inventory, deletePlan, deleteProduct, deleteHistoryItem, updateOutflowMemo, saveCalendarNote, deleteCalendarNote, loading, isDbConnected, dbError, isAdminLoggedIn, loginAdmin, logoutAdmin, products, plans } = useWysh();
+  const { reports, inventory, deletePlan, deleteProduct, deleteHistoryItem, updateOutflowMemo, saveCalendarNote, deleteCalendarNote, loading, isDbConnected, dbError, products, plans } = useWysh();
+  const { profile, can, logout } = useAuth();
+  const isAdmin = can('admin');
+  const defaultTab = firstAllowedTab(profile);
 
-  // Tab state
-  const [activeTab, setActiveTab] = useState('calendar-view');
+  // Tab state (권한이 있는 첫 번째 탭에서 시작)
+  const [activeTab, setActiveTab] = useState(() => defaultTab || 'calendar-view');
 
   // WYSH B&W Theme state (default: 'wysh-bw')
   const [theme, setTheme] = useState(() => localStorage.getItem('wysh-theme') || 'wysh-bw');
@@ -45,19 +50,11 @@ const App = () => {
     localStorage.setItem('wysh-theme', theme);
   }, [theme]);
 
-  // Compute unconfirmed reports & inventory count based on login role (admin vs worker)
+  // 미확인 배지: 권한에 맞는 항목만 센다
   const unconfirmedCount = React.useMemo(() => {
     if (!reports) return 0;
-    if (isAdminLoggedIn) {
-      const unconfirmedReportsCount = reports.filter(r => !r.confirmed).length;
-      const unverifiedOutflowsCount = inventory ? inventory.reduce(
-        (acc, inv) => acc + (inv.history ? inv.history.filter(h => h.verified === false).length : 0),
-        0
-      ) : 0;
-      return unconfirmedReportsCount + unverifiedOutflowsCount;
-    }
-    return reports.filter(r => r.type === 'sensory' && !r.confirmed).length;
-  }, [reports, inventory, isAdminLoggedIn]);
+    return countUnconfirmedReports(profile, reports) + countUnverifiedOutflows(profile, inventory || []);
+  }, [reports, inventory, profile]);
 
   // Update PWA App Badge when unconfirmed reports or inventory change
   React.useEffect(() => {
@@ -102,16 +99,19 @@ const App = () => {
     updateBadge();
   }, [reports, inventory, unconfirmedCount]);
 
-  // Admin login & settings modal states
-  const [adminLoginModalOpen, setAdminLoginModalOpen] = useState(false);
   const [appSettingsModalOpen, setAppSettingsModalOpen] = useState(false);
 
-  // Redirect to calendar-view if user logs out while on recipes-view
+  // 권한이 바뀌어 지금 탭을 볼 수 없게 되면 볼 수 있는 첫 번째 탭으로 이동
   React.useEffect(() => {
-    if (!isAdminLoggedIn && activeTab === 'recipes-view') {
-      setActiveTab('calendar-view');
+    if (!canViewTab(profile, activeTab) && defaultTab && defaultTab !== activeTab) {
+      setActiveTab(defaultTab);
     }
-  }, [isAdminLoggedIn, activeTab]);
+  }, [profile, activeTab, defaultTab]);
+
+  // 관리자 권한이 해제되면 앱 설정 창을 닫는다
+  React.useEffect(() => {
+    if (!isAdmin && appSettingsModalOpen) setAppSettingsModalOpen(false);
+  }, [isAdmin, appSettingsModalOpen]);
 
   // Selection states
   const [selectedPlan, setSelectedPlan] = useState(null);
@@ -260,9 +260,9 @@ const App = () => {
         <header className="app-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
           <div 
             className="brand-section" 
-            onClick={() => setActiveTab('calendar-view')}
+            onClick={() => defaultTab && setActiveTab(defaultTab)}
             style={{ cursor: 'pointer' }}
-            title="생산 일정 및 배합표 탭으로 이동"
+            title="첫 화면으로 이동"
           >
             <div className="brand-logo" style={{ background: 'transparent', boxShadow: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <img src="/WYSH2_로고_1772157440156.webp" alt="WYSH Logo" style={{ width: '42px', height: '42px', objectFit: 'contain', borderRadius: '8px' }} />
@@ -305,7 +305,7 @@ const App = () => {
 
           <div className="header-controls-group">
             <WyshThemeSwitcher theme={theme} setTheme={setTheme} />
-            {/* Admin Authority Indicator */}
+            {/* 현재 로그인한 사람 */}
             <div className="glass-card" style={{
               display: 'flex',
               alignItems: 'center',
@@ -323,68 +323,42 @@ const App = () => {
                   width: '10px',
                   height: '10px',
                   borderRadius: '50%',
-                  backgroundColor: isAdminLoggedIn ? 'var(--color-success, #10b981)' : 'var(--color-primary, #0ea5e9)',
+                  backgroundColor: isAdmin ? 'var(--color-success, #10b981)' : 'var(--color-primary, #0ea5e9)',
                   display: 'inline-block',
-                  boxShadow: isAdminLoggedIn ? '0 0 8px #10b981' : '0 0 8px #0ea5e9',
-                  transition: 'all 0.3s ease'
+                  boxShadow: isAdmin ? '0 0 8px #10b981' : '0 0 8px #0ea5e9'
                 }}></span>
-                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                  {isAdminLoggedIn ? '관리자 모드' : '일반 사용자 모드'}
+                <span style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }} id="current-user-name">
+                  {profile?.display_name}
                 </span>
+                {isAdmin && (
+                  <span style={{ fontSize: '0.7rem', fontWeight: 600, color: 'var(--text-secondary)', border: '1px solid var(--border-color)', borderRadius: '6px', padding: '1px 6px' }}>관리자</span>
+                )}
               </div>
-              {isAdminLoggedIn ? (
-                <button 
-                  onClick={logoutAdmin}
-                  className="btn-secondary"
-                  style={{
-                    padding: '6px 12px',
-                    fontSize: '0.78rem',
-                    borderRadius: '8px',
-                    borderColor: 'rgba(239, 68, 68, 0.4)',
-                    color: 'var(--color-danger)',
-                    cursor: 'pointer',
-                    fontWeight: 600,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    background: 'transparent',
-                    transition: 'var(--transition-smooth)'
-                  }}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                    <polyline points="16 17 21 12 16 7"></polyline>
-                    <line x1="21" y1="12" x2="9" y2="12"></line>
-                  </svg>
-                  로그아웃
-                </button>
-              ) : (
-                <button 
-                  onClick={() => setAdminLoginModalOpen(true)}
-                  className="btn-primary"
-                  style={{
-                    padding: '6px 12px',
-                    fontSize: '0.78rem',
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    fontWeight: 600,
-                    background: 'linear-gradient(135deg, var(--color-primary), var(--color-accent))',
-                    border: 'none',
-                    color: '#ffffff',
-                    boxShadow: '0 4px 10px rgba(2, 132, 199, 0.15)',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                    transition: 'var(--transition-smooth)'
-                  }}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                    <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                  </svg>
-                  관리자 로그인
-                </button>
-              )}
+              <button
+                onClick={() => logout()}
+                className="btn-secondary"
+                style={{
+                  padding: '6px 12px',
+                  fontSize: '0.78rem',
+                  borderRadius: '8px',
+                  borderColor: 'rgba(239, 68, 68, 0.4)',
+                  color: 'var(--color-danger)',
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  background: 'transparent',
+                  transition: 'var(--transition-smooth)'
+                }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                  <polyline points="16 17 21 12 16 7"></polyline>
+                  <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+                로그아웃
+              </button>
             </div>
             <HeaderStats />
           </div>
@@ -396,7 +370,14 @@ const App = () => {
           if (tab === 'recipes-view' && !selectedProduct) {
             setSelectedProduct(null);
           }
-        }} isAdminLoggedIn={isAdminLoggedIn} onOpenAppSettings={() => setAppSettingsModalOpen(true)} appSettingsModalOpen={appSettingsModalOpen} />
+        }} onOpenAppSettings={() => setAppSettingsModalOpen(true)} appSettingsModalOpen={appSettingsModalOpen} />
+
+      {!defaultTab && (
+        <div className="glass-card" style={{ padding: '40px 24px', textAlign: 'center', marginTop: '16px' }}>
+          <h3 style={{ margin: '0 0 8px', color: 'var(--text-primary)' }}>아직 권한이 없습니다</h3>
+          <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '0.9rem' }}>볼 수 있는 메뉴가 없습니다. 관리자에게 권한을 요청하세요.</p>
+        </div>
+      )}
 
       {/* Main Content Tabs */}
       <Suspense fallback={<ViewFallback />}>
@@ -410,7 +391,6 @@ const App = () => {
               onOpenRecipeDrawer={handleOpenRecipeDrawer}
               onDeletePlan={handleDeletePlan}
               onOpenNoteModal={(dateStr, existing) => setNoteModal({ isOpen: true, dateStr, existingNote: existing })}
-              isAdminLoggedIn={isAdminLoggedIn}
             />
           )}
         </main>
@@ -420,7 +400,6 @@ const App = () => {
             <InventoryView
               onDeleteHistory={handleDeleteHistory}
               onOpenMemoModal={(planId, historyId, memo) => setMemoModal({ isOpen: true, planId, historyId, memo })}
-              isAdminLoggedIn={isAdminLoggedIn}
             />
           )}
         </section>
@@ -446,6 +425,12 @@ const App = () => {
         <section className={`tab-content ${activeTab === 'order-view' ? 'active' : ''}`} id="order-view">
           {activeTab === 'order-view' && (
             <OrderView />
+          )}
+        </section>
+
+        <section className={`tab-content ${activeTab === 'team-view' ? 'active' : ''}`} id="team-view">
+          {activeTab === 'team-view' && isAdmin && (
+            <TeamManagementView />
           )}
         </section>
       </Suspense>
@@ -493,7 +478,7 @@ const App = () => {
         historyId={memoModal.historyId}
         initialMemo={memoModal.memo}
         onSave={updateOutflowMemo}
-        isAdminLoggedIn={isAdminLoggedIn}
+        canEdit={can('inventory.verify')}
       />
 
       {/* Popup Modal: Custom Deletion Confirmation */}
@@ -513,19 +498,12 @@ const App = () => {
         existingNote={noteModal.existingNote}
         onSave={saveCalendarNote}
         onDelete={deleteCalendarNote}
-        isAdminLoggedIn={isAdminLoggedIn}
-      />
-
-      {/* Admin Login Modal */}
-      <AdminLoginModal
-        isOpen={adminLoginModalOpen}
-        onClose={() => setAdminLoginModalOpen(false)}
-        onLogin={loginAdmin}
+        canEdit={can('calendar.notes')}
       />
 
       {/* Admin App Settings Modal */}
       <AppSettingsModal
-        isOpen={appSettingsModalOpen}
+        isOpen={isAdmin && appSettingsModalOpen}
         onClose={() => setAppSettingsModalOpen(false)}
       />
 
