@@ -190,7 +190,8 @@ const UserRow = ({ member, isMe, onMessage }) => {
   return (
     <div className="glass-card" style={{ padding: '14px 16px', marginBottom: '10px', opacity: member.is_active ? 1 : 0.7 }} data-username={member.username}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
-        <div style={{ minWidth: 0, flex: 1 }}>
+        {/* 기본 폭 220px: 좁은 화면에서는 버튼이 아래 줄로 내려가고 이름·권한 칸이 줄지 않는다 */}
+        <div style={{ minWidth: 0, flex: '1 1 220px' }}>
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
             <strong style={{ fontSize: '0.95rem' }}>{member.display_name}</strong>
             <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>@{member.username}</span>

@@ -21,7 +21,8 @@ const OrderView = () => {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
+          // 휴대폰 폭(360px 미만)에서는 한 열이 화면 폭을 넘지 않게 한다
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(360px, 100%), 1fr))',
           gap: '24px',
           alignItems: 'start'
         }}

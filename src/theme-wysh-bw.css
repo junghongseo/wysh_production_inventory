@@ -730,3 +730,10 @@ body[data-theme="wysh-bw"],
 [data-theme="wysh-bw"] .ticker-separator {
   color: #0ea5e9 !important;
 }
+
+/* 모달 머리(검정 바탕)의 닫기 아이콘: 흰 버튼 위 흰 아이콘이라 보이지 않던 문제 */
+[data-theme="wysh-bw"] .modal-header .btn-icon {
+  background: transparent !important;
+  border: 1px solid rgba(255, 255, 255, 0.4) !important;
+  color: #ffffff !important;
+}

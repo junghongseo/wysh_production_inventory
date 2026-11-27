@@ -332,8 +332,8 @@ export const AIManagerChat = () => {
   return (
     <>
       {!isOpen ? (
-        /* WYSH 브랜드 시그니처 둥근 플로팅 챗 버튼 */
-        <div style={{
+        /* WYSH 브랜드 시그니처 둥근 플로팅 챗 버튼 (모달·드로어가 열리면 index.css 에서 숨김) */
+        <div className="ai-fab" style={{
           position: 'fixed',
           bottom: isMobile ? '16px' : '28px',
           right: isMobile ? '16px' : '28px',
