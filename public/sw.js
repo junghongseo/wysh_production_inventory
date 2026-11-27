@@ -1,6 +1,7 @@
 // WYSHBOARD Service Worker for Instant Load & PWA Badging
 // 캐시 이름을 바꾸면 activate 때 이전 버전 캐시가 모두 지워진다.
-const CACHE_NAME = 'wyshboard-v3';
+// 이 파일이 바뀌면 켜 둔 예전 앱도 다시 화면에 띄울 때 새 버전으로 한 번 새로고침된다 (main.jsx controllerchange).
+const CACHE_NAME = 'wyshboard-v4';
 const NAVIGATION_TIMEOUT_MS = 4000;
 
 self.addEventListener('install', () => {
@@ -70,8 +71,8 @@ self.addEventListener('fetch', (event) => {
 
   // GET이 아닌 요청, 다른 도메인(Supabase 등 실시간 데이터)은 건드리지 않는다
   if (request.method !== 'GET' || url.origin !== self.location.origin) return;
-  // 서비스 워커 파일 자체는 항상 브라우저가 직접 받게 둔다
-  if (url.pathname === '/sw.js') return;
+  // 서비스 워커 파일과 버전 확인 파일은 항상 서버에서 직접 받게 둔다
+  if (url.pathname === '/sw.js' || url.pathname === '/version.json') return;
 
   if (request.mode === 'navigate') {
     event.respondWith(networkFirst(request));

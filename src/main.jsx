@@ -4,6 +4,7 @@ import App from './App.jsx';
 import { WyshProvider } from './WyshContext.jsx';
 import { AuthProvider } from './AuthContext.jsx';
 import AuthGate from './components/auth/AuthGate.jsx';
+import UpdateBanner from './components/UpdateBanner.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import './index.css';
 
@@ -14,6 +15,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <ErrorBoundary>
       <AuthProvider>
+        <UpdateBanner />
         <AuthGate>
           <WyshProvider>
             <App />
