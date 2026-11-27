@@ -7,11 +7,21 @@ const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 
 const pad = (n) => String(n).padStart(2, '0');
 const now = new Date();
 const buildStamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}`;
+const appVersion = `${pkg.version}+${buildStamp}`;
+
+// 빌드 결과에 /version.json 을 함께 내보낸다. 켜 둔 앱이 이 파일을 주기적으로 확인해 새 배포를 알아차린다.
+const versionFilePlugin = () => ({
+  name: 'wysh-version-file',
+  apply: 'build',
+  generateBundle() {
+    this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify({ version: appVersion }) });
+  }
+});
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), versionFilePlugin()],
   define: {
-    __APP_VERSION__: JSON.stringify(`${pkg.version}+${buildStamp}`)
+    __APP_VERSION__: JSON.stringify(appVersion)
   },
   server: {
     port: 3000,
