@@ -14,7 +14,16 @@ const reportPushError = (label, err) => {
   console.error(label, err);
 };
 
-export const fetchAllRemoteData = async () => {
+// 테이블이 아직 없을 때(마이그레이션 전)의 오류인지
+const isMissingTableError = (error) =>
+  !!error && (error.code === '42P01' || error.code === 'PGRST205' || /does not exist|Could not find the table/i.test(error.message || ''));
+
+/**
+ * @param {{ canReadRecipes?: boolean }} options
+ *   canReadRecipes: 배합 데이터(비율·레시피 메모·부자재 구성)를 받을 권한이 있는지.
+ *   없으면 제품의 배합 필드를 비우고 recipeHidden 으로 표시한다.
+ */
+export const fetchAllRemoteData = async ({ canReadRecipes = false } = {}) => {
   if (!supabase) {
     throw new Error("Supabase client not initialized (missing environment variables)");
   }
@@ -23,6 +32,18 @@ export const fetchAllRemoteData = async () => {
 
   const { data: remoteProducts, error: errProducts } = await supabase.from('products').select('*');
   if (errProducts) throw errProducts;
+
+  // 배합 데이터는 product_recipes 에서 읽는다 (권한 없는 사람에게는 RLS 가 빈 결과를 준다).
+  // 테이블이 아직 없으면(2-A 마이그레이션 전) products 의 기존 컬럼을 쓴다.
+  let recipesById = null;
+  if (canReadRecipes) {
+    const { data: remoteRecipes, error: errRecipes } = await supabase.from('product_recipes').select('*');
+    if (errRecipes) {
+      if (!isMissingTableError(errRecipes)) throw errRecipes;
+    } else {
+      recipesById = new Map((remoteRecipes || []).map(r => [r.product_id, r]));
+    }
+  }
 
   const { data: remotePlans, error: errPlans } = await supabase.from('plans').select('*');
   if (errPlans) throw errPlans;
@@ -57,6 +78,22 @@ export const fetchAllRemoteData = async () => {
     }
   } catch (errNotesFetch) {
     console.warn("Supabase Fetch Warning (calendar_notes):", errNotesFetch);
+  }
+
+  // 배너 설정은 app_settings 가 기준. 테이블이 없거나 값이 없으면 위의 calendar_notes 값을 쓴다.
+  try {
+    const { data: bannerRow, error: errBanner } = await supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'banner')
+      .maybeSingle();
+    if (errBanner) {
+      if (!isMissingTableError(errBanner)) console.warn("Supabase Fetch Warn: app_settings query failed.", errBanner);
+    } else if (bannerRow?.value) {
+      remoteBannerSettings = bannerRow.value;
+    }
+  } catch (errBannerFetch) {
+    console.warn("Supabase Fetch Warning (app_settings):", errBannerFetch);
   }
 
   let mappedReports = [];
@@ -147,21 +184,38 @@ export const fetchAllRemoteData = async () => {
     const categoryVal = p.category || (isSubIngredientVal ? 'sub_ingredient' : (isFlavorVal ? 'flavor' : 'plain'));
     const baseProdIdVal = p.base_product_id !== undefined ? p.base_product_id : null;
 
+    // 배합 필드: 권한 없음 → 비움, product_recipes 있음 → 그 값(없으면 products 기존 값), 테이블 없음 → products 기존 값
+    let recipe;
+    if (!canReadRecipes) {
+      recipe = { ingredients: [], recipeMemo: '', packaging: null, recipeHidden: true };
+    } else {
+      const r = recipesById ? recipesById.get(p.id) : null;
+      const ingredients = r?.ingredients ?? p.ingredients;
+      const packaging = r?.packaging ?? p.packaging;
+      recipe = {
+        ingredients: Array.isArray(ingredients) ? ingredients : [],
+        recipeMemo: r?.recipe_memo || p.recipe_memo || p.recipeMemo || p.memo || '',
+        // packaging 이 없거나 미설정이면 null → 로컬 값 유지 (WyshContext 병합)
+        packaging: Array.isArray(packaging) ? packaging : null,
+        recipeHidden: false
+      };
+    }
+
     return {
       id: p.id,
       name: p.name,
       weight: p.weight,
       yield: p.yield,
       color: p.color,
-      ingredients: p.ingredients,
+      ingredients: recipe.ingredients,
       category: categoryVal,
       isFlavor: isFlavorVal,
       isSubIngredient: isSubIngredientVal,
       baseProductId: baseProdIdVal,
-      recipeMemo: p.recipe_memo || p.recipeMemo || p.memo || '',
+      recipeMemo: recipe.recipeMemo,
+      recipeHidden: recipe.recipeHidden,
       salePrice: p.sale_price !== undefined && p.sale_price !== null ? parseFloat(p.sale_price) : null,
-      // packaging 컬럼이 없거나 미설정이면 null → 로컬 값 유지 (WyshContext 병합)
-      packaging: Array.isArray(p.packaging) ? p.packaging : null,
+      packaging: recipe.packaging,
       shippingLimitDays: p.shipping_limit_days !== undefined && p.shipping_limit_days !== null ? p.shipping_limit_days : 7,
       expiryDays: p.expiry_days !== undefined && p.expiry_days !== null ? p.expiry_days : 22,
       defaultSterilizationTemp: p.default_sterilization_temp !== undefined && p.default_sterilization_temp !== null ? p.default_sterilization_temp : 85,
@@ -240,21 +294,35 @@ export const fetchAllRemoteData = async () => {
   };
 };
 
+// 배너 설정 저장: app_settings(관리자만 쓰기)에 저장한다.
+// 2-B 전까지는 예전 앱이 읽는 calendar_notes 특수 행에도 함께 쓴다(실패해도 무시).
 export const pushBannerSettingsToSupabase = async (bannerSettings) => {
   if (!supabase || !bannerSettings) return;
+  let savedToSettings = false;
+  try {
+    const { error } = await supabase.from('app_settings').upsert({
+      key: 'banner',
+      value: bannerSettings,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'key' });
+    if (error) {
+      if (!isMissingTableError(error)) reportPushError("Failed to push banner settings to Supabase:", error);
+    } else {
+      savedToSettings = true;
+    }
+  } catch (err) {
+    reportPushError("Error pushing banner settings to Supabase:", err);
+  }
+
   try {
     const { error } = await supabase.from('calendar_notes').upsert({
       date_str: '__banner_settings__',
       title: 'banner_settings',
       content: JSON.stringify(bannerSettings)
     }, { onConflict: 'date_str' });
-    if (error) {
-      reportPushError("Failed to push banner settings to Supabase:", error);
-    } else {
-      console.log("Successfully synced banner settings to Supabase cloud DB.");
-    }
+    if (error && !savedToSettings) reportPushError("Failed to push banner settings to Supabase:", error);
   } catch (err) {
-    reportPushError("Error pushing banner settings to Supabase:", err);
+    if (!savedToSettings) reportPushError("Error pushing banner settings to Supabase:", err);
   }
 };
 
@@ -291,20 +359,25 @@ export const deleteShippingChartFromSupabase = async (date) => {
 export const pushProductToSupabase = async (product) => {
   if (!supabase) return;
   try {
+    // 배합 데이터를 받지 못한(권한 없는) 기기에서는 배합 필드를 보내지 않아 원격 값을 지우지 않는다.
+    // DB 트리거가 products 의 배합 필드를 product_recipes 로 복사한다.
+    const recipeColumns = product.recipeHidden ? {} : {
+      ingredients: product.ingredients,
+      recipe_memo: product.recipeMemo || product.memo || '',
+      // 부자재 구성을 모르는(설정 전) 로컬 제품은 키를 빼서 원격 값을 null로 덮어쓰지 않음
+      ...(Array.isArray(product.packaging) ? { packaging: product.packaging } : {})
+    };
     const dbProduct = {
       id: product.id,
       name: product.name,
       weight: product.weight,
       yield: product.yield,
       color: product.color,
-      ingredients: product.ingredients,
       category: product.category,
       is_flavor: product.isFlavor,
       base_product_id: product.baseProductId,
-      recipe_memo: product.recipeMemo || product.memo || '',
       sale_price: product.salePrice ?? null,
-      // 부자재 구성을 모르는(설정 전) 로컬 제품은 키를 빼서 원격 값을 null로 덮어쓰지 않음
-      ...(Array.isArray(product.packaging) ? { packaging: product.packaging } : {}),
+      ...recipeColumns,
       shipping_limit_days: product.shippingLimitDays,
       expiry_days: product.expiryDays,
       default_sterilization_temp: product.defaultSterilizationTemp,

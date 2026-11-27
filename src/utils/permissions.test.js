@@ -8,6 +8,7 @@ import {
   validateUsername,
   validatePassword,
   resolveWorkerName,
+  canReadRecipeData,
   ADMIN_ONLY
 } from './permissions.js';
 
@@ -36,6 +37,14 @@ assert(can(user([], { is_admin: true }), 'recipes.cost') === true, '관리자는
 assert(can(user([], { is_admin: true }), ADMIN_ONLY) === true, '관리자 전용');
 assert(can(user(['admin']), ADMIN_ONLY) === false, '권한 배열에 admin 이 있어도 관리자 아님');
 assert(can(user([], { is_admin: true, is_active: false }), ADMIN_ONLY) === false, '비활성 관리자는 권한 없음');
+
+console.log('\n[canReadRecipeData]');
+assert(canReadRecipeData(user(['menu.calendar'])) === false, '캘린더만: 배합 데이터 없음');
+assert(canReadRecipeData(user(['menu.calendar', 'calendar.recipe'])) === true, '배합표 보기: 배합 데이터');
+assert(canReadRecipeData(user(['menu.calendar', 'calendar.plans'])) === true, '생산계획 관리: 필요량 계산용 배합 데이터');
+assert(canReadRecipeData(user(['menu.recipes'])) === true, '레시피 설정: 배합 데이터');
+assert(canReadRecipeData(user(['calendar.plans'])) === false, '캘린더 없이 생산계획 관리는 무효');
+assert(canReadRecipeData(user([], { is_admin: true })) === true, '관리자');
 
 console.log('\n[tabs]');
 assert(canViewTab(user(['menu.orders']), 'order-view') === true, '주문 탭');
