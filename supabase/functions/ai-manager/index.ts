@@ -212,12 +212,12 @@ ${JSON.stringify(calendarNotes || [])}
       parts: [{ text: `[현재 상황 데이터]\n${contextSummary}\n\n[관리자 질문]\n${currentPrompt}` }]
     });
 
-    // 최신 Gemini 3.8 Flash 모델 우선 사용 (폴백 체인 포함)
+    // Gemini 4 Hydrogen(빠른 모델) 우선, 실패하면 안정판 3.8 Flash 로 폴백
     const envModel = Deno.env.get('GEMINI_MODEL');
     const candidateModels = [
       ...(envModel ? [envModel] : []),
-      'gemini-3.8-flash',
-      'gemini-3.7-flash'
+      'gemini-4-hydrogen',
+      'gemini-3.8-flash'
     ];
 
     const thinkingBudgetMap: Record<string, number> = {
@@ -227,6 +227,7 @@ ${JSON.stringify(calendarNotes || [])}
     };
 
     let geminiData: any = null;
+    let usedModel = '';
     let lastErrorStatus = 500;
     let lastErrorText = '';
 
@@ -235,14 +236,15 @@ ${JSON.stringify(calendarNotes || [])}
 
       const generationConfig: Record<string, any> = {
         temperature: 0.7,
-        maxOutputTokens: 8192,
+        // 사고(thinking) 토큰도 이 한도에 포함된다. 8192 일 때 '심층' 모드에서 답변이 잘렸다.
+        maxOutputTokens: 32768,
       };
 
       if (modelName.startsWith('gemini-2.5')) {
         generationConfig.thinkingConfig = {
           thinkingBudget: thinkingBudgetMap[targetThinkingLevel] ?? 4096
         };
-      } else if (modelName.startsWith('gemini-3')) {
+      } else if (modelName.startsWith('gemini-3') || modelName.startsWith('gemini-4')) {
         generationConfig.thinkingConfig = {
           thinkingLevel: targetThinkingLevel
         };
@@ -260,6 +262,7 @@ ${JSON.stringify(calendarNotes || [])}
 
       if (response.ok) {
         geminiData = await response.json();
+        usedModel = modelName;
         break;
       }
 
@@ -297,7 +300,11 @@ ${JSON.stringify(calendarNotes || [])}
     const parts = geminiData.candidates?.[0]?.content?.parts || [];
     // 사고(thought) 블록을 제외한 실제 최종 답변 파트 추출
     const answerPart = parts.find((p: any) => !p.thought && p.text) || parts[parts.length - 1];
-    const replyText = answerPart?.text || geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "답변을 생성하지 못했습니다.";
+    let replyText = answerPart?.text || geminiData.candidates?.[0]?.content?.parts?.[0]?.text || "답변을 생성하지 못했습니다.";
+    if (geminiData.candidates?.[0]?.finishReason === 'MAX_TOKENS') {
+      replyText += "\n\n⚠️ 답변이 길어 중간에 잘렸습니다. 기간이나 제품을 나눠서 다시 질문해 주세요.";
+    }
+    console.log(`ai-manager model=${usedModel} finish=${geminiData.candidates?.[0]?.finishReason} usage=${JSON.stringify(geminiData.usageMetadata || {})}`);
 
     // sessionId가 없는 레거시 호출일 때만 서버에서 직접 기록 (클라이언트에서 sessionId와 함께 저장하므로 중복 방지)
     if (!sessionId) {
@@ -312,7 +319,7 @@ ${JSON.stringify(calendarNotes || [])}
     }
 
     return new Response(
-      JSON.stringify({ reply: replyText }),
+      JSON.stringify({ reply: replyText, model: usedModel }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
