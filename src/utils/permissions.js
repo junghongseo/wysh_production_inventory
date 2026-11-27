@@ -50,6 +50,12 @@ export const can = (profile, permission) => {
   return !parent || perms.includes(parent);
 };
 
+// 배합 데이터(비율·레시피 메모·부자재 구성)를 내려받을 수 있는지.
+// 배합표 보기, 레시피 설정, 그리고 필요량 계산에 비율이 필요한 생산계획 관리.
+// SQL public.can_read_recipes() 와 같은 규칙.
+export const canReadRecipeData = (profile) =>
+  can(profile, 'calendar.recipe') || can(profile, 'menu.recipes') || can(profile, 'calendar.plans');
+
 // 탭 순서는 내비게이션 순서와 같다. team-view 는 관리자 전용.
 export const TAB_PERMISSIONS = {
   'calendar-view': 'menu.calendar',

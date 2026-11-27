@@ -57,7 +57,19 @@ serve(async (req) => {
     }
 
     // Supabase DB 클라이언트 생성
+    // - supabase: 대화 기록 저장용 (service role)
+    // - dataClient: 업무 데이터 조회용. 호출한 사람의 토큰으로 조회해서 DB 권한(RLS)이 그대로 적용된다.
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+    const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY');
+    const dataClient = SUPABASE_ANON_KEY
+      ? createClient(SUPABASE_URL!, SUPABASE_ANON_KEY, {
+          global: { headers: { Authorization: `Bearer ${callerToken}` } },
+          auth: { autoRefreshToken: false, persistSession: false },
+        })
+      : null;
+    if (!dataClient) {
+      throw new Error("SUPABASE_ANON_KEY 환경 변수가 없어 호출자 권한으로 데이터를 조회할 수 없습니다.");
+    }
 
     // 세션별 대화 기록 쿼리 준비 (최신 10개 조회 후 시간순 정렬)
     let historyQuery = supabase.from('chat_history').select('*');
@@ -68,7 +80,8 @@ serve(async (req) => {
 
     // 현재 상태 조회를 위해 필요한 데이터들을 병렬로 수집 (레시피, 계획, 재고, 리포트, 메모)
     const [
-      { data: products },
+      { data: rawProducts },
+      { data: recipes },
       { data: plans },
       { data: inventory },
       { data: reports },
@@ -76,14 +89,25 @@ serve(async (req) => {
       { data: calendarNotes },
       { data: chatHistory }
     ] = await Promise.all([
-      supabase.from('products').select('*'),
-      supabase.from('plans').select('*'),
-      supabase.from('inventory').select('*'),
-      supabase.from('reports').select('*'),
-      supabase.from('events').select('*'),
-      supabase.from('calendar_notes').select('*'),
+      dataClient.from('products').select('*'),
+      // 배합 데이터는 권한이 있는 사람에게만 RLS 가 돌려준다
+      dataClient.from('product_recipes').select('*'),
+      dataClient.from('plans').select('*'),
+      dataClient.from('inventory').select('*'),
+      dataClient.from('reports').select('*'),
+      dataClient.from('events').select('*'),
+      dataClient.from('calendar_notes').select('*').neq('date_str', '__banner_settings__'),
       historyQuery
     ]);
+
+    // products 테이블의 배합 필드는 쓰지 않고, product_recipes 에서 받은 것만 붙인다
+    // (2-B 전까지 products 에 남아 있는 비율이 권한 없는 사람의 AI 답변에 섞이지 않도록)
+    const recipesById = new Map((recipes || []).map((r: any) => [r.product_id, r]));
+    const products = (rawProducts || []).map((p: any) => {
+      const { ingredients: _i, recipe_memo: _m, packaging: _p, ...rest } = p;
+      const r = recipesById.get(p.id);
+      return r ? { ...rest, ingredients: r.ingredients, recipe_memo: r.recipe_memo, packaging: r.packaging } : rest;
+    });
 
     // 대한민국 표준시 (KST: UTC+9, Asia/Seoul) 정밀 시각 및 날짜 계산
     const now = new Date();

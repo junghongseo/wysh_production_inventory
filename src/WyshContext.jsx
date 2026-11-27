@@ -4,6 +4,7 @@ import { loadInitialLocalStorageData, saveStorageItems } from './services/storag
 import * as remote from './services/supabaseService';
 import { tracked } from './services/pushTracker';
 import { useAuth } from './AuthContext';
+import { canReadRecipeData } from './utils/permissions';
 
 const { fetchAllRemoteData } = remote;
 
@@ -27,9 +28,14 @@ const WyshContext = createContext();
 
 export const WyshProvider = ({ children }) => {
   // 작업자 기록용: 현재 로그인한 계정 id (콜백 의존성을 늘리지 않도록 ref 로 읽는다)
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const actorRef = useRef(null);
   actorRef.current = user?.id || null;
+  // 배합 데이터 수신 권한 (동기화 콜백에서 ref 로 읽는다)
+  const canReadRecipesRef = useRef(false);
+  canReadRecipesRef.current = canReadRecipeData(profile);
+  const isAdminRef = useRef(false);
+  isAdminRef.current = !!(profile?.is_admin && profile?.is_active);
 
   const [products, setProducts] = useState([]);
   const [plans, setPlans] = useState([]);
@@ -127,6 +133,12 @@ export const WyshProvider = ({ children }) => {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'material_costs' }, () => {
         syncFromSupabase();
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'product_recipes' }, () => {
+        syncFromSupabase();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'app_settings' }, () => {
+        syncFromSupabase();
+      })
       .subscribe();
 
     // 10-second background polling fallback
@@ -156,7 +168,7 @@ export const WyshProvider = ({ children }) => {
         mappedShippingCharts,
         mappedMaterialCosts,
         remoteBannerSettings
-      } = await fetchAllRemoteData();
+      } = await fetchAllRemoteData({ canReadRecipes: canReadRecipesRef.current });
 
       if (remoteBannerSettings) {
         setBannerSettings(prev => {
@@ -167,7 +179,8 @@ export const WyshProvider = ({ children }) => {
               console.error('Failed to sync remote banner settings to localStorage:', e);
             }
             return remoteBannerSettings;
-          } else if (prev && prev.updatedAt && remoteBannerSettings.updatedAt && prev.updatedAt > remoteBannerSettings.updatedAt) {
+          } else if (isAdminRef.current && prev && prev.updatedAt && remoteBannerSettings.updatedAt && prev.updatedAt > remoteBannerSettings.updatedAt) {
+            // 배너는 관리자만 저장할 수 있다
             pushBannerSettingsToSupabase(prev);
           }
           return prev;
@@ -194,7 +207,11 @@ export const WyshProvider = ({ children }) => {
       mappedProducts.forEach(p => {
         const localP = currentLocalProducts.find(lp => lp.id === p.id);
         const localMemo = localP ? (localP.recipeMemo || localP.memo || '') : '';
-        const mergedProduct = {
+        // 배합 데이터 권한이 없으면 로컬에 남아 있던 예전 값으로 되살리지 않는다
+        const mergedProduct = p.recipeHidden ? {
+          ...p,
+          salePrice: p.salePrice ?? (localP ? localP.salePrice ?? null : null)
+        } : {
           ...p,
           recipeMemo: p.recipeMemo || localMemo,
           // sale_price 컬럼이 아직 없으면 원격 값이 null → 로컬 판매가 유지
@@ -250,6 +267,17 @@ export const WyshProvider = ({ children }) => {
       setDbError(e.message || "Failed to sync with database");
     }
   }, []);
+
+  // 배합 데이터 권한이 바뀌면(관리자가 권한 변경) 바로 다시 받아 화면에 반영한다
+  const canReadRecipesNow = canReadRecipeData(profile);
+  const recipeAccessInitRef = useRef(true);
+  useEffect(() => {
+    if (recipeAccessInitRef.current) {
+      recipeAccessInitRef.current = false;
+      return;
+    }
+    syncFromSupabase();
+  }, [canReadRecipesNow, syncFromSupabase]);
 
   // Shipping Charts Actions
   const saveShippingChart = useCallback((chartData) => {

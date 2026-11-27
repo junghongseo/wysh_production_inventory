@@ -310,7 +310,9 @@ const CalendarView = ({
     });
 
     let calculatedTotalVolumeL = plan.totalVolumeL || 0;
-    if (itemDetails.length > 0) {
+    // 배합 데이터를 받지 못한(권한 없는) 경우 비율을 추정하지 않고 계획 등록 때 저장된 원유량을 그대로 쓴다
+    const recipeUnavailable = itemDetails.some(it => it.prod && (it.prod.recipeHidden || (it.prod.isFlavor && !(it.prod.ingredients || []).length)));
+    if (itemDetails.length > 0 && !recipeUnavailable) {
       let totalBaseYogurtG = 0;
       itemDetails.forEach(it => {
         const prod = it.prod;
