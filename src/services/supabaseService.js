@@ -9,9 +9,23 @@ const attributionColumns = (record) => {
   return cols;
 };
 
+// DB 권한(RLS·보호 트리거)에 막힌 저장인지
+const isPermissionError = (err) =>
+  !!err && (err.code === '42501' || /row-level security|권한이 필요합니다/i.test(err.message || ''));
+
+let lastPermissionAlertAt = 0;
+
 const reportPushError = (label, err) => {
   recordPushFailure();
   console.error(label, err);
+  // 권한 때문에 저장이 거절되면 알려 준다. 화면은 다음 동기화(10초 이내) 때 서버 상태로 돌아간다.
+  if (isPermissionError(err) && typeof window !== 'undefined' && Date.now() - lastPermissionAlertAt > 10000) {
+    lastPermissionAlertAt = Date.now();
+    const reason = /권한이 필요합니다/.test(err.message || '') ? `
+(${err.message})` : '';
+    window.alert(`권한이 없어 저장되지 않았습니다.${reason}
+잠시 후 화면이 서버 상태로 돌아갑니다.`);
+  }
 };
 
 // 테이블이 아직 없을 때(마이그레이션 전)의 오류인지
@@ -298,31 +312,16 @@ export const fetchAllRemoteData = async ({ canReadRecipes = false } = {}) => {
 // 2-B 전까지는 예전 앱이 읽는 calendar_notes 특수 행에도 함께 쓴다(실패해도 무시).
 export const pushBannerSettingsToSupabase = async (bannerSettings) => {
   if (!supabase || !bannerSettings) return;
-  let savedToSettings = false;
+  // 배너는 app_settings 에만 저장한다 (예전 calendar_notes '__banner_settings__' 행은 2-B 에서 삭제)
   try {
     const { error } = await supabase.from('app_settings').upsert({
       key: 'banner',
       value: bannerSettings,
       updated_at: new Date().toISOString()
     }, { onConflict: 'key' });
-    if (error) {
-      if (!isMissingTableError(error)) reportPushError("Failed to push banner settings to Supabase:", error);
-    } else {
-      savedToSettings = true;
-    }
+    if (error) reportPushError("Failed to push banner settings to Supabase:", error);
   } catch (err) {
     reportPushError("Error pushing banner settings to Supabase:", err);
-  }
-
-  try {
-    const { error } = await supabase.from('calendar_notes').upsert({
-      date_str: '__banner_settings__',
-      title: 'banner_settings',
-      content: JSON.stringify(bannerSettings)
-    }, { onConflict: 'date_str' });
-    if (error && !savedToSettings) reportPushError("Failed to push banner settings to Supabase:", error);
-  } catch (err) {
-    if (!savedToSettings) reportPushError("Error pushing banner settings to Supabase:", err);
   }
 };
 

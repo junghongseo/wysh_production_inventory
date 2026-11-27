@@ -17,7 +17,6 @@ serve(async (req) => {
     const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
 
     // 호출한 사람 확인: 로그인한 활성 계정 + 'AI 매니저' 권한(또는 관리자)만 허용
-    // (데이터를 호출자 권한 범위로 제한하는 것은 RLS를 켜는 2단계에서 적용)
     const authClient = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
@@ -57,10 +56,7 @@ serve(async (req) => {
       targetThinkingLevel = type === 'briefing' ? 'high' : 'medium';
     }
 
-    // Supabase DB 클라이언트 생성
-    // - supabase: 대화 기록 저장용 (service role)
-    // - dataClient: 업무 데이터 조회용. 호출한 사람의 토큰으로 조회해서 DB 권한(RLS)이 그대로 적용된다.
-    const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!);
+    // 업무 데이터·대화 기록은 호출한 사람의 토큰으로 조회·저장해서 DB 권한(RLS)이 그대로 적용된다.
     const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY');
     const dataClient = SUPABASE_ANON_KEY
       ? createClient(SUPABASE_URL!, SUPABASE_ANON_KEY, {
@@ -73,7 +69,8 @@ serve(async (req) => {
     }
 
     // 세션별 대화 기록 쿼리 준비 (최신 10개 조회 후 시간순 정렬)
-    let historyQuery = supabase.from('chat_history').select('*');
+    // 대화 기록도 호출자 토큰으로 조회 → RLS 로 본인 대화만 (2-B)
+    let historyQuery = dataClient.from('chat_history').select('*');
     if (sessionId) {
       historyQuery = historyQuery.eq('session_id', sessionId);
     }
@@ -307,7 +304,8 @@ ${JSON.stringify(calendarNotes || [])}
       const userMsgId = 'msg-u-' + Date.now();
       const aiMsgId = 'msg-a-' + Date.now();
 
-      await supabase.from('chat_history').insert([
+      // 호출자 토큰으로 저장 → user_id 가 호출자로 기록된다 (컬럼 기본값 auth.uid())
+      await dataClient.from('chat_history').insert([
         { id: userMsgId, role: 'user', content: currentPrompt },
         { id: aiMsgId, role: 'model', content: replyText }
       ]);

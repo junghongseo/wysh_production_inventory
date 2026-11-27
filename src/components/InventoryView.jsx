@@ -222,6 +222,11 @@ const InventoryView = ({ onDeleteHistory, onOpenMemoModal }) => {
 
   // Handle start/cancel edit outflow
   const handleStartEdit = useCallback((item) => {
+    // 검증된 출고는 검증 권한자만 수정할 수 있다 (DB 트리거와 같은 규칙)
+    if (!canVerify && item.verified !== false) {
+      alert('검증이 끝난 출고는 출고 검증 권한이 있는 사람만 수정할 수 있습니다.');
+      return;
+    }
     setEditingHistoryId(item.id);
     const targetSubKey = item.productId ? `${item.planId}::${item.productId}` : item.planId;
     setOutflowPlanId(targetSubKey);
@@ -230,7 +235,7 @@ const InventoryView = ({ onDeleteHistory, onOpenMemoModal }) => {
     setOutflowPurpose(item.purpose);
     setOutflowSigner(item.signer || '');
     setOutflowMemo(item.memo || '');
-  }, []);
+  }, [canVerify]);
 
   const handleCancelEdit = useCallback(() => {
     setEditingHistoryId(null);

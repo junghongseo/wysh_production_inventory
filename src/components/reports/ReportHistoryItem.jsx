@@ -197,6 +197,8 @@ const ReportHistoryItem = ({ rep, isSelected, planName, productColor, canConfirm
               ✓ 확인
             </button>
           )}
+          {/* 삭제는 보고서 확인 권한자만 (DB 정책과 같은 규칙) */}
+          {canConfirmAll && (
           <button
             className="btn-delete-tiny"
             onClick={(e) => onDelete(rep.id, e)}
@@ -207,6 +209,7 @@ const ReportHistoryItem = ({ rep, isSelected, planName, productColor, canConfirm
               <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
             </svg>
           </button>
+          )}
         </div>
       </div>
 
