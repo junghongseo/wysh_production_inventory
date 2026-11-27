@@ -866,7 +866,7 @@ export const AIManagerChat = () => {
                   </div>
 
                   <span style={{ fontSize: '10.5px', color: 'rgba(255, 255, 255, 0.3)' }}>
-                    Gemini 3.8 Flash
+                    Gemini 4 Hydrogen
                   </span>
                 </div>
 
