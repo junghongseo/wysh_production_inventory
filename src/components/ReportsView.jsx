@@ -653,6 +653,10 @@ const ReportsView = () => {
   // Handle delete report
   const handleDelete = (id, e) => {
     e.stopPropagation();
+    if (!canConfirmAll) {
+      alert('보고서 삭제는 보고서 확인 권한이 있는 사람만 할 수 있습니다.');
+      return;
+    }
     if (window.confirm('정말로 이 리포트를 삭제하시겠습니까?')) {
       deleteReport(id);
       if (selectedReportId === id) {
