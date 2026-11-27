@@ -66,6 +66,10 @@ SET ingredients = r.ingredients, recipe_memo = r.recipe_memo, packaging = r.pack
 FROM public.product_recipes r
 WHERE r.product_id = p.id;
 
+-- 2-B 이전처럼 ingredients NOT NULL 복구 (배합 행이 없는 제품은 빈 배열)
+UPDATE public.products SET ingredients = '[]'::jsonb WHERE ingredients IS NULL;
+ALTER TABLE public.products ALTER COLUMN ingredients SET NOT NULL;
+
 CREATE TRIGGER sync_product_recipe_ins
   AFTER INSERT ON public.products
   FOR EACH ROW EXECUTE FUNCTION public.sync_product_recipe();
