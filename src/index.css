@@ -1518,7 +1518,53 @@ button svg * {
         margin: 10px auto;
         padding: 16px !important;
     }
-    
+
+    /* 배합표 드로어: 휴대폰에서는 화면 전체를 쓰고, 표는 가로 스크롤 없이 필요량까지 한 화면에 */
+    .drawer-content {
+        width: 100% !important;
+        max-width: 100% !important;
+        height: 100% !important;
+        height: 100dvh !important;
+        max-height: none !important;
+        margin: 0;
+        padding: 0 !important;
+        overflow-y: hidden !important;
+        border-left: none;
+    }
+
+    .drawer-header {
+        padding: calc(env(safe-area-inset-top, 0px) + 12px) 16px 12px;
+    }
+
+    .drawer-body {
+        padding: 16px 12px calc(env(safe-area-inset-bottom, 0px) + 24px);
+    }
+
+    .drawer-body .wysh-table-wrapper,
+    .drawer-body .table-responsive {
+        overflow-x: visible;
+    }
+
+    .drawer-body .wysh-table {
+        min-width: 0;
+        width: 100%;
+        font-size: 0.85rem;
+    }
+
+    .drawer-body .wysh-table th,
+    .drawer-body .wysh-table td {
+        padding: 8px 6px !important; /* 테마의 td 여백(!important)보다 우선 */
+    }
+
+    .drawer-body .wysh-table th {
+        letter-spacing: 0;
+        white-space: normal;
+    }
+
+    .drawer-body .wysh-table td + td {
+        white-space: nowrap;
+    }
+
     /* Form controls touch size - Exclude checkboxes, radios, and inline inputs */
     .form-control, 
     input:not([type="checkbox"]):not([type="radio"]):not(.inline-input), 
@@ -1814,3 +1860,22 @@ button svg * {
 
 
 
+
+/* 모달·드로어가 열려 있으면 AI 버튼이 하단 등록·저장 버튼을 가리지 않게 숨긴다 */
+body:has(.modal-overlay.open) .ai-fab,
+body:has(.drawer-overlay.open) .ai-fab {
+    display: none !important;
+}
+
+@media (max-width: 768px) {
+    /* 달력 머리: "선택 차수" 안내가 이전/오늘/다음 버튼과 겹치지 않게 제목·버튼 아래 줄로 내린다 */
+    .calendar-title {
+        display: contents !important; /* JSX 인라인 display 보다 우선 */
+    }
+
+    .calendar-info-banner {
+        order: 3;
+        flex-basis: 100%;
+        margin: 0 !important;
+    }
+}

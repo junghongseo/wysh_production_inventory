@@ -442,7 +442,7 @@ const CalendarView = ({
                   <span style={{ fontSize: '0.95rem' }}>💡</span>
                   <span>선택 차수: <strong>{selectedPlan.id}</strong></span>
                   {selectedPlanDetails && selectedPlanDetails.items.length > 1 && (
-                    <div style={{ display: 'flex', gap: '4px', marginLeft: '6px' }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginLeft: '6px' }}>
                       <button
                         type="button"
                         className={`btn-secondary ${selectedSubProductId === 'ALL' ? 'active' : ''}`}
