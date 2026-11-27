@@ -124,7 +124,7 @@ export const AuthProvider = ({ children }) => {
       }
       setProfile(null);
       setProfiles([]);
-      if (supabase) await supabase.auth.signOut().catch(() => {});
+      if (supabase) await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
       setSession(null);
       setAuthNotice(notice);
       return true;
@@ -250,11 +250,11 @@ export const AuthProvider = ({ children }) => {
       () => supabase.from('profiles').select('is_active').eq('id', data.user.id).maybeSingle()
     );
     if (profErr) {
-      await supabase.auth.signOut().catch(() => {});
+      await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
       return { error: `계정 정보를 확인하지 못했습니다: ${translateAuthError(profErr)}` };
     }
     if (!prof || !prof.is_active) {
-      await supabase.auth.signOut().catch(() => {});
+      await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
       return { error: !prof ? '계정 정보가 없습니다. 관리자에게 문의하세요.' : '비활성화된 계정입니다. 관리자에게 문의하세요.' };
     }
     try {

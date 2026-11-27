@@ -24,6 +24,7 @@ serve(async (req) => {
     const callerToken = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
     const { data: callerData, error: callerErr } = await authClient.auth.getUser(callerToken);
     if (callerErr || !callerData?.user) {
+      console.warn('ai-manager: caller token rejected:', callerErr?.message || 'no user');
       return new Response(JSON.stringify({ error: '로그인이 필요합니다.' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
