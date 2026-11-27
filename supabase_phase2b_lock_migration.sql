@@ -115,6 +115,9 @@ CREATE POLICY chat_history_delete ON public.chat_history FOR DELETE TO authentic
 -- 4. 배합 비율을 products 에서 지우기 --------------------------------------
 -- product_recipes 로 복사한 뒤 products 쪽 값을 NULL 로 바꾸는 BEFORE 트리거.
 -- 새 제품 INSERT 때는 product_recipes 행이 products 행보다 먼저 생기므로 외래키 검사를 커밋 시점으로 미룬다.
+-- products.ingredients 는 NOT NULL 이었다 → 비울 수 있게 해제 (앱은 null 을 빈 배열로 처리)
+ALTER TABLE public.products ALTER COLUMN ingredients DROP NOT NULL;
+
 ALTER TABLE public.product_recipes DROP CONSTRAINT IF EXISTS product_recipes_product_id_fkey;
 ALTER TABLE public.product_recipes ADD CONSTRAINT product_recipes_product_id_fkey
   FOREIGN KEY (product_id) REFERENCES public.products(id) ON DELETE CASCADE DEFERRABLE INITIALLY DEFERRED;
