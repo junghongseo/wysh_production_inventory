@@ -64,6 +64,9 @@ BEGIN
 END;
 $$;
 
+-- 트리거 전용 함수: API 로 직접 호출할 수 없게 한다
+REVOKE ALL ON FUNCTION public.sync_product_recipe() FROM PUBLIC, anon, authenticated;
+
 DROP TRIGGER IF EXISTS sync_product_recipe_ins ON public.products;
 CREATE TRIGGER sync_product_recipe_ins
   AFTER INSERT ON public.products
