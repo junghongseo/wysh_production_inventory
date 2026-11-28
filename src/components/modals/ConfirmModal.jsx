@@ -20,14 +20,21 @@ const ConfirmModal = ({ isOpen, title, message, onConfirm, onClose }) => {
         <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: '1.5', marginBottom: '24px', textAlign: 'center' }}>
           {message || '이 작업은 취소할 수 없습니다.'}
         </p>
-        <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
-          <button type="button" className="btn-secondary" onClick={onClose} style={{ flex: 1, padding: '10px', fontWeight: '600', justifyContent: 'center' }}>
-            취소
+        {onConfirm ? (
+          <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
+            <button type="button" className="btn-secondary" onClick={onClose} style={{ flex: 1, padding: '10px', fontWeight: '600', justifyContent: 'center' }}>
+              취소
+            </button>
+            <button type="button" className="btn-success" onClick={() => { onConfirm(); onClose(); }} style={{ flex: 1, padding: '10px', backgroundColor: 'var(--color-danger)', borderColor: 'var(--color-danger)', color: '#ffffff', fontWeight: '600', justifyContent: 'center' }}>
+              삭제
+            </button>
+          </div>
+        ) : (
+          // 안내만 하는 경우(onConfirm 없음): 확인 버튼 하나
+          <button type="button" className="btn-secondary" onClick={onClose} style={{ width: '100%', padding: '10px', fontWeight: '600', justifyContent: 'center' }}>
+            확인
           </button>
-          <button type="button" className="btn-success" onClick={() => { onConfirm(); onClose(); }} style={{ flex: 1, padding: '10px', backgroundColor: 'var(--color-danger)', borderColor: 'var(--color-danger)', color: '#ffffff', fontWeight: '600', justifyContent: 'center' }}>
-            삭제
-          </button>
-        </div>
+        )}
       </div>
     </div>
   );

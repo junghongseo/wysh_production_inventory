@@ -12,6 +12,7 @@ import PlanRegistrationModal from './components/modals/PlanRegistrationModal';
 import ProductRegistrationModal from './components/modals/ProductRegistrationModal';
 import ModifyQtyModal from './components/modals/ModifyQtyModal';
 import ConfirmModal from './components/modals/ConfirmModal';
+import { getProductUsage } from './utils/productUsage';
 import MemoModal from './components/modals/MemoModal';
 import CalendarNoteModal from './components/modals/CalendarNoteModal';
 import AppSettingsModal from './components/modals/AppSettingsModal';
@@ -220,9 +221,20 @@ const App = () => {
   };
 
   const handleDeleteProduct = (prodId) => {
+    // 생산 기록에 쓰인 제품은 삭제하지 않는다 (DB 가 계획·재고·보고서까지 연쇄 삭제하므로)
+    const usage = getProductUsage(prodId, plans, reports);
+    if (usage.planCount > 0) {
+      setConfirmModal({
+        isOpen: true,
+        title: '삭제할 수 없는 제품',
+        message: `이 제품은 생산계획 ${usage.planCount}건${usage.reportCount > 0 ? `(보고서 ${usage.reportCount}건)` : ''}에 쓰였습니다. 삭제하면 이 기록이 모두 함께 지워지므로 삭제할 수 없습니다. 더 이상 생산하지 않는 제품은 이름 앞에 (단종) 등을 붙여 구분해 주세요.`,
+        onConfirm: null
+      });
+      return;
+    }
     triggerConfirm(
       '제품 삭제',
-      '정말로 이 요거트 제품을 삭제하시겠습니까? 관련된 생산 계획 및 재고 데이터가 함께 삭제됩니다.',
+      '정말로 이 제품을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.',
       () => {
         deleteProduct(prodId);
         if (selectedProduct?.id === prodId) {
