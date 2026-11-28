@@ -94,7 +94,7 @@ const ModifyQtyModal = ({ isOpen, onClose, planId, productId }) => {
               <div className="form-group">
                 <label htmlFor="modify-actual-qty">실제 입고 수량 (개)</label>
                 <input 
-                  type="number" 
+                  type="number" inputMode="decimal" 
                   className="form-control" 
                   id="modify-actual-qty" 
                   min="0" 

@@ -53,7 +53,7 @@ const RecipeCostSummary = ({ costResult, isSubIngredient, salePrice, onSalePrice
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label htmlFor="edit-product-sale-price" style={{ fontSize: '0.78rem' }}>판매가 (VAT 포함, 원)</label>
               <input
-                type="number"
+                type="number" inputMode="decimal"
                 className="form-control"
                 id="edit-product-sale-price"
                 min="0"

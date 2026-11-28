@@ -62,36 +62,6 @@ const DailyChartViewerSection = ({ shippingCharts, saveShippingChart, deleteShip
         </div>
       </div>
 
-      {/* Date Quick Selection Pills */}
-      {shippingCharts.length > 0 && (
-        <div style={{ display: 'flex', gap: '5px', overflowX: 'auto', paddingBottom: '6px', marginBottom: '14px' }}>
-          <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', alignSelf: 'center', whiteSpace: 'nowrap' }}>등록목록:</span>
-          {shippingCharts.slice(0, 8).map((c) => {
-            const isActive = selectedViewDate === c.date;
-            return (
-              <button
-                key={c.date}
-                className={`order-date-quick-btn ${isActive ? 'active' : ''}`}
-                onClick={() => setSelectedViewDate(c.date)}
-                style={{
-                  padding: '3px 8px',
-                  borderRadius: '12px',
-                  border: isActive ? '1px solid var(--color-primary)' : '1px solid var(--border-color)',
-                  backgroundColor: isActive ? 'rgba(2, 132, 199, 0.15)' : 'transparent',
-                  color: isActive ? 'var(--color-primary)' : 'var(--text-secondary)',
-                  fontSize: '0.78rem',
-                  fontWeight: isActive ? 700 : 500,
-                  cursor: 'pointer',
-                  whiteSpace: 'nowrap'
-                }}
-              >
-                {c.date.substring(5)} ({c.totalCount}건)
-              </button>
-            );
-          })}
-        </div>
-      )}
-
       {!activeViewChart ? (
         <div style={{ textAlign: 'center', padding: '40px 16px', color: 'var(--text-secondary)' }}>
           <div style={{ fontSize: '2rem', marginBottom: '8px' }}>📭</div>

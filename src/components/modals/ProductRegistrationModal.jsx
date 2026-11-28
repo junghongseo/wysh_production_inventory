@@ -220,7 +220,7 @@ const ProductRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
                 <div className="form-group">
                   <label htmlFor="new-product-weight">단일 중량 (g)</label>
                   <input 
-                    type="number" 
+                    type="number" inputMode="decimal" 
                     className="form-control" 
                     id="new-product-weight" 
                     min="1" 
@@ -233,7 +233,7 @@ const ProductRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
                 <div className="form-group">
                   <label htmlFor="new-product-yield">수율 (%)</label>
                   <input 
-                    type="number" 
+                    type="number" inputMode="decimal" 
                     className="form-control" 
                     id="new-product-yield" 
                     min="1" 
@@ -253,7 +253,7 @@ const ProductRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
                 <div className="form-group">
                   <label htmlFor="new-product-shipping-days">최종 출고 기한 (일)</label>
                   <input 
-                    type="number" 
+                    type="number" inputMode="decimal" 
                     className="form-control" 
                     id="new-product-shipping-days" 
                     min="1" 
@@ -266,7 +266,7 @@ const ProductRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
                 <div className="form-group">
                   <label htmlFor="new-product-expiry-days">소비 기한 (일)</label>
                   <input 
-                    type="number" 
+                    type="number" inputMode="decimal" 
                     className="form-control" 
                     id="new-product-expiry-days" 
                     min="1" 
@@ -302,7 +302,7 @@ const ProductRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
                   <div className="form-group">
                     <label htmlFor="new-product-sterilization-temp">기본 살균 온도 (°C)</label>
                     <input 
-                      type="number" 
+                      type="number" inputMode="decimal" 
                       className="form-control" 
                       id="new-product-sterilization-temp" 
                       value={defaultSterilizationTemp}
@@ -313,7 +313,7 @@ const ProductRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
                   <div className="form-group">
                     <label htmlFor="new-product-sterilization-time">기본 살균 시간 (분)</label>
                     <input 
-                      type="number" 
+                      type="number" inputMode="decimal" 
                       className="form-control" 
                       id="new-product-sterilization-time" 
                       value={defaultSterilizationTime}
@@ -327,7 +327,7 @@ const ProductRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
                   <div className="form-group">
                     <label htmlFor="new-product-cooling-temp">기본 냉각 설정 온도 (°C)</label>
                     <input 
-                      type="number" 
+                      type="number" inputMode="decimal" 
                       className="form-control" 
                       id="new-product-cooling-temp" 
                       value={defaultCoolingTemp}
@@ -338,7 +338,7 @@ const ProductRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
                   <div className="form-group">
                     <label htmlFor="new-product-inoculation-temp">기본 접종 온도 (°C)</label>
                     <input 
-                      type="number" 
+                      type="number" inputMode="decimal" 
                       className="form-control" 
                       id="new-product-inoculation-temp" 
                       value={defaultInoculationTemp}
@@ -352,7 +352,7 @@ const ProductRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
                   <div className="form-group">
                     <label htmlFor="new-product-heating-temp">기본 가열 설정 온도 (°C)</label>
                     <input 
-                      type="number" 
+                      type="number" inputMode="decimal" 
                       className="form-control" 
                       id="new-product-heating-temp" 
                       value={defaultHeatingTemp}
@@ -363,7 +363,7 @@ const ProductRegistrationModal = ({ isOpen, onClose, onSuccess }) => {
                   <div className="form-group">
                     <label htmlFor="new-product-heater-temp">기본 히터 설정 온도 (°C)</label>
                     <input 
-                      type="number" 
+                      type="number" inputMode="decimal" 
                       className="form-control" 
                       id="new-product-heater-temp" 
                       value={defaultHeaterTemp}

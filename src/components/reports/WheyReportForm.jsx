@@ -104,7 +104,7 @@ const WheyReportForm = ({
             </label>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <input
-                type="number"
+                type="number" inputMode="decimal"
                 className="form-control"
                 placeholder="예: 19"
                 value={wheyBattCount}
@@ -122,7 +122,7 @@ const WheyReportForm = ({
             </label>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <input
-                type="number"
+                type="number" inputMode="decimal"
                 className="form-control"
                 placeholder="예: 3200"
                 value={wheyLastBattWeightG}
@@ -186,7 +186,7 @@ const WheyReportForm = ({
             </label>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <input
-                type="number"
+                type="number" inputMode="decimal"
                 step="0.1"
                 className="form-control"
                 placeholder="예: 35.9"
@@ -205,7 +205,7 @@ const WheyReportForm = ({
             </label>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
               <input
-                type="number"
+                type="number" inputMode="decimal"
                 step="0.1"
                 className="form-control"
                 placeholder="예: 36.2"
@@ -229,7 +229,7 @@ const WheyReportForm = ({
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <div style={{ flex: 1 }}>
             <input
-              type="number"
+              type="number" inputMode="decimal"
               step="0.01"
               className="form-control"
               placeholder="예: 4.47 (전극형 센서 pH 수치 기입)"

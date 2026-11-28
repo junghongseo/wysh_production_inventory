@@ -573,7 +573,7 @@ const PlanRegistrationModal = ({
                   <div className="form-group">
                     <label htmlFor="target-yogurt-qty" style={{ fontWeight: 600 }}>생산 소요 요거트 수량 (개분)</label>
                     <input
-                      type="number"
+                      type="number" inputMode="decimal"
                       className="form-control"
                       id="target-yogurt-qty"
                       min="1"
@@ -741,7 +741,7 @@ const PlanRegistrationModal = ({
                         <div className="form-group">
                           <label htmlFor={`plan-expected-${idx}`}>주문 예상 (개)</label>
                           <input 
-                            type="number" 
+                            type="number" inputMode="decimal" 
                             className="form-control" 
                             id={`plan-expected-${idx}`} 
                             min="0" 
@@ -754,7 +754,7 @@ const PlanRegistrationModal = ({
                         <div className="form-group">
                           <label htmlFor={`plan-marketing-${idx}`}>마케팅 (개)</label>
                           <input 
-                            type="number" 
+                            type="number" inputMode="decimal" 
                             className="form-control" 
                             id={`plan-marketing-${idx}`} 
                             min="0" 
@@ -767,7 +767,7 @@ const PlanRegistrationModal = ({
                         <div className="form-group">
                           <label htmlFor={`plan-buffer-${idx}`}>여유분 (개)</label>
                           <input 
-                            type="number" 
+                            type="number" inputMode="decimal" 
                             className="form-control" 
                             id={`plan-buffer-${idx}`} 
                             min="0" 

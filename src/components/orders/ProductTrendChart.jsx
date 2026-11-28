@@ -1,5 +1,6 @@
 import React from 'react';
 import { PRODUCT_COLORS, getProductTotalsFromChart } from '../../utils/shippingChartUtils';
+import useIsMobile from '../../hooks/useIsMobile';
 
 const modeButtonStyle = (isActive) => ({
   padding: '3px 8px',
@@ -13,7 +14,9 @@ const modeButtonStyle = (isActive) => ({
 });
 
 // SVG line chart body: one line per visible product
-const TrendLines = ({ charts, productList, hiddenProducts, chartMode }) => {
+// compact(모바일): 차트가 작게 그려지므로 축·날짜 글자를 키우고, 점마다 붙는 숫자는 숨기고, 날짜는 5개 정도만 표시
+const TrendLines = ({ charts, productList, hiddenProducts, chartMode, compact = false }) => {
+  const labelSize = compact ? 15 : 9;
   const visibleProducts = productList.filter(p => !hiddenProducts.has(p));
 
   // Calculate per-date product metrics
@@ -51,17 +54,18 @@ const TrendLines = ({ charts, productList, hiddenProducts, chartMode }) => {
 
   const stepX = 320 / Math.max(dailyData.length - 1, 1);
   const firstVisibleIdx = productList.findIndex(p => !hiddenProducts.has(p));
+  const dateStep = compact ? Math.max(1, Math.ceil(dailyData.length / 5)) : 1;
 
   return (
     <>
       {/* Y-axis Value Label Indicators */}
-      <text x="35" y="24" textAnchor="end" fontSize="9" fill="var(--text-secondary)">
+      <text x="35" y="24" textAnchor="end" fontSize={labelSize} fill="var(--text-secondary)">
         {chartMode === 'percent' ? '100%' : maxVal}
       </text>
-      <text x="35" y="98" textAnchor="end" fontSize="9" fill="var(--text-secondary)">
+      <text x="35" y="98" textAnchor="end" fontSize={labelSize} fill="var(--text-secondary)">
         {chartMode === 'percent' ? '50%' : Math.round(maxVal / 2)}
       </text>
-      <text x="35" y="174" textAnchor="end" fontSize="9" fill="var(--text-secondary)">0</text>
+      <text x="35" y="174" textAnchor="end" fontSize={labelSize} fill="var(--text-secondary)">0</text>
 
       {/* Render line per visible product */}
       {visibleProducts.map((pName) => {
@@ -99,7 +103,7 @@ const TrendLines = ({ charts, productList, hiddenProducts, chartMode }) => {
                 <circle cx={p.x} cy={p.y} r="4" fill={color} stroke="#ffffff" strokeWidth="1.5">
                   <title>{`${p.date}: ${pName} ${p.rawQty}개 (${chartMode === 'percent' ? p.val.toFixed(1) + '%' : p.rawQty + '개'})`}</title>
                 </circle>
-                <text
+                {!compact && <text
                   x={p.x}
                   y={p.y - 7}
                   textAnchor="middle"
@@ -108,10 +112,10 @@ const TrendLines = ({ charts, productList, hiddenProducts, chartMode }) => {
                   fill={color}
                 >
                   {chartMode === 'percent' ? `${Math.round(p.val)}%` : p.rawQty}
-                </text>
+                </text>}
                 {/* Date label at bottom (only once per date index) */}
-                {globalPIdx === firstVisibleIdx && (
-                  <text x={p.x} y="190" textAnchor="middle" fontSize="9" fill="var(--text-secondary)">
+                {globalPIdx === firstVisibleIdx && ((i % dateStep === 0 && points.length - 1 - i >= dateStep / 2) || i === points.length - 1) && (
+                  <text x={p.x} y={compact ? 194 : 190} textAnchor="middle" fontSize={labelSize} fill="var(--text-secondary)">
                     {p.date.substring(5)}
                   </text>
                 )}
@@ -125,7 +129,9 @@ const TrendLines = ({ charts, productList, hiddenProducts, chartMode }) => {
 };
 
 // 📈 일별 총 출고 수량 추이 (제품 필터 + 수량/상대비중 모드)
-const ProductTrendChart = ({ charts, productList, hiddenProducts, onToggleProduct, chartMode, setChartMode }) => (
+const ProductTrendChart = ({ charts, productList, hiddenProducts, onToggleProduct, chartMode, setChartMode }) => {
+  const isMobile = useIsMobile();
+  return (
   <div style={{ backgroundColor: 'var(--bg-card)', padding: '18px 16px', borderRadius: '12px', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column' }}>
 
     {/* Chart Header & Mode Switch */}
@@ -147,8 +153,8 @@ const ProductTrendChart = ({ charts, productList, hiddenProducts, onToggleProduc
 
     {/* Product Filter Chips Bar */}
     {productList.length > 0 && (
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '14px', alignItems: 'center' }}>
-        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600, marginRight: '2px' }}>제품 필터:</span>
+      <div className="trend-filter" style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginBottom: '14px', alignItems: 'center' }}>
+        <span className="trend-filter-label" style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600, marginRight: '2px' }}>제품 필터:</span>
         {productList.map((pName, pIdx) => {
           const color = PRODUCT_COLORS[pIdx % PRODUCT_COLORS.length];
           const isHidden = hiddenProducts.has(pName);
@@ -156,6 +162,7 @@ const ProductTrendChart = ({ charts, productList, hiddenProducts, onToggleProduc
           return (
             <button
               key={pName}
+              className="trend-filter-chip"
               onClick={() => onToggleProduct(pName)}
               title={isHidden ? `${pName} 그래프 보기` : `${pName} 그래프 숨기기`}
               style={{
@@ -180,10 +187,11 @@ const ProductTrendChart = ({ charts, productList, hiddenProducts, onToggleProduc
                   width: '8px',
                   height: '8px',
                   borderRadius: '50%',
+                  flexShrink: 0,
                   backgroundColor: isHidden ? 'var(--text-secondary)' : color
                 }}
               />
-              {pName}
+              <span className="trend-filter-name">{pName}</span>
             </button>
           );
         })}
@@ -199,10 +207,11 @@ const ProductTrendChart = ({ charts, productList, hiddenProducts, onToggleProduc
         <line x1="40" y1="120" x2="360" y2="120" stroke="var(--border-color)" strokeDasharray="3 3" opacity="0.5" />
         <line x1="40" y1="170" x2="360" y2="170" stroke="var(--border-color)" strokeOpacity="0.8" />
 
-        <TrendLines charts={charts} productList={productList} hiddenProducts={hiddenProducts} chartMode={chartMode} />
+        <TrendLines charts={charts} productList={productList} hiddenProducts={hiddenProducts} chartMode={chartMode} compact={isMobile} />
       </svg>
     </div>
   </div>
-);
+  );
+};
 
 export default ProductTrendChart;

@@ -536,7 +536,7 @@ const InventoryView = ({ onDeleteHistory, onOpenMemoModal }) => {
               <div className="form-group">
                 <label htmlFor="outflow-qty">출고 수량 (개)</label>
                 <input 
-                  type="number" 
+                  type="number" inputMode="decimal" 
                   className="form-control" 
                   id="outflow-qty" 
                   min="1" 
