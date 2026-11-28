@@ -5,6 +5,7 @@ import * as remote from './services/supabaseService';
 import { tracked } from './services/pushTracker';
 import { useAuth } from './AuthContext';
 import { canReadRecipeData } from './utils/permissions';
+import { mergeShippingCharts } from './utils/syncMerge';
 
 const { fetchAllRemoteData } = remote;
 
@@ -195,10 +196,11 @@ export const WyshProvider = ({ children }) => {
       localStorage.removeItem('wysh_deleted_plans');
       localStorage.removeItem('wysh_deleted_material_costs');
 
-      const finalNotes = mappedCalendarNotes || [];
-      const finalReports = mappedReports || [];
+      // 보조 테이블 조회가 실패하면(null) 로컬 값을 유지한다
+      const finalNotes = mappedCalendarNotes ?? (localInitial.calendarNotes || []);
+      const finalReports = mappedReports ?? (localInitial.reports || []);
       const finalPlans = mappedPlans || [];
-      const finalMaterials = mappedMaterialCosts || [];
+      const finalMaterials = mappedMaterialCosts ?? (localInitial.materialCosts || []);
       const finalInventory = mappedInventory || [];
 
       // Maintain products compatibility and preserve local recipeMemo if remote DB column does not exist yet
@@ -224,23 +226,9 @@ export const WyshProvider = ({ children }) => {
 
       const finalProducts = Array.from(mergedProductsMap.values());
 
-      // Shipping charts merge
-      const localCharts = localInitial.shippingCharts || [];
-      const chartMap = new Map();
-      localCharts.forEach(c => {
-        if (c && c.date) chartMap.set(c.date, c);
-      });
-      (mappedShippingCharts || []).forEach(rc => {
-        if (!rc || !rc.date) return;
-        const lc = chartMap.get(rc.date);
-        if (!lc || !lc.updatedAt || (rc.updatedAt && rc.updatedAt >= lc.updatedAt)) {
-          chartMap.set(rc.date, rc);
-        } else if (lc && lc.updatedAt && rc.updatedAt && lc.updatedAt > rc.updatedAt) {
-          pushShippingChartToSupabase(lc);
-        }
-      });
-      const finalCharts = Array.from(chartMap.values());
-      finalCharts.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+      // 출고표 병합: 원격에 없는 로컬 출고표는 삭제된 것으로 보고 버린다 (조회 실패 시에는 로컬 유지)
+      const { charts: finalCharts, toPush: chartsToPush } = mergeShippingCharts(localInitial.shippingCharts, mappedShippingCharts);
+      chartsToPush.forEach(c => pushShippingChartToSupabase(c));
 
       // Save Authoritative Remote State to LocalStorage and React State
       saveStorageItems('PRODUCTS', finalProducts);
