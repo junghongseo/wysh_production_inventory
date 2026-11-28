@@ -7,6 +7,7 @@ import Navbar from './components/Navbar';
 import RecipeDrawer from './components/RecipeDrawer';
 import WyshThemeSwitcher from './components/WyshThemeSwitcher';
 import WyshTopBanner from './components/WyshTopBanner';
+import MobileAccountMenu from './components/MobileAccountMenu';
 import PlanRegistrationModal from './components/modals/PlanRegistrationModal';
 import ProductRegistrationModal from './components/modals/ProductRegistrationModal';
 import ModifyQtyModal from './components/modals/ModifyQtyModal';
@@ -294,7 +295,7 @@ const App = () => {
                   </span>
                 )}
               </div>
-              <p style={{ margin: '4px 0 0 0' }}>생산부터 재고까지, 위시의 모든 흐름을 한눈에</p>
+              <p className="brand-tagline" style={{ margin: '4px 0 0 0' }}>생산부터 재고까지, 위시의 모든 흐름을 한눈에</p>
               {dbError && (
                 <p style={{ fontSize: '0.7rem', color: 'var(--color-danger, #ef4444)', margin: '4px 0 0 0', display: 'flex', alignItems: 'center', gap: '4px' }}>
                   ⚠️ 동기화 실패: {dbError}
@@ -303,10 +304,20 @@ const App = () => {
             </div>
           </div>
 
+          <MobileAccountMenu
+            profile={profile}
+            isAdmin={isAdmin}
+            theme={theme}
+            setTheme={setTheme}
+            onOpenTeam={() => setActiveTab('team-view')}
+            onOpenAppSettings={() => setAppSettingsModalOpen(true)}
+            onLogout={() => logout()}
+          />
+
           <div className="header-controls-group">
             <WyshThemeSwitcher theme={theme} setTheme={setTheme} />
             {/* 현재 로그인한 사람 */}
-            <div className="glass-card" style={{
+            <div className="glass-card header-account-card" style={{
               display: 'flex',
               alignItems: 'center',
               gap: '12px',

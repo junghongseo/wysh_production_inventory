@@ -26,7 +26,8 @@ const Navbar = ({ activeTab, setActiveTab, onOpenAppSettings, appSettingsModalOp
           <line x1="8" y1="2" x2="8" y2="6"></line>
           <line x1="3" y1="10" x2="21" y2="10"></line>
         </svg>
-        생산 일정 및 배합표
+        <span className="nav-label">생산 일정 및 배합표</span>
+        <span className="nav-label-short">일정</span>
       </button>
       )}
       {showTab('inventory-view') && (
@@ -40,9 +41,10 @@ const Navbar = ({ activeTab, setActiveTab, onOpenAppSettings, appSettingsModalOp
           <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
           <line x1="12" y1="22.08" x2="12" y2="12"></line>
         </svg>
-        <span>차수별 재고 관리</span>
+        <span className="nav-label">차수별 재고 관리</span>
+        <span className="nav-label-short">재고</span>
         {unverifiedInventoryCount > 0 && (
-          <span style={{
+          <span className="nav-badge" style={{
             backgroundColor: '#ef4444',
             color: '#ffffff',
             fontSize: '0.7rem',
@@ -56,7 +58,7 @@ const Navbar = ({ activeTab, setActiveTab, onOpenAppSettings, appSettingsModalOp
             boxShadow: '0 2px 4px rgba(239, 68, 68, 0.2)',
             lineHeight: '1'
           }}>
-            미확인 {unverifiedInventoryCount}
+            <span className="nav-badge-prefix">미확인 </span>{unverifiedInventoryCount}
           </span>
         )}
       </button>
@@ -74,9 +76,10 @@ const Navbar = ({ activeTab, setActiveTab, onOpenAppSettings, appSettingsModalOp
           <line x1="16" y1="17" x2="8" y2="17"></line>
           <polyline points="10 9 9 9 8 9"></polyline>
         </svg>
-        <span>리포트</span>
+        <span className="nav-label">리포트</span>
+        <span className="nav-label-short">리포트</span>
         {visibleUnconfirmedReportsCount > 0 && (
-          <span style={{
+          <span className="nav-badge" style={{
             backgroundColor: '#ef4444',
             color: '#ffffff',
             fontSize: '0.7rem',
@@ -90,7 +93,7 @@ const Navbar = ({ activeTab, setActiveTab, onOpenAppSettings, appSettingsModalOp
             boxShadow: '0 2px 4px rgba(239, 68, 68, 0.2)',
             lineHeight: '1'
           }}>
-            미확인 {visibleUnconfirmedReportsCount}
+            <span className="nav-badge-prefix">미확인 </span>{visibleUnconfirmedReportsCount}
           </span>
         )}
       </button>
@@ -108,7 +111,8 @@ const Navbar = ({ activeTab, setActiveTab, onOpenAppSettings, appSettingsModalOp
           <line x1="16" y1="17" x2="8" y2="17"></line>
           <polyline points="10 9 9 9 8 9"></polyline>
         </svg>
-        주문 정리 및 분석
+        <span className="nav-label">주문 정리 및 분석</span>
+        <span className="nav-label-short">주문</span>
       </button>
       )}
       {showTab('recipes-view') && (
@@ -121,12 +125,13 @@ const Navbar = ({ activeTab, setActiveTab, onOpenAppSettings, appSettingsModalOp
             <circle cx="12" cy="12" r="3"></circle>
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
           </svg>
-          제품 및 레시피 설정
+          <span className="nav-label">제품 및 레시피 설정</span>
+          <span className="nav-label-short">레시피</span>
         </button>
       )}
       {isAdmin && (
         <button
-          className={`nav-tab ${activeTab === 'team-view' ? 'active' : ''}`}
+          className={`nav-tab nav-tab-admin ${activeTab === 'team-view' ? 'active' : ''}`}
           id="tab-team"
           onClick={() => setActiveTab('team-view')}
         >
@@ -141,7 +146,7 @@ const Navbar = ({ activeTab, setActiveTab, onOpenAppSettings, appSettingsModalOp
       )}
       {isAdmin && onOpenAppSettings && (
         <button 
-          className={`nav-tab ${appSettingsModalOpen ? 'active' : ''}`}
+          className={`nav-tab nav-tab-admin ${appSettingsModalOpen ? 'active' : ''}`}
           id="tab-settings" 
           onClick={(e) => {
             e.preventDefault();

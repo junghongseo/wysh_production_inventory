@@ -2,10 +2,13 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { useWysh } from '../WyshContext';
 import { useAuth } from '../AuthContext';
 import { calculateItemStock } from '../utils/stockUtils';
+import useIsMobile from '../hooks/useIsMobile';
+import InventoryCardList from './inventory/InventoryCardList';
 
 const InventoryView = ({ onDeleteHistory, onOpenMemoModal }) => {
   const { can, profile, profilesById } = useAuth();
   const canVerify = can('inventory.verify');
+  const isMobile = useIsMobile();
   const myName = profile?.display_name || '';
   const { plans, products, inventory, reports, addOutflow, updateOutflow, verifyOutflow, getInventoryRecord } = useWysh();
 
@@ -366,6 +369,13 @@ const InventoryView = ({ onDeleteHistory, onOpenMemoModal }) => {
           </div>
         </div>
         
+        {isMobile ? (
+          <InventoryCardList
+            rows={paginatedInventoryData}
+            selectedId={selectedInventoryPlanId}
+            onSelect={setSelectedInventoryPlanId}
+          />
+        ) : (
         <div className="wysh-table-wrapper">
           <table className="wysh-table" id="inventory-table">
             <thead>
@@ -433,6 +443,7 @@ const InventoryView = ({ onDeleteHistory, onOpenMemoModal }) => {
             </tbody>
           </table>
         </div>
+        )}
 
         {/* Pagination Controls */}
         {totalPages > 1 && (

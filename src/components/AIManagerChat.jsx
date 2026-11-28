@@ -335,7 +335,8 @@ export const AIManagerChat = () => {
         /* WYSH 브랜드 시그니처 둥근 플로팅 챗 버튼 (모달·드로어가 열리면 index.css 에서 숨김) */
         <div className="ai-fab" style={{
           position: 'fixed',
-          bottom: isMobile ? '16px' : '28px',
+          // 모바일은 하단 탭바 위에 띄운다
+          bottom: isMobile ? 'calc(80px + env(safe-area-inset-bottom))' : '28px',
           right: isMobile ? '16px' : '28px',
           zIndex: 9999,
           fontFamily: '"Pretendard", -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif'

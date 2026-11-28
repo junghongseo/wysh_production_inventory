@@ -5,6 +5,7 @@ import MaterialCostListSection from './recipes/MaterialCostListSection';
 import RecipeCostSummary from './recipes/RecipeCostSummary';
 import IngredientCostLine from './recipes/IngredientCostLine';
 import PackagingEditor from './recipes/PackagingEditor';
+import useIsMobile from '../hooks/useIsMobile';
 import { computeProductUnitCost, FREE_MATERIAL_ID } from '../utils/costCalculator';
 
 const RecipesView = ({ 
@@ -24,6 +25,7 @@ const RecipesView = ({
   } = useWysh();
   const { can } = useAuth();
   const canSeeCost = can('recipes.cost');
+  const isMobile = useIsMobile();
 
   const [activeSubTab, setActiveSubTab] = useState('recipe'); // 'recipe' | 'material_costs'
   const [filterTab, setFilterTab] = useState('all'); // 'all' | 'yogurt' | 'sub_ingredient'
@@ -450,7 +452,8 @@ const RecipesView = ({
         />
       ) : (
         <div className="recipe-split">
-      {/* Left: Product & Sub-ingredient List */}
+      {/* Left: Product & Sub-ingredient List (모바일에서는 제품을 고르면 숨기고 편집 화면으로 전환) */}
+      {!(isMobile && selectedProduct) && (
       <div className="glass-card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -501,7 +504,10 @@ const RecipesView = ({
                 <div 
                   key={p.id} 
                   className={`product-item ${selectedProduct?.id === p.id ? 'active' : ''}`}
-                  onClick={() => setSelectedProduct(p)}
+                  onClick={() => {
+                    setSelectedProduct(p);
+                    if (isMobile) window.scrollTo({ top: 0 });
+                  }}
                 >
                   <div>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
@@ -543,10 +549,24 @@ const RecipesView = ({
           )}
         </div>
       </div>
+      )}
 
       {/* Right: Recipe Editor */}
+      {!(isMobile && !selectedProduct) && (
       <div className="glass-card">
-        <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        {isMobile && (
+          <button
+            type="button"
+            className="mobile-back-btn"
+            onClick={() => {
+              setSelectedProduct(null);
+              window.scrollTo({ top: 0 });
+            }}
+          >
+            ‹ 제품 목록
+          </button>
+        )}
+        <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '12px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
           <h3 id="recipe-editor-title" style={{ fontSize: '1.15rem', fontWeight: 600 }}>
             {productIsSubIngredient ? '반제품 설정 및 레시피' : '제품별 설정 및 레시피'}
           </h3>
@@ -572,7 +592,7 @@ const RecipesView = ({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
-              <p>왼쪽 목록에서 특정 요거트 제품이나 반제품을 클릭하면 레시피를 편집할 수 있습니다.</p>
+              <p>목록에서 요거트 제품이나 반제품을 고르면 레시피를 편집할 수 있습니다.</p>
             </div>
           ) : (
             <form id="recipe-editor-form" onSubmit={handleRecipeSave}>
@@ -1010,6 +1030,7 @@ const RecipesView = ({
           )}
         </div>
       </div>
+      )}
     </div>
   )}
 </div>
