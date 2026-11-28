@@ -6,23 +6,26 @@ import { tracked } from './services/pushTracker';
 import { useAuth } from './AuthContext';
 import { canReadRecipeData } from './utils/permissions';
 import { mergeShippingCharts } from './utils/syncMerge';
+import { applyOutbox, mergeQueues } from './utils/outboxQueue';
+import { enqueueSave, flushOutbox, getOutbox, getOutboxCount, subscribeOutbox } from './services/outbox';
 
 const { fetchAllRemoteData } = remote;
 
-// 저장 요청은 추적해서, 로그아웃 직전에 전송 중인 요청이 끝나기를 기다릴 수 있게 한다.
-const pushProductToSupabase = tracked(remote.pushProductToSupabase);
-const deleteProductFromSupabase = tracked(remote.deleteProductFromSupabase);
-const pushPlanToSupabase = tracked(remote.pushPlanToSupabase);
-const deletePlanFromSupabase = tracked(remote.deletePlanFromSupabase);
-const pushInventoryToSupabase = tracked(remote.pushInventoryToSupabase);
-const pushCalendarNoteToSupabase = tracked(remote.pushCalendarNoteToSupabase);
-const deleteCalendarNoteFromSupabase = tracked(remote.deleteCalendarNoteFromSupabase);
-const pushReportToSupabase = tracked(remote.pushReportToSupabase);
-const deleteReportFromSupabase = tracked(remote.deleteReportFromSupabase);
-const pushShippingChartToSupabase = tracked(remote.pushShippingChartToSupabase);
-const deleteShippingChartFromSupabase = tracked(remote.deleteShippingChartFromSupabase);
-const pushMaterialCostToSupabase = tracked(remote.pushMaterialCostToSupabase);
-const deleteMaterialCostFromSupabase = tracked(remote.deleteMaterialCostFromSupabase);
+// 업무 데이터 저장·삭제는 저장 대기열(outbox)을 거친다: 실패하면 남겨 두었다가 다시 보낸다.
+const pushProductToSupabase = (p) => enqueueSave('product', 'upsert', p.id, p);
+const deleteProductFromSupabase = (id) => enqueueSave('product', 'delete', id);
+const pushPlanToSupabase = (p) => enqueueSave('plan', 'upsert', p.id, p);
+const deletePlanFromSupabase = (id) => enqueueSave('plan', 'delete', id);
+const pushInventoryToSupabase = (r) => enqueueSave('inventory', 'upsert', r.planId, r);
+const pushCalendarNoteToSupabase = (n) => enqueueSave('calendarNote', 'upsert', n.dateStr, n);
+const deleteCalendarNoteFromSupabase = (dateStr) => enqueueSave('calendarNote', 'delete', dateStr);
+const pushReportToSupabase = (r) => enqueueSave('report', 'upsert', r.id, r);
+const deleteReportFromSupabase = (id) => enqueueSave('report', 'delete', id);
+const pushShippingChartToSupabase = (c) => enqueueSave('shippingChart', 'upsert', c.date, c);
+const deleteShippingChartFromSupabase = (date) => enqueueSave('shippingChart', 'delete', date);
+const pushMaterialCostToSupabase = (m) => enqueueSave('materialCost', 'upsert', m.id, m);
+const deleteMaterialCostFromSupabase = (id) => enqueueSave('materialCost', 'delete', id);
+// 배너(관리자 전용)는 updatedAt 비교로 스스로 다시 올리므로 대기열 없이 추적만 한다.
 const pushBannerSettingsToSupabase = tracked(remote.pushBannerSettingsToSupabase);
 
 const WyshContext = createContext();
@@ -48,6 +51,8 @@ export const WyshProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [isDbConnected, setIsDbConnected] = useState(false);
   const [dbError, setDbError] = useState(null);
+  const [pendingSaveCount, setPendingSaveCount] = useState(getOutboxCount);
+  useEffect(() => subscribeOutbox(setPendingSaveCount), []);
 
   const DEFAULT_BANNER_SETTINGS = {
     topBannerText: '평일 오전 10시 이전 주문 시 당일 발송 🚚',
@@ -160,6 +165,9 @@ export const WyshProvider = ({ children }) => {
       return;
     }
     try {
+      // 대기 중인 저장을 먼저 보내 본다. 조회 시작 시점의 대기열도 기억해 두었다가 결과 위에 덮는다.
+      await flushOutbox();
+      const outboxAtStart = getOutbox();
       const {
         mappedProducts,
         mappedPlans,
@@ -230,22 +238,33 @@ export const WyshProvider = ({ children }) => {
       const { charts: finalCharts, toPush: chartsToPush } = mergeShippingCharts(localInitial.shippingCharts, mappedShippingCharts);
       chartsToPush.forEach(c => pushShippingChartToSupabase(c));
 
-      // Save Authoritative Remote State to LocalStorage and React State
-      saveStorageItems('PRODUCTS', finalProducts);
-      saveStorageItems('PLANS', finalPlans);
-      saveStorageItems('INVENTORY', finalInventory);
-      saveStorageItems('CALENDAR_NOTES', finalNotes);
-      saveStorageItems('REPORTS', finalReports);
-      saveStorageItems('SHIPPING_CHARTS', finalCharts);
-      saveStorageItems('MATERIAL_COSTS', finalMaterials);
+      // 아직 서버에 반영되지 않은 저장·삭제를 서버 값 위에 덮는다 (보내기 전에 화면에서 사라지지 않도록)
+      const merged = applyOutbox({
+        products: finalProducts,
+        plans: finalPlans,
+        inventory: finalInventory,
+        calendarNotes: finalNotes,
+        reports: finalReports,
+        shippingCharts: finalCharts,
+        materialCosts: finalMaterials
+      }, mergeQueues(outboxAtStart, getOutbox()));
 
-      setProducts(finalProducts);
-      setPlans(finalPlans);
-      setInventory(finalInventory);
-      setCalendarNotes(finalNotes);
-      setReports(finalReports);
-      setShippingCharts(finalCharts);
-      setMaterialCosts(finalMaterials);
+      // Save Authoritative Remote State to LocalStorage and React State
+      saveStorageItems('PRODUCTS', merged.products);
+      saveStorageItems('PLANS', merged.plans);
+      saveStorageItems('INVENTORY', merged.inventory);
+      saveStorageItems('CALENDAR_NOTES', merged.calendarNotes);
+      saveStorageItems('REPORTS', merged.reports);
+      saveStorageItems('SHIPPING_CHARTS', merged.shippingCharts);
+      saveStorageItems('MATERIAL_COSTS', merged.materialCosts);
+
+      setProducts(merged.products);
+      setPlans(merged.plans);
+      setInventory(merged.inventory);
+      setCalendarNotes(merged.calendarNotes);
+      setReports(merged.reports);
+      setShippingCharts(merged.shippingCharts);
+      setMaterialCosts(merged.materialCosts);
 
       setIsDbConnected(true);
       setDbError(null);
@@ -831,7 +850,8 @@ export const WyshProvider = ({ children }) => {
     updateBannerSettings,
     resetBannerSettings,
     isDbConnected,
-    dbError
+    dbError,
+    pendingSaveCount
   }), [
     products,
     plans,
@@ -870,7 +890,8 @@ export const WyshProvider = ({ children }) => {
     updateMaterialCost,
     deleteMaterialCost,
     isDbConnected,
-    dbError
+    dbError,
+    pendingSaveCount
   ]);
 
   return (

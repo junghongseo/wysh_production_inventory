@@ -6,13 +6,14 @@ UI 텍스트와 사용자 응대는 한국어로 한다.
 ## 명령어
 - `npm run dev` — 개발 서버 (http://localhost:3000)
 - `npm run build` — 프로덕션 빌드 (`dist/`)
-- `node src/utils/orderParser.test.js` / `node src/utils/recipeCalculator.test.js` / `node src/utils/permissions.test.js` / `node src/utils/costCalculator.test.js` / `node src/utils/chatFormat.test.js` / `node src/utils/syncMerge.test.js` — 테스트 (프레임워크 없이 node로 직접 실행)
+- `node src/utils/orderParser.test.js` / `node src/utils/recipeCalculator.test.js` / `node src/utils/permissions.test.js` / `node src/utils/costCalculator.test.js` / `node src/utils/chatFormat.test.js` / `node src/utils/syncMerge.test.js` / `node src/utils/outboxQueue.test.js` — 테스트 (프레임워크 없이 node로 직접 실행)
 
 계산·파싱 로직을 수정하면 위 테스트를 돌리고, 새 동작에는 같은 파일에 테스트 케이스를 추가한다.
 
 ## 구조
 - `src/App.jsx` — 탭 라우팅(캘린더/재고/배합표/보고서/주문), 모달, PWA 배지
 - `src/WyshContext.jsx` — 전역 상태 단일 소스. localStorage 즉시 저장 → Supabase push. Realtime 구독 + 10초 백그라운드 동기화
+- `src/services/outbox.js` — 저장 대기열. 업무 데이터 저장·삭제는 여기를 거쳐 순서대로 전송되고, 네트워크 실패 시 남겨 두었다가 다시 보낸다. 동기화는 대기 중인 항목을 서버 값 위에 덮어 보여 준다 (`utils/outboxQueue.js`)
 - `src/services/supabaseService.js` — Supabase CRUD, `storageService.js` — localStorage
 - `src/utils/` — 순수 함수 (recipeCalculator, orderParser, stockUtils). UI와 분리 유지
 - `src/components/` — 화면별 뷰, `modals/`, `reports/`, `recipes/` 등

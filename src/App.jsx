@@ -35,7 +35,7 @@ const ViewFallback = () => (
 );
 
 const App = () => {
-  const { reports, inventory, deletePlan, deleteProduct, deleteHistoryItem, updateOutflowMemo, saveCalendarNote, deleteCalendarNote, loading, isDbConnected, dbError, products, plans } = useWysh();
+  const { reports, inventory, deletePlan, deleteProduct, deleteHistoryItem, updateOutflowMemo, saveCalendarNote, deleteCalendarNote, loading, isDbConnected, dbError, pendingSaveCount, products, plans } = useWysh();
   const { profile, can, logout } = useAuth();
   const isAdmin = can('admin');
   const defaultTab = firstAllowedTab(profile);
@@ -292,6 +292,24 @@ const App = () => {
                       display: 'inline-block'
                     }}></span>
                     로컬 오프라인 모드
+                  </span>
+                )}
+                {pendingSaveCount > 0 && (
+                  <span
+                    title="서버에 아직 저장되지 않은 변경입니다. 연결되면 자동으로 저장됩니다."
+                    style={{
+                      fontSize: '0.65rem',
+                      padding: '2px 8px',
+                      borderRadius: '12px',
+                      fontWeight: 600,
+                      color: '#ffffff',
+                      backgroundColor: 'var(--color-warning, #f59e0b)',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      verticalAlign: 'middle'
+                    }}
+                  >
+                    저장 대기 {pendingSaveCount}건
                   </span>
                 )}
               </div>

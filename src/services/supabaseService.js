@@ -1,5 +1,6 @@
 import { supabase } from '../supabaseClient';
 import { recordPushFailure } from './pushTracker';
+import { isRetryableError } from '../utils/outboxQueue';
 
 // 작업자 기록 컬럼: 값이 있을 때만 보낸다 (과거 기록의 NULL 유지)
 const attributionColumns = (record) => {
@@ -26,6 +27,19 @@ const reportPushError = (label, err) => {
     window.alert(`권한이 없어 저장되지 않았습니다.${reason}
 잠시 후 화면이 서버 상태로 돌아갑니다.`);
   }
+};
+
+// 저장·삭제 결과. 저장 대기열(outbox)이 이 값을 보고 대기열에서 빼거나 다시 보낸다.
+//   { ok: true } | { ok: false, retryable: true } (네트워크 등, 나중에 다시) | { ok: false, retryable: false } (권한·데이터 오류, 버림)
+const OK = { ok: true };
+const settle = (label, error) => {
+  if (!error) return OK;
+  if (isRetryableError(error)) {
+    console.warn(`${label} (잠시 후 다시 보냄)`, error);
+    return { ok: false, retryable: true };
+  }
+  reportPushError(label, error);
+  return { ok: false, retryable: false };
 };
 
 // 테이블이 아직 없을 때(마이그레이션 전)의 오류인지
@@ -328,7 +342,7 @@ export const pushBannerSettingsToSupabase = async (bannerSettings) => {
 };
 
 export const pushShippingChartToSupabase = async (chart) => {
-  if (!supabase || !chart) return;
+  if (!supabase || !chart) return { ok: false, retryable: false };
   try {
     const dbChart = {
       date: chart.date,
@@ -341,24 +355,24 @@ export const pushShippingChartToSupabase = async (chart) => {
       updated_at: chart.updatedAt || new Date().toISOString()
     };
     const { error } = await supabase.from('shipping_charts').upsert(dbChart);
-    if (error) reportPushError("Supabase Push Error (ShippingChart):", error);
+    return settle("Supabase Push Error (ShippingChart):", error);
   } catch (e) {
-    reportPushError("Supabase Push Error (ShippingChart):", e);
+    return settle("Supabase Push Error (ShippingChart):", e);
   }
 };
 
 export const deleteShippingChartFromSupabase = async (date) => {
-  if (!supabase || !date) return;
+  if (!supabase || !date) return { ok: false, retryable: false };
   try {
     const { error } = await supabase.from('shipping_charts').delete().eq('date', date);
-    if (error) reportPushError("Supabase Push Error (Delete ShippingChart):", error);
+    return settle("Supabase Push Error (Delete ShippingChart):", error);
   } catch (e) {
-    reportPushError("Supabase Push Error (Delete ShippingChart):", e);
+    return settle("Supabase Push Error (Delete ShippingChart):", e);
   }
 };
 
 export const pushProductToSupabase = async (product) => {
-  if (!supabase) return;
+  if (!supabase) return { ok: false, retryable: true };
   try {
     // 배합 데이터를 받지 못한(권한 없는) 기기에서는 배합 필드를 보내지 않아 원격 값을 지우지 않는다.
     // DB 트리거가 products 의 배합 필드를 product_recipes 로 복사한다.
@@ -401,24 +415,24 @@ export const pushProductToSupabase = async (product) => {
       toDrop.forEach(c => { delete payload[c]; });
       ({ error } = await supabase.from('products').upsert(payload));
     }
-    if (error) reportPushError("Supabase Push Error (Product):", error);
+    return settle("Supabase Push Error (Product):", error);
   } catch (e) {
-    reportPushError("Supabase Push Error (Product):", e);
+    return settle("Supabase Push Error (Product):", e);
   }
 };
 
 export const deleteProductFromSupabase = async (id) => {
-  if (!supabase) return;
+  if (!supabase) return { ok: false, retryable: true };
   try {
     const { error } = await supabase.from('products').delete().eq('id', id);
-    if (error) throw error;
+    return settle("Supabase Push Error (Delete Product):", error);
   } catch (e) {
-    reportPushError("Supabase Push Error (Delete Product):", e);
+    return settle("Supabase Push Error (Delete Product):", e);
   }
 };
 
 export const pushPlanToSupabase = async (plan) => {
-  if (!supabase) return;
+  if (!supabase) return { ok: false, retryable: true };
   try {
     const dbPlan = {
       id: plan.id,
@@ -443,24 +457,24 @@ export const pushPlanToSupabase = async (plan) => {
       ...attributionColumns(plan)
     };
     const { error } = await supabase.from('plans').upsert(dbPlan);
-    if (error) throw error;
+    return settle("Supabase Push Error (Plan):", error);
   } catch (e) {
-    reportPushError("Supabase Push Error (Plan):", e);
+    return settle("Supabase Push Error (Plan):", e);
   }
 };
 
 export const deletePlanFromSupabase = async (id) => {
-  if (!supabase) return;
+  if (!supabase) return { ok: false, retryable: true };
   try {
     const { error } = await supabase.from('plans').delete().eq('id', id);
-    if (error) throw error;
+    return settle("Supabase Push Error (Delete Plan):", error);
   } catch (e) {
-    reportPushError("Supabase Push Error (Delete Plan):", e);
+    return settle("Supabase Push Error (Delete Plan):", e);
   }
 };
 
 export const pushInventoryToSupabase = async (record) => {
-  if (!supabase || !record) return;
+  if (!supabase || !record) return { ok: false, retryable: false };
   try {
     const dbInventory = {
       plan_id: record.planId,
@@ -469,14 +483,14 @@ export const pushInventoryToSupabase = async (record) => {
       history: record.history
     };
     const { error } = await supabase.from('inventory').upsert(dbInventory);
-    if (error) throw error;
+    return settle("Supabase Push Error (Inventory):", error);
   } catch (e) {
-    reportPushError("Supabase Push Error (Inventory):", e);
+    return settle("Supabase Push Error (Inventory):", e);
   }
 };
 
 export const pushCalendarNoteToSupabase = async (note) => {
-  if (!supabase) return;
+  if (!supabase) return { ok: false, retryable: true };
   try {
     const dbNote = {
       date_str: note.dateStr,
@@ -485,24 +499,24 @@ export const pushCalendarNoteToSupabase = async (note) => {
       ...attributionColumns(note)
     };
     const { error } = await supabase.from('calendar_notes').upsert(dbNote);
-    if (error) throw error;
+    return settle("Supabase Push Error (CalendarNote):", error);
   } catch (e) {
-    reportPushError("Supabase Push Error (CalendarNote):", e);
+    return settle("Supabase Push Error (CalendarNote):", e);
   }
 };
 
 export const deleteCalendarNoteFromSupabase = async (dateStr) => {
-  if (!supabase) return;
+  if (!supabase) return { ok: false, retryable: true };
   try {
     const { error } = await supabase.from('calendar_notes').delete().eq('date_str', dateStr);
-    if (error) throw error;
+    return settle("Supabase Push Error (Delete CalendarNote):", error);
   } catch (e) {
-    reportPushError("Supabase Push Error (Delete CalendarNote):", e);
+    return settle("Supabase Push Error (Delete CalendarNote):", e);
   }
 };
 
 export const pushReportToSupabase = async (report) => {
-  if (!supabase) return;
+  if (!supabase) return { ok: false, retryable: true };
   try {
     const reportDetails = {
       ...(report.details || {}),
@@ -529,20 +543,21 @@ export const pushReportToSupabase = async (report) => {
       delete dbReport.confirmed;
       delete dbReport.confirmed_at;
       const { error: fallbackErr } = await supabase.from('reports').upsert(dbReport);
-      if (fallbackErr) throw fallbackErr;
+      return settle("Supabase Push Error (Report):", fallbackErr);
     }
+    return OK;
   } catch (e) {
-    reportPushError("Supabase Push Error (Report):", e);
+    return settle("Supabase Push Error (Report):", e);
   }
 };
 
 export const deleteReportFromSupabase = async (id) => {
-  if (!supabase) return;
+  if (!supabase) return { ok: false, retryable: true };
   try {
     const { error } = await supabase.from('reports').delete().eq('id', id);
-    if (error) throw error;
+    return settle("Supabase Push Error (Delete Report):", error);
   } catch (e) {
-    reportPushError("Supabase Push Error (Delete Report):", e);
+    return settle("Supabase Push Error (Delete Report):", e);
   }
 };
 
@@ -678,7 +693,7 @@ export const fetchEventsFromSupabase = async () => {
 };
 
 export const pushMaterialCostToSupabase = async (materialCost) => {
-  if (!supabase) return;
+  if (!supabase) return { ok: false, retryable: true };
   try {
     const dbMaterial = {
       id: materialCost.id,
@@ -694,21 +709,19 @@ export const pushMaterialCostToSupabase = async (materialCost) => {
       updated_at: materialCost.updatedAt || new Date().toISOString()
     };
     const { error } = await supabase.from('material_costs').upsert(dbMaterial);
-    if (error) {
-      reportPushError("Supabase push material_costs warning:", error);
-    }
+    return settle("Supabase push material_costs warning:", error);
   } catch (e) {
-    reportPushError("Supabase Push Error (Material Cost):", e);
+    return settle("Supabase Push Error (Material Cost):", e);
   }
 };
 
 export const deleteMaterialCostFromSupabase = async (id) => {
-  if (!supabase) return;
+  if (!supabase) return { ok: false, retryable: true };
   try {
     const { error } = await supabase.from('material_costs').delete().eq('id', id);
-    if (error) throw error;
+    return settle("Supabase Push Error (Delete Material Cost):", error);
   } catch (e) {
-    reportPushError("Supabase Push Error (Delete Material Cost):", e);
+    return settle("Supabase Push Error (Delete Material Cost):", e);
   }
 };
 
