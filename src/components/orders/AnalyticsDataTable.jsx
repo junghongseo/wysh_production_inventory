@@ -1,9 +1,9 @@
 import React from 'react';
 
 const BREAKDOWN_COLUMNS = [
-  { countKey: 'count1', percentKey: 'percent1', totKey: 'tot1', pKey: 'p1', avgKey: 'avgCount1', label: '1개 주문', color: '#0284c7' },
-  { countKey: 'count2', percentKey: 'percent2', totKey: 'tot2', pKey: 'p2', avgKey: 'avgCount2', label: '2개 주문', color: '#0d9488' },
-  { countKey: 'count3Plus', percentKey: 'percent3Plus', totKey: 'tot3Plus', pKey: 'p3', avgKey: 'avgCount3Plus', label: '3개 이상', color: '#8b5cf6' }
+  { countKey: 'count1', percentKey: 'percent1', totKey: 'tot1', pKey: 'p1', avgKey: 'avgCount1', label: '1개 주문', short: '1개', color: '#0284c7' },
+  { countKey: 'count2', percentKey: 'percent2', totKey: 'tot2', pKey: 'p2', avgKey: 'avgCount2', label: '2개 주문', short: '2개', color: '#0d9488' },
+  { countKey: 'count3Plus', percentKey: 'percent3Plus', totKey: 'tot3Plus', pKey: 'p3', avgKey: 'avgCount3Plus', label: '3개 이상', short: '3개+', color: '#8b5cf6' }
 ];
 
 const EMPTY_BREAKDOWN = { count1: 0, count2: 0, count3Plus: 0, percent1: '0%', percent2: '0%', percent3Plus: '0%' };
@@ -97,13 +97,13 @@ const AnalyticsDataTable = ({ totalDays, pagedRows, breakdown, pageSize, setPage
 
     {/* Table Render */}
     <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+      <table className="analytics-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
         <thead>
           <tr style={{ backgroundColor: 'var(--bg-secondary)', borderBottom: '2px solid var(--border-color)' }}>
             <th style={{ padding: '9px 10px', textAlign: 'left', fontWeight: 700 }}>날짜</th>
-            <th style={{ padding: '9px 10px', textAlign: 'right', fontWeight: 700 }}>총 주문건수</th>
+            <th style={{ padding: '9px 10px', textAlign: 'right', fontWeight: 700 }}><span className="m-full">총 주문건수</span><span className="m-short">총</span></th>
             {BREAKDOWN_COLUMNS.map(col => (
-              <th key={col.countKey} style={{ padding: '9px 10px', textAlign: 'right', fontWeight: 700, color: col.color }}>{col.label}</th>
+              <th key={col.countKey} style={{ padding: '9px 10px', textAlign: 'right', fontWeight: 700, color: col.color }}><span className="m-full">{col.label}</span><span className="m-short">{col.short}</span></th>
             ))}
           </tr>
         </thead>
@@ -112,11 +112,11 @@ const AnalyticsDataTable = ({ totalDays, pagedRows, breakdown, pageSize, setPage
             const bk = c.qtyBreakdown || EMPTY_BREAKDOWN;
             return (
               <tr key={c.date} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                <td style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600 }}>{c.date}</td>
+                <td style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600 }}><span className="m-full">{c.date}</span><span className="m-short">{(c.date || '').slice(5)}</span></td>
                 <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 700 }}>{c.totalCount}건</td>
                 {BREAKDOWN_COLUMNS.map(col => (
                   <td key={col.countKey} style={{ padding: '8px 10px', textAlign: 'right', color: col.color }}>
-                    {bk[col.countKey]}건 <span style={{ fontSize: '0.75rem', opacity: 0.8 }}>({bk[col.percentKey]})</span>
+                    {bk[col.countKey]}건 <span className="analytics-pct" style={{ fontSize: '0.75rem', opacity: 0.8 }}>({bk[col.percentKey]})</span>
                   </td>
                 ))}
               </tr>
@@ -129,14 +129,15 @@ const AnalyticsDataTable = ({ totalDays, pagedRows, breakdown, pageSize, setPage
           {/* Row 1: Period Total Summary */}
           <tr style={{ backgroundColor: 'rgba(2, 132, 199, 0.06)', borderTop: '2px solid var(--color-primary)', fontWeight: 'bold' }}>
             <td style={{ padding: '9px 10px', textAlign: 'left', color: 'var(--text-primary)' }}>
-              조회 기간 총 합계 ({breakdown.totalDaysCount}일)
+              <span className="m-full">조회 기간 총 합계 ({breakdown.totalDaysCount}일)</span>
+              <span className="m-short">합계<br />({breakdown.totalDaysCount}일)</span>
             </td>
             <td style={{ padding: '9px 10px', textAlign: 'right', color: 'var(--text-primary)', fontSize: '0.88rem' }}>
               {breakdown.grandTotalOrders}건
             </td>
             {BREAKDOWN_COLUMNS.map(col => (
               <td key={col.countKey} style={{ padding: '9px 10px', textAlign: 'right', color: col.color }}>
-                {breakdown[col.totKey]}건 ({breakdown[col.pKey]}%)
+                {breakdown[col.totKey]}건 <span className="analytics-pct">({breakdown[col.pKey]}%)</span>
               </td>
             ))}
           </tr>
@@ -144,14 +145,15 @@ const AnalyticsDataTable = ({ totalDays, pagedRows, breakdown, pageSize, setPage
           {/* Row 2: Period Daily Average Summary */}
           <tr style={{ backgroundColor: 'rgba(13, 148, 136, 0.08)', borderTop: '1px solid rgba(13, 148, 136, 0.3)', fontWeight: 'bold' }}>
             <td style={{ padding: '9px 10px', textAlign: 'left', color: '#0f766e' }}>
-              📊 조회 기간 일평균 (Daily Avg)
+              <span className="m-full">📊 조회 기간 일평균 (Daily Avg)</span>
+              <span className="m-short">일평균</span>
             </td>
             <td style={{ padding: '9px 10px', textAlign: 'right', color: '#0f766e', fontSize: '0.88rem' }}>
-              평균 {breakdown.avgTotalOrders}건/일
+              <span className="m-full">평균 </span>{breakdown.avgTotalOrders}건<span className="m-full">/일</span>
             </td>
             {BREAKDOWN_COLUMNS.map(col => (
               <td key={col.countKey} style={{ padding: '9px 10px', textAlign: 'right', color: col.color }}>
-                평균 {breakdown[col.avgKey]}건
+                <span className="m-full">평균 </span>{breakdown[col.avgKey]}건
               </td>
             ))}
           </tr>

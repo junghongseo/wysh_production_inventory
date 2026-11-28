@@ -81,8 +81,8 @@ const ShipmentAnalyticsSection = ({ shippingCharts }) => {
         </div>
 
         {/* Range Selector */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>조회 기간:</span>
+        <div className="analytics-range" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span className="analytics-range-label" style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>조회 기간:</span>
           {RANGE_OPTIONS.map(r => (
             <button
               key={r.val}

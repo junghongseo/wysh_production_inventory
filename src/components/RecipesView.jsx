@@ -684,7 +684,7 @@ const RecipesView = ({
                     <div className="form-group">
                       <label htmlFor="edit-product-weight">단일 용량 중량 (g)</label>
                       <input 
-                        type="number" 
+                        type="number" inputMode="decimal" 
                         className="form-control" 
                         id="edit-product-weight" 
                         min="1"
@@ -696,7 +696,7 @@ const RecipesView = ({
                     <div className="form-group">
                       <label htmlFor="edit-product-yield">수율 (%)</label>
                       <input 
-                        type="number" 
+                        type="number" inputMode="decimal" 
                         className="form-control" 
                         id="edit-product-yield" 
                         min="1" 
@@ -716,7 +716,7 @@ const RecipesView = ({
                   <div className="form-group">
                     <label htmlFor="edit-product-shipping-days">최종 출고 기한 (일)</label>
                     <input 
-                      type="number" 
+                      type="number" inputMode="decimal" 
                       className="form-control" 
                       id="edit-product-shipping-days" 
                       min="1"
@@ -729,7 +729,7 @@ const RecipesView = ({
                   <div className="form-group">
                     <label htmlFor="edit-product-expiry-days">소비 기한 (일)</label>
                     <input 
-                      type="number" 
+                      type="number" inputMode="decimal" 
                       className="form-control" 
                       id="edit-product-expiry-days" 
                       min="1"
@@ -765,7 +765,7 @@ const RecipesView = ({
                     <div className="form-group">
                       <label htmlFor="edit-product-sterilization-temp">기본 살균 온도 (°C)</label>
                       <input 
-                        type="number" 
+                        type="number" inputMode="decimal" 
                         className="form-control" 
                         id="edit-product-sterilization-temp" 
                         value={defaultSterilizationTemp}
@@ -776,7 +776,7 @@ const RecipesView = ({
                     <div className="form-group">
                       <label htmlFor="edit-product-sterilization-time">기본 살균 시간 (분)</label>
                       <input 
-                        type="number" 
+                        type="number" inputMode="decimal" 
                         className="form-control" 
                         id="edit-product-sterilization-time" 
                         value={defaultSterilizationTime}
@@ -790,7 +790,7 @@ const RecipesView = ({
                     <div className="form-group">
                       <label htmlFor="edit-product-cooling-temp">기본 냉각 설정 온도 (°C)</label>
                       <input 
-                        type="number" 
+                        type="number" inputMode="decimal" 
                         className="form-control" 
                         id="edit-product-cooling-temp" 
                         value={defaultCoolingTemp}
@@ -801,7 +801,7 @@ const RecipesView = ({
                     <div className="form-group">
                       <label htmlFor="edit-product-inoculation-temp">기본 접종 온도 (°C)</label>
                       <input 
-                        type="number" 
+                        type="number" inputMode="decimal" 
                         className="form-control" 
                         id="edit-product-inoculation-temp" 
                         value={defaultInoculationTemp}
@@ -815,7 +815,7 @@ const RecipesView = ({
                     <div className="form-group">
                       <label htmlFor="edit-product-heating-temp">기본 가열 설정 온도 (°C)</label>
                       <input 
-                        type="number" 
+                        type="number" inputMode="decimal" 
                         className="form-control" 
                         id="edit-product-heating-temp" 
                         value={defaultHeatingTemp}
@@ -826,7 +826,7 @@ const RecipesView = ({
                     <div className="form-group">
                       <label htmlFor="edit-product-heater-temp">기본 히터 설정 온도 (°C)</label>
                       <input 
-                        type="number" 
+                        type="number" inputMode="decimal" 
                         className="form-control" 
                         id="edit-product-heater-temp" 
                         value={defaultHeaterTemp}
@@ -899,7 +899,7 @@ const RecipesView = ({
 
                       <div style={{ position: 'relative' }}>
                         <input 
-                          type="number" 
+                          type="number" inputMode="decimal" 
                           className="form-control ing-ratio-input" 
                           value={ing.ratio} 
                           onChange={(e) => handleIngredientChange(idx, 'ratio', e.target.value)}

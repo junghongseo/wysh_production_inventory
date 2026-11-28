@@ -68,7 +68,7 @@ const PackagingEditor = ({ packaging, onChange, packagingMaterials, costLines = 
             </select>
             <div style={{ position: 'relative', width: '90px' }}>
               <input
-                type="number"
+                type="number" inputMode="decimal"
                 className="form-control"
                 value={item.qty}
                 min="0"

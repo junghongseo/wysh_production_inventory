@@ -79,7 +79,7 @@ const FermentationReportForm = ({
           </div>
           <div className="report-check-bottom" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
             <input 
-              type="number" 
+              type="number" inputMode="decimal" 
               className="form-control inline-input" 
               value={sterilizationTemp} 
               onChange={(e) => setSterilizationTemp(e.target.value)}
@@ -88,7 +88,7 @@ const FermentationReportForm = ({
             />
             <span>°C 에서</span>
             <input 
-              type="number" 
+              type="number" inputMode="decimal" 
               className="form-control inline-input" 
               value={sterilizationTime} 
               onChange={(e) => setSterilizationTime(e.target.value)}
@@ -113,7 +113,7 @@ const FermentationReportForm = ({
           </div>
           <div className="report-check-bottom" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
             <input 
-              type="number" 
+              type="number" inputMode="decimal" 
               className="form-control inline-input" 
               value={coolingTemp} 
               onChange={(e) => setCoolingTemp(e.target.value)}
@@ -138,7 +138,7 @@ const FermentationReportForm = ({
           </div>
           <div className="report-check-bottom" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
             <input 
-              type="number" 
+              type="number" inputMode="decimal" 
               className="form-control inline-input" 
               value={inoculationTemp} 
               onChange={(e) => setInoculationTemp(e.target.value)}
@@ -163,7 +163,7 @@ const FermentationReportForm = ({
           </div>
           <div className="report-check-bottom" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
             <input 
-              type="number" 
+              type="number" inputMode="decimal" 
               className="form-control inline-input" 
               value={heatingTemp} 
               onChange={(e) => setHeatingTemp(e.target.value)}
@@ -188,7 +188,7 @@ const FermentationReportForm = ({
           </div>
           <div className="report-check-bottom" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
             <input 
-              type="number" 
+              type="number" inputMode="decimal" 
               className="form-control inline-input" 
               value={heaterTemp} 
               onChange={(e) => setHeaterTemp(e.target.value)}

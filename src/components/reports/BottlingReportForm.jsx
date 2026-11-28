@@ -39,7 +39,7 @@ const BottlingReportForm = ({
             <div className="form-group">
               <label style={{ fontSize: '0.84rem', fontWeight: 600 }}>병입 완제품 수량 (개)</label>
               <input 
-                type="number" 
+                type="number" inputMode="decimal" 
                 className="form-control" 
                 placeholder="예: 112"
                 value={bottlingCount}
@@ -52,7 +52,7 @@ const BottlingReportForm = ({
             <div className="form-group">
               <label style={{ fontSize: '0.84rem', fontWeight: 600 }}>미달 남은 양 (g)</label>
               <input 
-                type="number" 
+                type="number" inputMode="decimal" 
                 className="form-control" 
                 placeholder="예: 215"
                 value={bottlingRemainsG}
@@ -78,7 +78,7 @@ const BottlingReportForm = ({
                 <div className="form-group">
                   <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>병입 수량 (개)</label>
                   <input 
-                    type="number" 
+                    type="number" inputMode="decimal" 
                     className="form-control" 
                     placeholder="예: 112"
                     value={item1BottlingCount}
@@ -91,7 +91,7 @@ const BottlingReportForm = ({
                 <div className="form-group">
                   <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>미달 남은 양 (g)</label>
                   <input 
-                    type="number" 
+                    type="number" inputMode="decimal" 
                     className="form-control" 
                     placeholder="예: 215"
                     value={item1BottlingRemainsG}
@@ -112,7 +112,7 @@ const BottlingReportForm = ({
                 <div className="form-group">
                   <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>병입 수량 (개)</label>
                   <input 
-                    type="number" 
+                    type="number" inputMode="decimal" 
                     className="form-control" 
                     placeholder="예: 96"
                     value={item2BottlingCount}
@@ -125,7 +125,7 @@ const BottlingReportForm = ({
                 <div className="form-group">
                   <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>미달 남은 양 (g)</label>
                   <input 
-                    type="number" 
+                    type="number" inputMode="decimal" 
                     className="form-control" 
                     placeholder="예: 180"
                     value={item2BottlingRemainsG}
@@ -180,7 +180,7 @@ const BottlingReportForm = ({
             <div className="form-group" style={{ marginBottom: 0 }}>
               <label style={{ fontSize: '0.8rem', fontWeight: 600 }}>제외/샘플 수량 (개)</label>
               <input 
-                type="number" 
+                type="number" inputMode="decimal" 
                 className="form-control" 
                 placeholder="0"
                 value={bottlingDeductionQty}
@@ -202,7 +202,7 @@ const BottlingReportForm = ({
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label style={{ fontSize: '0.78rem', fontWeight: 600 }}>{bottlingCalculations.item1.productName} 제외 수량</label>
                 <input 
-                  type="number" 
+                  type="number" inputMode="decimal" 
                   className="form-control" 
                   placeholder="0"
                   value={item1DeductionQty}
@@ -223,7 +223,7 @@ const BottlingReportForm = ({
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label style={{ fontSize: '0.78rem', fontWeight: 600 }}>{bottlingCalculations.item2.productName} 제외 수량</label>
                 <input 
-                  type="number" 
+                  type="number" inputMode="decimal" 
                   className="form-control" 
                   placeholder="0"
                   value={item2DeductionQty}

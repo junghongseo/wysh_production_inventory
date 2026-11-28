@@ -879,8 +879,8 @@ const ReportsView = () => {
               </div>
             )}
 
-            {/* Buttons */}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
+            {/* Buttons (모바일에서는 화면 아래에 고정) */}
+            <div className="report-form-actions" style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '16px', borderTop: '1px solid var(--border-color)', paddingTop: '16px' }}>
               <button 
                 type="button" 
                 className="btn-secondary" 
