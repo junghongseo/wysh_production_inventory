@@ -8,6 +8,7 @@ import {
   clearCachedProfile
 } from './services/authStorage';
 import { flushPendingPushes, resetPushFailures } from './services/pushTracker';
+import { drainOutbox, clearOutbox } from './services/outbox';
 import { clearLocalDataCache } from './services/storageService';
 import { can as canWith, usernameToEmail, IDLE_LOGOUT_MS } from './utils/permissions';
 
@@ -107,16 +108,18 @@ export const AuthProvider = ({ children }) => {
     loggingOutRef.current = true;
     try {
       // 실패 건수는 이번 로그인 동안 쌓인 것을 그대로 보여 준다 (확인 전에 0으로 만들지 않는다)
-      const { pending, failures } = await flushPendingPushes();
+      const [{ pending: inFlight, failures }, queued] = await Promise.all([flushPendingPushes(), drainOutbox()]);
+      const pending = inFlight + queued;
       if (!skipConfirm && (pending > 0 || failures > 0)) {
         const ok = window.confirm(
-          `서버에 아직 저장되지 않았거나 저장에 실패한 변경이 있습니다 (전송 중 ${pending}건, 실패 ${failures}건).\n` +
+          `서버에 아직 저장되지 않았거나 저장에 실패한 변경이 있습니다 (저장 대기 ${pending}건, 실패 ${failures}건).\n` +
           '지금 로그아웃하면 이 변경은 사라질 수 있습니다. 그래도 로그아웃할까요?'
         );
         if (!ok) return false;
       }
       resetPushFailures();
       clearLocalDataCache();
+      clearOutbox();
       clearCachedProfile();
       try {
         sessionStorage.removeItem(LAST_ACTIVITY_KEY);
@@ -238,8 +241,9 @@ export const AuthProvider = ({ children }) => {
   const login = useCallback(async (username, password, remember) => {
     if (!supabase) return { error: 'Supabase 설정이 없어 로그인할 수 없습니다.' };
     setAuthNotice('');
-    // 이전 사용자의 로컬 캐시가 남아 있으면 비운다 (공용 기기)
+    // 이전 사용자의 로컬 캐시·저장 대기열이 남아 있으면 비운다 (공용 기기)
     clearLocalDataCache();
+    clearOutbox();
     setRememberMe(!!remember);
     const { data, error } = await supabase.auth.signInWithPassword({
       email: usernameToEmail(username),
