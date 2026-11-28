@@ -106,7 +106,7 @@ export const AuthProvider = ({ children }) => {
     if (loggingOutRef.current) return false;
     loggingOutRef.current = true;
     try {
-      resetPushFailures();
+      // 실패 건수는 이번 로그인 동안 쌓인 것을 그대로 보여 준다 (확인 전에 0으로 만들지 않는다)
       const { pending, failures } = await flushPendingPushes();
       if (!skipConfirm && (pending > 0 || failures > 0)) {
         const ok = window.confirm(
@@ -115,6 +115,7 @@ export const AuthProvider = ({ children }) => {
         );
         if (!ok) return false;
       }
+      resetPushFailures();
       clearLocalDataCache();
       clearCachedProfile();
       try {

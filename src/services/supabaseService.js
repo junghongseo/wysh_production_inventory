@@ -65,7 +65,9 @@ export const fetchAllRemoteData = async ({ canReadRecipes = false } = {}) => {
   const { data: remoteInventory, error: errInventory } = await supabase.from('inventory').select('*');
   if (errInventory) throw errInventory;
 
-  let mappedCalendarNotes = [];
+  // 보조 테이블 조회가 실패하면 null 을 돌려준다 → WyshContext 가 로컬 값을 그대로 유지한다
+  // (빈 배열로 덮어쓰면 잠깐 끊겼을 때 목록이 통째로 사라진다)
+  let mappedCalendarNotes = null;
   let remoteBannerSettings = null;
   try {
     const { data: remoteNotes, error: errNotes } = await supabase.from('calendar_notes').select('*');
@@ -110,7 +112,7 @@ export const fetchAllRemoteData = async ({ canReadRecipes = false } = {}) => {
     console.warn("Supabase Fetch Warning (app_settings):", errBannerFetch);
   }
 
-  let mappedReports = [];
+  let mappedReports = null;
   try {
     const { data: remoteReports, error: errReports } = await supabase.from('reports').select('*');
     if (errReports) {
@@ -141,7 +143,7 @@ export const fetchAllRemoteData = async ({ canReadRecipes = false } = {}) => {
     console.warn("Supabase Fetch Warning (reports):", errReportsFetch);
   }
 
-  let mappedShippingCharts = [];
+  let mappedShippingCharts = null;
   try {
     const { data: remoteCharts, error: errCharts } = await supabase.from('shipping_charts').select('*');
     if (errCharts) {
@@ -162,7 +164,7 @@ export const fetchAllRemoteData = async ({ canReadRecipes = false } = {}) => {
     console.warn("Supabase Fetch Warning (shipping_charts):", errChartsFetch);
   }
 
-  let mappedMaterialCosts = [];
+  let mappedMaterialCosts = null;
   try {
     const { data: remoteMaterials, error: errMaterials } = await supabase.from('material_costs').select('*');
     if (errMaterials) {
@@ -339,7 +341,7 @@ export const pushShippingChartToSupabase = async (chart) => {
       updated_at: chart.updatedAt || new Date().toISOString()
     };
     const { error } = await supabase.from('shipping_charts').upsert(dbChart);
-    if (error) console.warn("Supabase Push Warn (ShippingChart):", error);
+    if (error) reportPushError("Supabase Push Error (ShippingChart):", error);
   } catch (e) {
     reportPushError("Supabase Push Error (ShippingChart):", e);
   }
@@ -349,7 +351,7 @@ export const deleteShippingChartFromSupabase = async (date) => {
   if (!supabase || !date) return;
   try {
     const { error } = await supabase.from('shipping_charts').delete().eq('date', date);
-    if (error) console.warn("Supabase Push Warn (Delete ShippingChart):", error);
+    if (error) reportPushError("Supabase Push Error (Delete ShippingChart):", error);
   } catch (e) {
     reportPushError("Supabase Push Error (Delete ShippingChart):", e);
   }
