@@ -7,6 +7,7 @@ import AuthGate from './components/auth/AuthGate.jsx';
 import UpdateBanner from './components/UpdateBanner.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
 import './index.css';
+import './mobile.css';
 
 // 로그인 화면에도 저장된 테마를 적용 (App 마운트 전)
 document.documentElement.setAttribute('data-theme', localStorage.getItem('wysh-theme') || 'wysh-bw');

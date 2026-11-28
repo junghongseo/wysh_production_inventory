@@ -2,6 +2,18 @@ import React, { useState, useMemo, useCallback } from 'react';
 import { useWysh } from '../WyshContext';
 import { useAuth } from '../AuthContext';
 import { calculateItemStock } from '../utils/stockUtils';
+import useIsMobile from '../hooks/useIsMobile';
+import CalendarMobileAgenda from './calendar/CalendarMobileAgenda';
+
+const EVENT_COLORS = ['blue', 'black', 'purple', 'brown', 'indigo', 'orange', 'red', 'pink', 'teal', 'green', 'gray', 'yellow'];
+
+// 달력 일정 블록 색 (달력 칸과 모바일 목록이 같은 색을 쓴다)
+export const getEventColor = (prod, prodName, planIdx) => {
+  const color = prod?.color;
+  if (prodName.includes('머드') && (!color || color === 'blue')) return 'black';
+  if (prodName.includes('위시') && (!color || color === 'black')) return 'blue';
+  return color || EVENT_COLORS[planIdx % EVENT_COLORS.length];
+};
 
 // Local-time safe YYYY-MM-DD formatter
 const formatDate = (date) => {
@@ -32,6 +44,7 @@ const CalendarView = ({
   const canViewRecipe = can('calendar.recipe');
   const canEditNotes = can('calendar.notes');
   const { plans, products, inventory, reports, calendarNotes } = useWysh();
+  const isMobile = useIsMobile();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDateNote, setSelectedDateNote] = useState(null);
   const [selectedDate, setSelectedDate] = useState(null);
@@ -161,88 +174,103 @@ const CalendarView = ({
     };
   }, [filteredPlans]);
 
+  // 한 계획이 그날 어떤 일정인지 (없으면 null)
+  const buildDayEvent = useCallback((plan, planIdx, dateStr) => {
+    if (plan.planType === 'sub_ingredient') {
+      const subProd = products.find(p => p.id === plan.subProductId);
+      const targetYogurt = products.find(p => p.id === plan.targetYogurtProductId);
+      const subProdName = subProd ? subProd.name : '반제품';
+      const targetYogurtName = targetYogurt ? targetYogurt.name : '';
+
+      if (dateStr !== plan.startDate) return null;
+      return {
+        plan,
+        prod: subProd,
+        prodName: subProdName,
+        dayLabel: `🍞 [반제품] ${subProdName}`,
+        fullTitle: `🍞 [반제품 생산] ${subProdName} (${targetYogurtName} ${plan.targetYogurtQty || 0}개분)`,
+        dayClass: 'event-day-sub',
+        planIdx,
+        isMulti: false
+      };
+    }
+
+    const planItems = plan.items && Array.isArray(plan.items) && plan.items.length > 0 ? plan.items : [{ productId: plan.productId }];
+    const isMulti = planItems.length > 1;
+
+    const prodNames = planItems.map(it => {
+      const p = products.find(prod => prod.id === it.productId);
+      return p ? p.name : '';
+    }).filter(Boolean).join(' + ');
+
+    const prod = products.find(p => p.id === plan.productId);
+    const prodName = isMulti ? prodNames : (prod ? prod.name : '알수없음');
+    
+    const d1 = plan.startDate;
+    const d3 = plan.bottlingDate;
+
+    let isPlanDay = false;
+    let dayLabel = '';
+    let dayClass = '';
+
+    if (dateStr === d1) {
+      isPlanDay = true;
+      dayLabel = isMulti ? `✨ 2종 동시 | 🧪 발효 | ${prodName}` : `🧪 발효 | ${prodName}`;
+      dayClass = 'event-day-1';
+    } else if (dateStr === d3) {
+      isPlanDay = true;
+      dayLabel = isMulti ? `✨ 2종 동시 | 🍼 병입` : `🍼 병입 | 완료`;
+      dayClass = 'event-day-3';
+    } else if (dateStr > d1 && dateStr < d3) {
+      isPlanDay = true;
+      dayLabel = isMulti ? `✨ 2종 동시 | 🌀 유청분리` : `🌀 유청분리`;
+      dayClass = 'event-day-2';
+    }
+
+    if (!isPlanDay) return null;
+    return {
+      plan,
+      prod,
+      prodName,
+      dayLabel,
+      fullTitle: `${plan.name} (${prodName})\n1일차: 발효 | 2일차: 유청분리 | 3일차: 병입`,
+      dayClass,
+      planIdx,
+      isMulti
+    };
+  }, [products]);
+
   // Pre-calculate active plan events on all days
   const cellEventsMap = useMemo(() => {
     const map = {};
     calendarCells.forEach(cell => {
       const cellEvents = Array(planSlots.maxSlotCount).fill(null);
       filteredPlans.forEach((plan, planIdx) => {
-        if (plan.planType === 'sub_ingredient') {
-          const subProd = products.find(p => p.id === plan.subProductId);
-          const targetYogurt = products.find(p => p.id === plan.targetYogurtProductId);
-          const subProdName = subProd ? subProd.name : '반제품';
-          const targetYogurtName = targetYogurt ? targetYogurt.name : '';
-
-          if (cell.dateStr === plan.startDate) {
-            const assignedSlotIdx = planSlots.map[plan.id];
-            if (assignedSlotIdx !== undefined && assignedSlotIdx >= 0) {
-              cellEvents[assignedSlotIdx] = {
-                plan,
-                prod: subProd,
-                prodName: subProdName,
-                dayLabel: `🍞 [반제품] ${subProdName}`,
-                fullTitle: `🍞 [반제품 생산] ${subProdName} (${targetYogurtName} ${plan.targetYogurtQty || 0}개분)`,
-                dayClass: 'event-day-sub',
-                planIdx,
-                isMulti: false
-              };
-            }
-          }
-          return;
-        }
-
-        const planItems = plan.items && Array.isArray(plan.items) && plan.items.length > 0 ? plan.items : [{ productId: plan.productId }];
-        const isMulti = planItems.length > 1;
-
-        const prodNames = planItems.map(it => {
-          const p = products.find(prod => prod.id === it.productId);
-          return p ? p.name : '';
-        }).filter(Boolean).join(' + ');
-
-        const prod = products.find(p => p.id === plan.productId);
-        const prodName = isMulti ? prodNames : (prod ? prod.name : '알수없음');
-        
-        const d1 = plan.startDate;
-        const d3 = plan.bottlingDate;
-
-        let isPlanDay = false;
-        let dayLabel = '';
-        let dayClass = '';
-
-        if (cell.dateStr === d1) {
-          isPlanDay = true;
-          dayLabel = isMulti ? `✨ 2종 동시 | 🧪 발효 | ${prodName}` : `🧪 발효 | ${prodName}`;
-          dayClass = 'event-day-1';
-        } else if (cell.dateStr === d3) {
-          isPlanDay = true;
-          dayLabel = isMulti ? `✨ 2종 동시 | 🍼 병입` : `🍼 병입 | 완료`;
-          dayClass = 'event-day-3';
-        } else if (cell.dateStr > d1 && cell.dateStr < d3) {
-          isPlanDay = true;
-          dayLabel = isMulti ? `✨ 2종 동시 | 🌀 유청분리` : `🌀 유청분리`;
-          dayClass = 'event-day-2';
-        }
-
-        if (isPlanDay) {
-          const assignedSlotIdx = planSlots.map[plan.id];
-          if (assignedSlotIdx !== undefined && assignedSlotIdx >= 0) {
-            cellEvents[assignedSlotIdx] = {
-              plan,
-              prod,
-              prodName,
-              dayLabel,
-              fullTitle: `${plan.name} (${prodName})\n1일차: 발효 | 2일차: 유청분리 | 3일차: 병입`,
-              dayClass,
-              planIdx,
-              isMulti
-            };
-          }
+        const evt = buildDayEvent(plan, planIdx, cell.dateStr);
+        const assignedSlotIdx = planSlots.map[plan.id];
+        if (evt && assignedSlotIdx !== undefined && assignedSlotIdx >= 0) {
+          cellEvents[assignedSlotIdx] = evt;
         }
       });
       map[cell.dateStr] = cellEvents;
     });
     return map;
-  }, [calendarCells, filteredPlans, products, planSlots]);
+  }, [calendarCells, filteredPlans, planSlots, buildDayEvent]);
+
+  // 모바일 목록: 고른 날(없으면 오늘)부터 7일
+  const agendaDays = useMemo(() => {
+    if (!isMobile) return [];
+    const start = selectedDate || todayStr;
+    return Array.from({ length: 7 }, (_, i) => {
+      const dateStr = addDays(start, i);
+      const events = filteredPlans
+        .map((plan, planIdx) => buildDayEvent(plan, planIdx, dateStr))
+        .filter(Boolean)
+        .map(evt => ({ ...evt, color: getEventColor(evt.prod, evt.prodName, evt.planIdx) }));
+      const note = calendarNotes.find(n => n.dateStr === dateStr) || null;
+      return { dateStr, events, note };
+    });
+  }, [isMobile, selectedDate, todayStr, filteredPlans, buildDayEvent, calendarNotes]);
 
   // Right sidebar details calculations for all items
   const selectedPlanDetails = useMemo(() => {
@@ -396,24 +424,12 @@ const CalendarView = ({
     return { shipping, expiry };
   }, [selectedPlanDetails, selectedSubProductId]);
 
-  const scrollToDetailOnMobile = () => {
-    if (window.innerWidth <= 768) {
-      setTimeout(() => {
-        const detailElem = document.getElementById('plan-detail-content');
-        if (detailElem) {
-          detailElem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        }
-      }, 100);
-    }
-  };
-
   const handleDayClick = useCallback((dateStr) => {
     setSelectedPlan(null);
     setSelectedSubProductId('ALL');
     setSelectedDate(dateStr);
     const note = calendarNotes.find(n => n.dateStr === dateStr) || null;
     setSelectedDateNote(note);
-    scrollToDetailOnMobile();
   }, [setSelectedPlan, setSelectedDate, calendarNotes, setSelectedDateNote]);
 
   const handleDayDoubleClick = useCallback((dateStr) => {
@@ -491,7 +507,7 @@ const CalendarView = ({
               onClick={() => setScheduleTypeFilter('ALL')}
               style={{ padding: '4px 10px', fontSize: '0.78rem', borderRadius: '12px' }}
             >
-              🌐 전체 일정 ({currentMonthPlans.length})
+              <span className="chip-emoji">🌐 </span>전체 일정 ({currentMonthPlans.length})
             </button>
             <button
               type="button"
@@ -499,7 +515,7 @@ const CalendarView = ({
               onClick={() => setScheduleTypeFilter('yogurt')}
               style={{ padding: '4px 10px', fontSize: '0.78rem', borderRadius: '12px' }}
             >
-              🥛 요거트 생산 ({currentMonthPlans.filter(p => p.planType !== 'sub_ingredient').length})
+              <span className="chip-emoji">🥛 </span>요거트 생산 ({currentMonthPlans.filter(p => p.planType !== 'sub_ingredient').length})
             </button>
             <button
               type="button"
@@ -507,7 +523,7 @@ const CalendarView = ({
               onClick={() => setScheduleTypeFilter('sub')}
               style={{ padding: '4px 10px', fontSize: '0.78rem', borderRadius: '12px', background: scheduleTypeFilter === 'sub' ? '#ea580c' : '', borderColor: scheduleTypeFilter === 'sub' ? '#ea580c' : '' }}
             >
-              🍞 반제품 생산 ({currentMonthPlans.filter(p => p.planType === 'sub_ingredient').length})
+              <span className="chip-emoji">🍞 </span>반제품 생산 ({currentMonthPlans.filter(p => p.planType === 'sub_ingredient').length})
             </button>
           </div>
         </div>
@@ -546,7 +562,7 @@ const CalendarView = ({
             return (
               <div 
                 key={idx} 
-                className={`calendar-day-cell ${!cell.isCurrentMonth ? 'other-month' : ''} ${isToday ? 'today' : ''} ${isShippingHighlight ? 'highlight-shipping' : ''} ${isExpiryHighlight ? 'highlight-expiry' : ''} ${calendarNotes.some(n => n.dateStr === cell.dateStr) ? 'has-note' : ''}`}
+                className={`calendar-day-cell ${!cell.isCurrentMonth ? 'other-month' : ''} ${isToday ? 'today' : ''} ${isShippingHighlight ? 'highlight-shipping' : ''} ${isExpiryHighlight ? 'highlight-expiry' : ''} ${calendarNotes.some(n => n.dateStr === cell.dateStr) ? 'has-note' : ''} ${selectedDate === cell.dateStr ? 'is-selected-date' : ''}`}
                 onClick={() => handleDayClick(cell.dateStr)}
                 onDoubleClick={() => handleDayDoubleClick(cell.dateStr)}
                 style={{ cursor: 'pointer' }}
@@ -603,14 +619,7 @@ const CalendarView = ({
                     }
 
                     const { plan, prod, prodName, dayLabel, fullTitle, dayClass, planIdx } = evt;
-                    let eventColor = prod?.color;
-                    if (prodName.includes('머드') && (!eventColor || eventColor === 'blue')) {
-                      eventColor = 'black';
-                    } else if (prodName.includes('위시') && (!eventColor || eventColor === 'black')) {
-                      eventColor = 'blue';
-                    } else if (!eventColor) {
-                      eventColor = ['blue', 'black', 'purple', 'brown', 'indigo', 'orange', 'red', 'pink', 'teal', 'green', 'gray', 'yellow'][planIdx % 12];
-                    }
+                    const eventColor = getEventColor(prod, prodName, planIdx);
                     const isSelected = selectedPlan?.id === plan.id;
                     const isDimmed = selectedPlan && selectedPlan.id !== plan.id;
 
@@ -625,7 +634,6 @@ const CalendarView = ({
                           setSelectedSubProductId('ALL');
                           setSelectedDate(null);
                           setSelectedDateNote(null);
-                          scrollToDetailOnMobile();
                         }}
                       >
                         {dayLabel}
@@ -662,12 +670,36 @@ const CalendarView = ({
         </div>
       </div>
 
+      {/* 모바일: 달력 아래 날짜별 일정 목록 */}
+      {isMobile && (
+        <CalendarMobileAgenda
+          days={agendaDays}
+          todayStr={todayStr}
+          selectedPlanId={selectedPlan?.id}
+          canManagePlans={canManagePlans}
+          canEditNotes={canEditNotes}
+          onSelectPlan={(plan) => {
+            setSelectedPlan(plan);
+            setSelectedSubProductId('ALL');
+          }}
+          onOpenNote={onOpenNoteModal}
+          onRegister={() => onOpenRegisterModal(selectedDate)}
+        />
+      )}
 
-      {/* Right: Detail Panel */}
-      <div className="dashboard-detail-panel">
+      {/* Right: Detail Panel (모바일에서는 일정을 고르면 하단 시트로 열린다) */}
+      {(!isMobile || selectedPlanDetails) && (
+      <>
+      {isMobile && (
+        <div className="mobile-sheet-backdrop" onClick={() => setSelectedPlan(null)} />
+      )}
+      <div className={`dashboard-detail-panel ${isMobile ? 'mobile-sheet' : ''}`} role={isMobile ? 'dialog' : undefined} aria-label={isMobile ? '일정 상세' : undefined}>
         <div className="glass-card" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
           <div className="detail-header">
             <h3>상세 정보</h3>
+            {isMobile && (
+              <button type="button" className="mobile-sheet-close" onClick={() => setSelectedPlan(null)} aria-label="닫기">✕</button>
+            )}
           </div>
           
           <div id="plan-detail-content" style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', marginTop: '16px' }}>
@@ -982,7 +1014,7 @@ const CalendarView = ({
             )}
           </div>
           
-          {canManagePlans && (
+          {canManagePlans && !isMobile && (
             <div style={{ marginTop: '20px' }}>
               <button className="btn-primary" onClick={() => onOpenRegisterModal(selectedPlan ? null : selectedDate)} style={{ width: '100%', justifyContent: 'center' }}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -995,6 +1027,8 @@ const CalendarView = ({
           )}
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 };
