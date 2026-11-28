@@ -1,4 +1,4 @@
-# 개인 계정·권한 2단계 인수인계 (2026-11-27 기준)
+# 개인 계정·권한 2단계 인수인계 (2026-11-28 기준)
 
 다른 컴퓨터나 새 Claude 세션에서 이어서 작업하기 위한 메모입니다.
 
@@ -12,12 +12,17 @@
 | 로그아웃 수정 | `signOut({ scope: 'local' })` — 한 기기 로그아웃이 다른 기기 세션을 끊던 문제 (PR #6) | 운영 반영 |
 | 새 버전 자동 감지 | 켜 둔 앱이 `/version.json`으로 새 배포를 알아차리고 새로고침 (PR #8) | 운영 반영 |
 | 모바일 1단계 | 휴대폰 화면 깨짐·가림 수정, 계획은 `docs/mobile-ux-plan.md` (PR #9) | 운영 반영 |
+| 2-B | DB 잠금: anon 차단, 권한별 RLS, 배합 비율 `products`에서 제거, 출고 검증·보고서 확인 트리거 (PR #10·#11) | **운영 반영 2026-11-28 08:20** |
 
-- `ai-manager` Edge Function: v13, 게이트웨이 `verify_jwt = true`, 업무 데이터는 호출자 토큰으로 조회
+- `ai-manager` Edge Function: v15 (Gemini 4, PR #12), 게이트웨이 `verify_jwt = true`, 업무 데이터는 호출자 토큰으로 조회
 - `admin-users` Edge Function: v1, `verify_jwt = true`
-- 적용된 마이그레이션: `supabase_auth_profiles_migration.sql`, `supabase_recipe_view_permission_migration.sql`, `supabase_phase2a_data_separation_migration.sql`
+- 적용된 마이그레이션: `supabase_auth_profiles_migration.sql`, `supabase_recipe_view_permission_migration.sql`, `supabase_phase2a_data_separation_migration.sql`, `supabase_phase2b_backup.sql`, `supabase_phase2b_lock_migration.sql`
+- 2-B 백업 테이블 `backup_products_recipe_20261128` (제품 18개 배합 값). 문제 없으면 몇 주 뒤 DROP
+- 문제가 생기면 `supabase_phase2b_rollback.sql`로 열린 정책으로 되돌림
 
-**아직 기존 테이블의 RLS는 `USING (true)`로 열려 있습니다.** 화면에서만 권한을 숨기는 상태입니다.
+**2-B 적용 후 확인 (2026-11-28)**: DB에서 anon 조회 거부, `Allow public` 정책 0개, RLS 꺼진 테이블 없음, `products` 배합 값 0행, `test.worker`는 배합·단가·주문 0행, `hong`은 전부 조회. 사용자가 `hong`·`test.worker`로 앱 화면 확인 완료(모두 정상). 2-B 직전 빌드(`0352`)를 쓰던 `ehddn422`는 앱을 한 번 열면 자동 갱신.
+
+아래 2-B 섹션은 적용 기록으로 남겨 둡니다.
 
 ## 2-B에서 할 일 (DB 잠금)
 
@@ -90,13 +95,13 @@
 
 ## 2-B 시작 전 체크리스트
 
-- [ ] 팀원 관리 화면 "이전 버전 사용 0명" (최신 빌드 = PR #6 이후)
-- [ ] 팀원 공지: 사용하는 모든 기기(PC·휴대폰)를 한 번씩 열기, 오전에 세션이 끊긴 기기는 다시 로그인
-- [ ] 작업 시간 공지: 영업 종료 후 약 30분, 그 시간엔 입력 금지
+- [x] 이전 버전 확인: `ehddn422`만 `0352` 빌드(앱을 열면 자동 갱신), 나머지는 PR #10 이후 빌드
+- [x] 비영업일(토) 적용이라 별도 입력 금지 공지 생략. 전날 17:13 이후 접속자는 `hong`뿐
+- [x] 작업 시간: 토요일(비영업일) 오전에 적용
 - [x] 권한별 허용 표 사용자 결정 (보고서 삭제: 확인 권한자, AI 기록: 본인만)
 - [x] 잠금 SQL · 되돌리기 SQL · 백업 SQL 준비 (`supabase_phase2b_*.sql`)
 - [x] 잠금·되돌리기 SQL 사전 점검 (2026-11-27, 운영 DB에서 실행 후 강제 ROLLBACK). `products.ingredients` NOT NULL 문제를 찾아 수정. anon 차단, test.worker 읽기·쓰기 제한, 출고·보고서 보호 트리거, 새 제품·기존 제품 저장 시 배합 이동, 되돌리기 후 원래 상태와 동일함을 확인
-- [ ] 적용 직후 관리자(`hong`)와 `test.worker`로 확인 (로그인은 사용자가 직접)
+- [x] 적용 직후 관리자(`hong`)와 `test.worker`로 확인 (로그인은 사용자가 직접)
 
 ## 작업 규칙
 
